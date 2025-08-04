@@ -1,0 +1,1544 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zion Groceries - Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+
+        .container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        .sidebar {
+            width: 280px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-right: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .logo {
+            text-align: center;
+            margin-bottom: 30px;
+            color: white;
+        }
+
+        .logo h1 {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .logo p {
+            font-size: 12px;
+            opacity: 0.8;
+        }
+
+        .nav-item {
+            margin-bottom: 8px;
+            padding: 12px 16px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            color: white;
+            opacity: 0.8;
+        }
+
+        .nav-item:hover, .nav-item.active {
+            background: rgba(255, 255, 255, 0.2);
+            opacity: 1;
+            transform: translateX(5px);
+        }
+
+        .nav-item i {
+            margin-right: 10px;
+            width: 20px;
+        }
+
+        .main-content {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 30px;
+            color: white;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 25px;
+            text-align: center;
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: transform 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .stat-value {
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            font-size: 14px;
+            opacity: 0.8;
+        }
+
+        .content-section {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 25px;
+            margin-bottom: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: between;
+            align-items: center;
+            margin-bottom: 20px;
+            color: white;
+        }
+
+        .btn {
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+
+        .btn-danger {
+            background: linear-gradient(45deg, #f44336, #d32f2f);
+        }
+
+        .btn-warning {
+            background: linear-gradient(45deg, #ff9800, #f57c00);
+        }
+
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .table th, .table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+
+        .table th {
+            background: rgba(255, 255, 255, 0.2);
+            font-weight: bold;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-content {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 10% auto;
+            padding: 30px;
+            border-radius: 20px;
+            width: 90%;
+            max-width: 500px;
+            position: relative;
+            color: white;
+        }
+
+        .close {
+            color: white;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            position: absolute;
+            right: 20px;
+            top: 15px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: white;
+        }
+
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            font-size: 14px;
+        }
+
+        .form-group input::placeholder {
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .search-box {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            margin-bottom: 20px;
+        }
+
+        .search-box::placeholder {
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .chart-container {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .mpesa-status {
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 12px;
+        }
+
+        .debt-status-pending {
+            background: linear-gradient(45deg, #ff9800, #f57c00);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 12px;
+        }
+
+        .debt-status-paid {
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 12px;
+        }
+
+        .submenu {
+            display: none;
+            margin-left: 20px;
+        }
+
+        .submenu-item {
+            margin-bottom: 5px;
+            padding: 8px 12px;
+            font-size: 14px;
+        }
+
+        .submenu.show {
+            display: block;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 5px;
+        }
+
+        .btn-small {
+            padding: 5px 10px;
+            font-size: 12px;
+            border-radius: 5px;
+        }
+
+        /* Fix dropdown menu visibility */
+        .form-group select option {
+            background: #2c3e50;
+            color: white;
+            padding: 8px;
+        }
+
+        .form-group select {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        /* Section header alignment */
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <div class="logo">
+                <h1>🛒 ZION GROCERIES</h1>
+                <p>Dashboard Management System</p>
+            </div>
+            
+            <div class="nav-item active" onclick="showSection('dashboard')">
+                <i>📊</i> Dashboard
+            </div>
+            <div class="nav-item" onclick="showSection('sales')">
+                <i>💰</i> Sales
+            </div>
+            <div class="nav-item" onclick="showSection('sales-settings')">
+                <i>⚙️</i> Sales Settings
+            </div>
+            <div class="nav-item" onclick="showSection('sales-reports')">
+                <i>📈</i> Sales Reports
+            </div>
+            <div class="nav-item" onclick="showSection('expenses')">
+                <i>💸</i> Expenses
+            </div>
+            <div class="nav-item" onclick="toggleSubmenu('debt-management')">
+                <i>📋</i> Debt Management <span id="debt-arrow">▼</span>
+            </div>
+            <div id="debt-submenu" class="submenu">
+                <div class="nav-item submenu-item" onclick="showSection('individual-debts')">
+                    <i>👤</i> Individual Debts
+                </div>
+                <div class="nav-item submenu-item" onclick="showSection('grouped-debts')">
+                    <i>👥</i> Grouped Debts
+                </div>
+            </div>
+            <div class="nav-item" onclick="showSection('mpesa')">
+                <i>📱</i> M-Pesa Transactions
+            </div>
+        </div>
+
+        <div class="main-content">
+            <!-- Dashboard Section -->
+            <div id="dashboard" class="section">
+                <div class="header">
+                    <h1>Welcome to Zion Groceries Dashboard</h1>
+                    <p>Real-time business overview and analytics</p>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value" id="total-sales">KSh 0</div>
+                        <div class="stat-label">Total Sales</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="mpesa-total">KSh 0</div>
+                        <div class="stat-label">M-Pesa Sales</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="cash-total">KSh 0</div>
+                        <div class="stat-label">Cash Sales</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="todays-debts">KSh 0</div>
+                        <div class="stat-label">Today's Debts</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="daily-expenses">KSh 0</div>
+                        <div class="stat-label">Daily Expenses</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="monthly-sales">KSh 0</div>
+                        <div class="stat-label">Monthly Sales</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="monthly-expenses">KSh 0</div>
+                        <div class="stat-label">Monthly Expenses</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="outstanding-debt">KSh 0</div>
+                        <div class="stat-label">Outstanding Debt</div>
+                    </div>
+                </div>
+
+                <div class="content-section">
+                    <h3 style="color: white; margin-bottom: 20px;">Monthly Payment Distribution</h3>
+                    <div class="chart-container">
+                        <canvas id="paymentChart" width="400" height="200"></canvas>
+                    </div>
+                </div>
+
+                <div class="content-section">
+                    <h3 style="color: white; margin-bottom: 20px;">Weekly Sales Trends</h3>
+                    <div class="chart-container">
+                        <canvas id="weeklyChart" width="400" height="200"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sales Section -->
+            <div id="sales" class="section hidden">
+                <div class="section-header">
+                    <h2 style="color: white;">Sales Management</h2>
+                    <button class="btn" onclick="openModal('salesModal')">Create New Sale</button>
+                </div>
+                
+                <input type="text" class="search-box" placeholder="Search sales..." onkeyup="searchTable('salesTable', this.value)">
+                
+                <table class="table" id="salesTable">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Product</th>
+                            <th>Quantity</th>
+                            <th>Unit Price</th>
+                            <th>Total</th>
+                            <th>Payment Method</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="salesTableBody">
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Sales Settings Section -->
+            <div id="sales-settings" class="section hidden">
+                <div class="section-header">
+                    <h2 style="color: white;">Sales Settings - Product Management</h2>
+                    <button class="btn" onclick="openModal('productModal')">Add New Product</button>
+                </div>
+                
+                <input type="text" class="search-box" placeholder="Search products..." onkeyup="searchTable('productsTable', this.value)">
+                
+                <table class="table" id="productsTable">
+                    <thead>
+                        <tr>
+                            <th>Product Name</th>
+                            <th>Category</th>
+                            <th>Unit Price</th>
+                            <th>Stock Quantity</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="productsTableBody">
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Sales Reports Section -->
+            <div id="sales-reports" class="section hidden">
+                <div class="section-header">
+                    <h2 style="color: white;">Sales Reports</h2>
+                    <div>
+                        <button class="btn" onclick="generateDailyReport()">Daily Report</button>
+                        <button class="btn" onclick="generateWeeklyReport()">Weekly Report</button>
+                        <button class="btn" onclick="generateMonthlyReport()">Monthly Report</button>
+                        <button class="btn" onclick="exportReport()">Export PDF</button>
+                    </div>
+                </div>
+                
+                <div class="content-section">
+                    <div id="reportContent">
+                        <p style="color: white; text-align: center; padding: 40px;">Select a report type to view analytics</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Expenses Section -->
+            <div id="expenses" class="section hidden">
+                <div class="section-header">
+                    <h2 style="color: white;">Expenses Management</h2>
+                    <button class="btn" onclick="openModal('expenseModal')">Add New Expense</button>
+                </div>
+                
+                <input type="text" class="search-box" placeholder="Search expenses..." onkeyup="searchTable('expensesTable', this.value)">
+                
+                <table class="table" id="expensesTable">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Description</th>
+                            <th>Category</th>
+                            <th>Amount</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="expensesTableBody">
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Debt Management Section -->
+            <div id="debt-management" class="section hidden">
+                <div class="section-header">
+                    <h2 style="color: white;">Debt Management Overview</h2>
+                </div>
+                
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value" id="total-outstanding">KSh 0</div>
+                        <div class="stat-label">Total Outstanding</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="total-debtors">0</div>
+                        <div class="stat-label">Total Debtors</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="overdue-debts">KSh 0</div>
+                        <div class="stat-label">Overdue Debts</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Individual Debts Section -->
+            <div id="individual-debts" class="section hidden">
+                <div class="section-header">
+                    <h2 style="color: white;">Individual Debts</h2>
+                    <button class="btn" onclick="openModal('debtModal')">Record New Debt</button>
+                </div>
+                
+                <input type="text" class="search-box" placeholder="Search debts..." onkeyup="searchTable('debtsTable', this.value)">
+                
+                <table class="table" id="debtsTable">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Customer Name</th>
+                            <th>Phone</th>
+                            <th>Amount</th>
+                            <th>Status</th>
+                            <th>Due Date</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="debtsTableBody">
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Grouped Debts Section -->
+            <div id="grouped-debts" class="section hidden">
+                <div class="section-header">
+                    <h2 style="color: white;">Grouped Debts</h2>
+                </div>
+                
+                <div class="content-section">
+                    <div id="groupedDebtsContent">
+                        <!-- This will be populated with grouped debt data -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- M-Pesa Section -->
+            <div id="mpesa" class="section hidden">
+                <div class="section-header">
+                    <h2 style="color: white;">M-Pesa Transactions</h2>
+                    <div>
+                        <p style="color: white; margin-bottom: 10px;">Pochi La Biashara: 0117511337</p>
+                        <button class="btn" onclick="refreshMpesaTransactions()">Refresh Transactions</button>
+                    </div>
+                </div>
+                
+                <table class="table" id="mpesaTable">
+                    <thead>
+                        <tr>
+                            <th>Transaction ID</th>
+                            <th>Date/Time</th>
+                            <th>Amount</th>
+                            <th>Customer Phone</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="mpesaTableBody">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <!-- Sales Modal -->
+    <div id="salesModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('salesModal')">&times;</span>
+            <h2>Create New Sale</h2>
+            <form onsubmit="addSale(event)">
+                <div class="form-group">
+                    <label>Product</label>
+                    <select id="saleProduct" required>
+                        <option value="">Select Product</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Quantity</label>
+                    <input type="number" id="saleQuantity" required min="1">
+                </div>
+                <div class="form-group">
+                    <label>Payment Method</label>
+                    <select id="salePaymentMethod" required>
+                        <option value="cash">Cash</option>
+                        <option value="mpesa">M-Pesa</option>
+                        <option value="debt">Debt</option>
+                    </select>
+                </div>
+                <div class="form-group" id="customerInfoGroup" style="display: none;">
+                    <label>Customer Name</label>
+                    <input type="text" id="customerName">
+                </div>
+                <div class="form-group" id="customerPhoneGroup" style="display: none;">
+                    <label>Customer Phone</label>
+                    <input type="tel" id="customerPhone">
+                </div>
+                <button type="submit" class="btn">Create Sale</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Product Modal -->
+    <div id="productModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('productModal')">&times;</span>
+            <h2>Add New Product</h2>
+            <form onsubmit="addProduct(event)">
+                <div class="form-group">
+                    <label>Product Name</label>
+                    <input type="text" id="productName" required>
+                </div>
+                <div class="form-group">
+                    <label>Category</label>
+                    <select id="productCategory" required>
+                        <option value="fruits">Fruits</option>
+                        <option value="vegetables">Vegetables</option>
+                        <option value="dairy">Dairy</option>
+                        <option value="grains">Grains</option>
+                        <option value="beverages">Beverages</option>
+                        <option value="snacks">Snacks</option>
+                        <option value="household">Household</option>
+                        <option value="fun">Fun (PlayStation Sales)</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Unit Price (KSh)</label>
+                    <input type="number" id="productPrice" required min="0" step="0.01">
+                </div>
+                <div class="form-group">
+                    <label>Stock Quantity</label>
+                    <input type="number" id="productStock" required min="0">
+                </div>
+                <button type="submit" class="btn">Add Product</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Expense Modal -->
+    <div id="expenseModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('expenseModal')">&times;</span>
+            <h2>Add New Expense</h2>
+            <form onsubmit="addExpense(event)">
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea id="expenseDescription" required rows="3"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Category</label>
+                    <select id="expenseCategory" required>
+                        <option value="inventory">Inventory Purchase</option>
+                        <option value="utilities">Utilities</option>
+                        <option value="rent">Rent</option>
+                        <option value="transport">Transport</option>
+                        <option value="marketing">Marketing</option>
+                        <option value="maintenance">Maintenance</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Amount (KSh)</label>
+                    <input type="number" id="expenseAmount" required min="0" step="0.01">
+                </div>
+                <button type="submit" class="btn">Add Expense</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Debt Modal -->
+    <div id="debtModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('debtModal')">&times;</span>
+            <h2>Record New Debt</h2>
+            <form onsubmit="addDebt(event)">
+                <div class="form-group">
+                    <label>Customer Name</label>
+                    <input type="text" id="debtCustomerName" required>
+                </div>
+                <div class="form-group">
+                    <label>Customer Phone</label>
+                    <input type="tel" id="debtCustomerPhone" required>
+                </div>
+                <div class="form-group">
+                    <label>Amount (KSh)</label>
+                    <input type="number" id="debtAmount" required min="0" step="0.01">
+                </div>
+                <div class="form-group">
+                    <label>Due Date</label>
+                    <input type="date" id="debtDueDate" required>
+                </div>
+                <button type="submit" class="btn">Record Debt</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Global data storage
+        const data = {
+            products: [],
+            sales: [],
+            expenses: [],
+            debts: [],
+            mpesaTransactions: []
+        };
+
+        // Initialize charts
+        let paymentChart = null;
+        let weeklyChart = null;
+
+        // Navigation with submenu support
+        function showSection(sectionId) {
+            // Hide all sections
+            document.querySelectorAll('.section').forEach(section => {
+                section.classList.add('hidden');
+            });
+            
+            // Remove active class from all nav items
+            document.querySelectorAll('.nav-item').forEach(nav => {
+                nav.classList.remove('active');
+            });
+            
+            // Show selected section
+            document.getElementById(sectionId).classList.remove('hidden');
+            
+            // Add active class to clicked nav item
+            if (event && event.target) {
+                event.target.classList.add('active');
+            }
+            
+            // Initialize charts if dashboard is selected
+            if (sectionId === 'dashboard') {
+                setTimeout(initializeCharts, 100);
+            }
+        }
+
+        function toggleSubmenu(menuId) {
+            const submenu = document.getElementById(menuId.replace('-management', '-submenu'));
+            const arrow = document.getElementById('debt-arrow');
+            
+            if (submenu.classList.contains('show')) {
+                submenu.classList.remove('show');
+                arrow.textContent = '▼';
+            } else {
+                submenu.classList.add('show');
+                arrow.textContent = '▲';
+            }
+        }
+
+        // Modal functions
+        function openModal(modalId) {
+            document.getElementById(modalId).style.display = 'block';
+            
+            // Populate product dropdown if sales modal
+            if (modalId === 'salesModal') {
+                populateProductDropdown();
+            }
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+            // Reset forms when closing
+            const form = document.querySelector(`#${modalId} form`);
+            if (form) {
+                form.reset();
+            }
+        }
+
+        // Product management
+        function addProduct(event) {
+            event.preventDefault();
+            
+            const product = {
+                id: Date.now(),
+                name: document.getElementById('productName').value,
+                category: document.getElementById('productCategory').value,
+                price: parseFloat(document.getElementById('productPrice').value),
+                stock: parseInt(document.getElementById('productStock').value)
+            };
+            
+            data.products.push(product);
+            renderProductsTable();
+            updateDashboard();
+            closeModal('productModal');
+            event.target.reset();
+        }
+
+        function renderProductsTable() {
+            const tbody = document.getElementById('productsTableBody');
+            tbody.innerHTML = '';
+            
+            data.products.forEach(product => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${product.name}</td>
+                    <td>${product.category}</td>
+                    <td>KSh ${product.price.toFixed(2)}</td>
+                    <td>${product.stock}</td>
+                    <td class="action-buttons">
+                        <button class="btn btn-small" onclick="editProduct(${product.id})">Edit</button>
+                        <button class="btn btn-danger btn-small" onclick="deleteProduct(${product.id})">Delete</button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function deleteProduct(id) {
+            if (confirm('Are you sure you want to delete this product?')) {
+                data.products = data.products.filter(product => product.id !== id);
+                renderProductsTable();
+                updateDashboard();
+            }
+        }
+
+        function populateProductDropdown() {
+            const select = document.getElementById('saleProduct');
+            select.innerHTML = '<option value="">Select Product</option>';
+            
+            data.products.forEach(product => {
+                if (product.stock > 0) { // Only show products with stock
+                    const option = document.createElement('option');
+                    option.value = product.id;
+                    option.textContent = `${product.name} - KSh ${product.price.toFixed(2)} (Stock: ${product.stock})`;
+                    option.style.background = '#2c3e50';
+                    option.style.color = 'white';
+                    select.appendChild(option);
+                }
+            });
+        }
+
+        // Sales management
+        document.getElementById('salePaymentMethod').addEventListener('change', function() {
+            const method = this.value;
+            const customerInfo = document.getElementById('customerInfoGroup');
+            const customerPhone = document.getElementById('customerPhoneGroup');
+            
+            if (method === 'debt') {
+                customerInfo.style.display = 'block';
+                customerPhone.style.display = 'block';
+                document.getElementById('customerName').required = true;
+                document.getElementById('customerPhone').required = true;
+            } else {
+                customerInfo.style.display = 'none';
+                customerPhone.style.display = 'none';
+                document.getElementById('customerName').required = false;
+                document.getElementById('customerPhone').required = false;
+            }
+        });
+
+        function addSale(event) {
+            event.preventDefault();
+            
+            const productId = parseInt(document.getElementById('saleProduct').value);
+            const product = data.products.find(p => p.id === productId);
+            const quantity = parseInt(document.getElementById('saleQuantity').value);
+            const paymentMethod = document.getElementById('salePaymentMethod').value;
+            
+            if (!product) {
+                alert('Please select a valid product');
+                return;
+            }
+            
+            if (product.stock < quantity) {
+                alert('Insufficient stock available');
+                return;
+            }
+            
+            const total = product.price * quantity;
+            const sale = {
+                id: Date.now(),
+                date: new Date().toISOString().split('T')[0],
+                productId: productId,
+                productName: product.name,
+                quantity: quantity,
+                unitPrice: product.price,
+                total: total,
+                paymentMethod: paymentMethod,
+                status: paymentMethod === 'debt' ? 'pending' : 'completed',
+                customerName: document.getElementById('customerName').value || '',
+                customerPhone: document.getElementById('customerPhone').value || ''
+            };
+            
+            // Update product stock
+            product.stock -= quantity;
+            
+            // Add debt record if payment method is debt
+            if (paymentMethod === 'debt') {
+                const debt = {
+                    id: Date.now() + 1,
+                    date: new Date().toISOString().split('T')[0],
+                    customerName: sale.customerName,
+                    customerPhone: sale.customerPhone,
+                    amount: total,
+                    status: 'pending',
+                    dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] // 7 days from now
+                };
+                data.debts.push(debt);
+                renderDebtsTable();
+            }
+            
+            // Simulate M-Pesa transaction if payment method is mpesa
+            if (paymentMethod === 'mpesa') {
+                const mpesaTransaction = {
+                    id: 'MP' + Date.now(),
+                    date: new Date().toLocaleString(),
+                    amount: total,
+                    customerPhone: '254' + Math.floor(Math.random() * 1000000000),
+                    status: 'completed'
+                };
+                data.mpesaTransactions.push(mpesaTransaction);
+                renderMpesaTable();
+            }
+            
+            data.sales.push(sale);
+            renderSalesTable();
+            renderProductsTable();
+            updateDashboard();
+            closeModal('salesModal');
+            event.target.reset();
+        }
+
+        function renderSalesTable() {
+            const tbody = document.getElementById('salesTableBody');
+            tbody.innerHTML = '';
+            
+            data.sales.forEach(sale => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${sale.date}</td>
+                    <td>${sale.productName}</td>
+                    <td>${sale.quantity}</td>
+                    <td>KSh ${sale.unitPrice.toFixed(2)}</td>
+                    <td>KSh ${sale.total.toFixed(2)}</td>
+                    <td>${sale.paymentMethod.toUpperCase()}</td>
+                    <td><span class="${sale.status === 'completed' ? 'mpesa-status' : 'debt-status-pending'}">${sale.status}</span></td>
+                    <td class="action-buttons">
+                        <button class="btn btn-small" onclick="editSale(${sale.id})">Edit</button>
+                        <button class="btn btn-danger btn-small" onclick="deleteSale(${sale.id})">Delete</button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function deleteSale(id) {
+            if (confirm('Are you sure you want to delete this sale?')) {
+                const sale = data.sales.find(s => s.id === id);
+                if (sale) {
+                    // Restore product stock
+                    const product = data.products.find(p => p.id === sale.productId);
+                    if (product) {
+                        product.stock += sale.quantity;
+                    }
+                }
+                data.sales = data.sales.filter(sale => sale.id !== id);
+                renderSalesTable();
+                renderProductsTable();
+                updateDashboard();
+            }
+        }
+
+        // Expense management
+        function addExpense(event) {
+            event.preventDefault();
+            
+            const expense = {
+                id: Date.now(),
+                date: new Date().toISOString().split('T')[0],
+                description: document.getElementById('expenseDescription').value,
+                category: document.getElementById('expenseCategory').value,
+                amount: parseFloat(document.getElementById('expenseAmount').value)
+            };
+            
+            data.expenses.push(expense);
+            renderExpensesTable();
+            updateDashboard();
+            closeModal('expenseModal');
+            event.target.reset();
+        }
+
+        function renderExpensesTable() {
+            const tbody = document.getElementById('expensesTableBody');
+            tbody.innerHTML = '';
+            
+            data.expenses.forEach(expense => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${expense.date}</td>
+                    <td>${expense.description}</td>
+                    <td>${expense.category}</td>
+                    <td>KSh ${expense.amount.toFixed(2)}</td>
+                    <td class="action-buttons">
+                        <button class="btn btn-small" onclick="editExpense(${expense.id})">Edit</button>
+                        <button class="btn btn-danger btn-small" onclick="deleteExpense(${expense.id})">Delete</button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function deleteExpense(id) {
+            if (confirm('Are you sure you want to delete this expense?')) {
+                data.expenses = data.expenses.filter(expense => expense.id !== id);
+                renderExpensesTable();
+                updateDashboard();
+            }
+        }
+
+        // Debt management
+        function addDebt(event) {
+            event.preventDefault();
+            
+            const debt = {
+                id: Date.now(),
+                date: new Date().toISOString().split('T')[0],
+                customerName: document.getElementById('debtCustomerName').value,
+                customerPhone: document.getElementById('debtCustomerPhone').value,
+                amount: parseFloat(document.getElementById('debtAmount').value),
+                status: 'pending',
+                dueDate: document.getElementById('debtDueDate').value
+            };
+            
+            data.debts.push(debt);
+            renderDebtsTable();
+            updateDashboard();
+            closeModal('debtModal');
+            event.target.reset();
+        }
+
+        function renderDebtsTable() {
+            const tbody = document.getElementById('debtsTableBody');
+            tbody.innerHTML = '';
+            
+            data.debts.forEach(debt => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${debt.date}</td>
+                    <td>${debt.customerName}</td>
+                    <td>${debt.customerPhone}</td>
+                    <td>KSh ${debt.amount.toFixed(2)}</td>
+                    <td><span class="debt-status-${debt.status}">${debt.status}</span></td>
+                    <td>${debt.dueDate}</td>
+                    <td class="action-buttons">
+                        <button class="btn btn-small" onclick="markDebtPaid(${debt.id})">Mark Paid</button>
+                        <button class="btn btn-danger btn-small" onclick="deleteDebt(${debt.id})">Delete</button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+            
+            // Update grouped debts
+            updateGroupedDebts();
+        }
+
+        function updateGroupedDebts() {
+            const groupedDebtsContainer = document.getElementById('groupedDebtsContent');
+            
+            // Group debts by customer
+            const groupedDebts = {};
+            data.debts.filter(debt => debt.status === 'pending').forEach(debt => {
+                const key = `${debt.customerName}_${debt.customerPhone}`;
+                if (!groupedDebts[key]) {
+                    groupedDebts[key] = {
+                        customerName: debt.customerName,
+                        customerPhone: debt.customerPhone,
+                        debts: [],
+                        totalAmount: 0
+                    };
+                }
+                groupedDebts[key].debts.push(debt);
+                groupedDebts[key].totalAmount += debt.amount;
+            });
+            
+            // Filter customers with multiple debts
+            const multipleDebts = Object.values(groupedDebts).filter(group => group.debts.length > 1);
+            
+            if (multipleDebts.length === 0) {
+                groupedDebtsContainer.innerHTML = '<p style="color: white; text-align: center; padding: 40px;">No customers with multiple pending debts found.</p>';
+                return;
+            }
+            
+            let html = '<h3 style="color: white; margin-bottom: 20px;">Customers with Multiple Pending Debts</h3>';
+            html += '<table class="table"><thead><tr><th>Customer</th><th>Phone</th><th>Number of Debts</th><th>Total Amount</th><th>Actions</th></tr></thead><tbody>';
+            
+            multipleDebts.forEach(group => {
+                html += `
+                    <tr>
+                        <td>${group.customerName}</td>
+                        <td>${group.customerPhone}</td>
+                        <td>${group.debts.length}</td>
+                        <td>KSh ${group.totalAmount.toFixed(2)}</td>
+                        <td class="action-buttons">
+                            <button class="btn btn-small" onclick="viewCustomerDebts('${group.customerName}', '${group.customerPhone}')">View Details</button>
+                            <button class="btn btn-small" onclick="markAllCustomerDebtsPaid('${group.customerName}', '${group.customerPhone}')">Mark All Paid</button>
+                        </td>
+                    </tr>
+                `;
+            });
+            
+            html += '</tbody></table>';
+            groupedDebtsContainer.innerHTML = html;
+        }
+
+        function viewCustomerDebts(customerName, customerPhone) {
+            const customerDebts = data.debts.filter(debt => 
+                debt.customerName === customerName && 
+                debt.customerPhone === customerPhone && 
+                debt.status === 'pending'
+            );
+            
+            let details = `Customer: ${customerName}\nPhone: ${customerPhone}\n\nPending Debts:\n`;
+            customerDebts.forEach((debt, index) => {
+                details += `${index + 1}. Date: ${debt.date}, Amount: KSh ${debt.amount.toFixed(2)}, Due: ${debt.dueDate}\n`;
+            });
+            
+            alert(details);
+        }
+
+        function markAllCustomerDebtsPaid(customerName, customerPhone) {
+            if (confirm(`Mark all debts for ${customerName} as paid?`)) {
+                data.debts.forEach(debt => {
+                    if (debt.customerName === customerName && 
+                        debt.customerPhone === customerPhone && 
+                        debt.status === 'pending') {
+                        debt.status = 'paid';
+                    }
+                });
+                renderDebtsTable();
+                updateDashboard();
+            }
+        }
+
+        function markDebtPaid(id) {
+            const debt = data.debts.find(d => d.id === id);
+            if (debt) {
+                debt.status = 'paid';
+                renderDebtsTable();
+                updateDashboard();
+            }
+        }
+
+        function deleteDebt(id) {
+            if (confirm('Are you sure you want to delete this debt record?')) {
+                data.debts = data.debts.filter(debt => debt.id !== id);
+                renderDebtsTable();
+                updateDashboard();
+            }
+        }
+
+        // M-Pesa management
+        function renderMpesaTable() {
+            const tbody = document.getElementById('mpesaTableBody');
+            tbody.innerHTML = '';
+            
+            data.mpesaTransactions.forEach(transaction => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${transaction.id}</td>
+                    <td>${transaction.date}</td>
+                    <td>KSh ${transaction.amount.toFixed(2)}</td>
+                    <td>${transaction.customerPhone}</td>
+                    <td><span class="mpesa-status">${transaction.status}</span></td>
+                    <td class="action-buttons">
+                        <button class="btn btn-small" onclick="viewTransaction('${transaction.id}')">View</button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function refreshMpesaTransactions() {
+            // Simulate API call to fetch M-Pesa transactions
+            alert('Fetching latest M-Pesa transactions from Pochi La Biashara (0117511337)...');
+            
+            // Simulate some new transactions
+            const newTransactions = [
+                {
+                    id: 'MP' + Date.now(),
+                    date: new Date().toLocaleString(),
+                    amount: Math.floor(Math.random() * 5000) + 100,
+                    customerPhone: '254' + Math.floor(Math.random() * 1000000000),
+                    status: 'completed'
+                }
+            ];
+            
+            data.mpesaTransactions.push(...newTransactions);
+            renderMpesaTable();
+            updateDashboard();
+        }
+
+        // Search functionality
+        function searchTable(tableId, searchTerm) {
+            const table = document.getElementById(tableId);
+            const rows = table.getElementsByTagName('tbody')[0].getElementsByTagName('tr');
+            
+            for (let i = 0; i < rows.length; i++) {
+                const row = rows[i];
+                const cells = row.getElementsByTagName('td');
+                let found = false;
+                
+                for (let j = 0; j < cells.length; j++) {
+                    if (cells[j].textContent.toLowerCase().indexOf(searchTerm.toLowerCase()) > -1) {
+                        found = true;
+                        break;
+                    }
+                }
+                
+                row.style.display = found ? '' : 'none';
+            }
+        }
+
+        // Dashboard updates
+        function updateDashboard() {
+            const today = new Date().toISOString().split('T')[0];
+            const currentMonth = new Date().getMonth();
+            const currentYear = new Date().getFullYear();
+            
+            // Calculate totals
+            const totalSales = data.sales.reduce((sum, sale) => sum + sale.total, 0);
+            const mpesaTotal = data.sales.filter(sale => sale.paymentMethod === 'mpesa').reduce((sum, sale) => sum + sale.total, 0);
+            const cashTotal = data.sales.filter(sale => sale.paymentMethod === 'cash').reduce((sum, sale) => sum + sale.total, 0);
+            const todaysDebts = data.debts.filter(debt => debt.date === today).reduce((sum, debt) => sum + debt.amount, 0);
+            const dailyExpenses = data.expenses.filter(expense => expense.date === today).reduce((sum, expense) => sum + expense.amount, 0);
+            
+            const monthlySales = data.sales.filter(sale => {
+                const saleDate = new Date(sale.date);
+                return saleDate.getMonth() === currentMonth && saleDate.getFullYear() === currentYear;
+            }).reduce((sum, sale) => sum + sale.total, 0);
+            
+            const monthlyExpenses = data.expenses.filter(expense => {
+                const expenseDate = new Date(expense.date);
+                return expenseDate.getMonth() === currentMonth && expenseDate.getFullYear() === currentYear;
+            }).reduce((sum, expense) => sum + expense.amount, 0);
+            
+            const outstandingDebt = data.debts.filter(debt => debt.status === 'pending').reduce((sum, debt) => sum + debt.amount, 0);
+            
+            // Update dashboard stats
+            document.getElementById('total-sales').textContent = `KSh ${totalSales.toFixed(2)}`;
+            document.getElementById('mpesa-total').textContent = `KSh ${mpesaTotal.toFixed(2)}`;
+            document.getElementById('cash-total').textContent = `KSh ${cashTotal.toFixed(2)}`;
+            document.getElementById('todays-debts').textContent = `KSh ${todaysDebts.toFixed(2)}`;
+            document.getElementById('daily-expenses').textContent = `KSh ${dailyExpenses.toFixed(2)}`;
+            document.getElementById('monthly-sales').textContent = `KSh ${monthlySales.toFixed(2)}`;
+            document.getElementById('monthly-expenses').textContent = `KSh ${monthlyExpenses.toFixed(2)}`;
+            document.getElementById('outstanding-debt').textContent = `KSh ${outstandingDebt.toFixed(2)}`;
+            
+            // Update debt management stats
+            document.getElementById('total-outstanding').textContent = `KSh ${outstandingDebt.toFixed(2)}`;
+            document.getElementById('total-debtors').textContent = data.debts.filter(debt => debt.status === 'pending').length;
+            
+            const overdueDe = data.debts.filter(debt => 
+                debt.status === 'pending' && new Date(debt.dueDate) < new Date()
+            ).reduce((sum, debt) => sum + debt.amount, 0);
+            document.getElementById('overdue-debts').textContent = `KSh ${overdueDe.toFixed(2)}`;
+            
+            // Update charts
+            updateCharts();
+        }
+
+        // Chart functions
+        function initializeCharts() {
+            const paymentCtx = document.getElementById('paymentChart').getContext('2d');
+            const weeklyCtx = document.getElementById('weeklyChart').getContext('2d');
+            
+            // Destroy existing charts
+            if (paymentChart) paymentChart.destroy();
+            if (weeklyChart) weeklyChart.destroy();
+            
+            // Payment distribution chart
+            paymentChart = new Chart(paymentCtx, {
+                type: 'pie',
+                data: {
+                    labels: ['Cash', 'M-Pesa', 'Debts', 'Unresolved'],
+                    datasets: [{
+                        data: [0, 0, 0, 0],
+                        backgroundColor: [
+                            '#4CAF50',
+                            '#2196F3',
+                            '#FF9800',
+                            '#F44336'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            labels: {
+                                color: 'white'
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // Weekly sales chart
+            weeklyChart = new Chart(weeklyCtx, {
+                type: 'line',
+                data: {
+                    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+                    datasets: [{
+                        label: 'Total Sales',
+                        data: [0, 0, 0, 0, 0, 0, 0],
+                        borderColor: '#4CAF50',
+                        backgroundColor: 'rgba(76, 175, 80, 0.1)',
+                        tension: 0.4
+                    }, {
+                        label: 'Cash',
+                        data: [0, 0, 0, 0, 0, 0, 0],
+                        borderColor: '#2196F3',
+                        backgroundColor: 'rgba(33, 150, 243, 0.1)',
+                        tension: 0.4
+                    }, {
+                        label: 'M-Pesa',
+                        data: [0, 0, 0, 0, 0, 0, 0],
+                        borderColor: '#FF9800',
+                        backgroundColor: 'rgba(255, 152, 0, 0.1)',
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            labels: {
+                                color: 'white'
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            ticks: {
+                                color: 'white'
+                            },
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                color: 'white'
+                            },
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            }
+                        }
+                    }
+                }
+            });
+            
+            updateCharts();
+        }
+
+        function updateCharts() {
+            if (!paymentChart || !weeklyChart) return;
+            
+            // Update payment distribution
+            const cashTotal = data.sales.filter(sale => sale.paymentMethod === 'cash').reduce((sum, sale) => sum + sale.total, 0);
+            const mpesaTotal = data.sales.filter(sale => sale.paymentMethod === 'mpesa').reduce((sum, sale) => sum + sale.total, 0);
+            const debtTotal = data.sales.filter(sale => sale.paymentMethod === 'debt').reduce((sum, sale) => sum + sale.total, 0);
+            
+            paymentChart.data.datasets[0].data = [cashTotal, mpesaTotal, debtTotal, 0];
+            paymentChart.update();
+            
+            // Update weekly chart with sample data
+            const weeklyData = generateWeeklyData();
+            weeklyChart.data.datasets[0].data = weeklyData.total;
+            weeklyChart.data.datasets[1].data = weeklyData.cash;
+            weeklyChart.data.datasets[2].data = weeklyData.mpesa;
+            weeklyChart.update();
+        }
+
+        function generateWeeklyData() {
+            // Generate sample weekly data based on current sales
+            const total = data.sales.reduce((sum, sale) => sum + sale.total, 0);
+            const baseDaily = total / 30; // Assume 30 days average
+            
+            return {
+                total: Array.from({length: 7}, () => Math.floor(Math.random() * baseDaily * 2)),
+                cash: Array.from({length: 7}, () => Math.floor(Math.random() * baseDaily)),
+                mpesa: Array.from({length: 7}, () => Math.floor(Math.random() * baseDaily))
+            };
+        }
+
+        // Report functions
+        function generateDailyReport() {
+            const today = new Date().toISOString().split('T')[0];
+            const todaysSales = data.sales.filter(sale => sale.date === today);
+            const todaysExpenses = data.expenses.filter(expense => expense.date === today);
+            
+            const totalSales = todaysSales.reduce((sum, sale) => sum + sale.total, 0);
+            const totalExpenses = todaysExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+            
+            const reportContent = `
+                <h3 style="color: white;">Daily Report - ${today}</h3>
+                <div style="color: white; line-height: 1.6;">
+                    <p><strong>Total Sales:</strong> KSh ${totalSales.toFixed(2)}</p>
+                    <p><strong>Total Expenses:</strong> KSh ${totalExpenses.toFixed(2)}</p>
+                    <p><strong>Net Profit:</strong> KSh ${(totalSales - totalExpenses).toFixed(2)}</p>
+                    <p><strong>Number of Transactions:</strong> ${todaysSales.length}</p>
+                    <hr style="border-color: rgba(255,255,255,0.3); margin: 20px 0;">
+                    <h4>Payment Method Breakdown:</h4>
+                    <p>Cash: KSh ${todaysSales.filter(s => s.paymentMethod === 'cash').reduce((sum, sale) => sum + sale.total, 0).toFixed(2)}</p>
+                    <p>M-Pesa: KSh ${todaysSales.filter(s => s.paymentMethod === 'mpesa').reduce((sum, sale) => sum + sale.total, 0).toFixed(2)}</p>
+                    <p>Debts: KSh ${todaysSales.filter(s => s.paymentMethod === 'debt').reduce((sum, sale) => sum + sale.total, 0).toFixed(2)}</p>
+                </div>
+            `;
+            
+            document.getElementById('reportContent').innerHTML = reportContent;
+        }
+
+        function generateWeeklyReport() {
+            const weekAgo = new Date();
+            weekAgo.setDate(weekAgo.getDate() - 7);
+            
+            const weeklySales = data.sales.filter(sale => new Date(sale.date) >= weekAgo);
+            const weeklyExpenses = data.expenses.filter(expense => new Date(expense.date) >= weekAgo);
+            
+            const totalSales = weeklySales.reduce((sum, sale) => sum + sale.total, 0);
+            const totalExpenses = weeklyExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+            
+            const reportContent = `
+                <h3 style="color: white;">Weekly Report - Last 7 Days</h3>
+                <div style="color: white; line-height: 1.6;">
+                    <p><strong>Total Sales:</strong> KSh ${totalSales.toFixed(2)}</p>
+                    <p><strong>Total Expenses:</strong> KSh ${totalExpenses.toFixed(2)}</p>
+                    <p><strong>Net Profit:</strong> KSh ${(totalSales - totalExpenses).toFixed(2)}</p>
+                    <p><strong>Number of Transactions:</strong> ${weeklySales.length}</p>
+                    <p><strong>Average Daily Sales:</strong> KSh ${(totalSales / 7).toFixed(2)}</p>
+                </div>
+            `;
+            
+            document.getElementById('reportContent').innerHTML = reportContent;
+        }
+
+        function generateMonthlyReport() {
+            const currentMonth = new Date().getMonth();
+            const currentYear = new Date().getFullYear();
+            
+            const monthlySales = data.sales.filter(sale => {
+                const saleDate = new Date(sale.date);
+                return saleDate.getMonth() === currentMonth && saleDate.getFullYear() === currentYear;
+            });
+            
+            const monthlyExpenses = data.expenses.filter(expense => {
+                const expenseDate = new Date(expense.date);
+                return expenseDate.getMonth() === currentMonth && expenseDate.getFullYear() === currentYear;
+            });
+            
+            const totalSales = monthlySales.reduce((sum, sale) => sum + sale.total, 0);
+            const totalExpenses = monthlyExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+            
+            const reportContent = `
+                <h3 style="color: white;">Monthly Report - ${new Date().toLocaleString('default', { month: 'long', year: 'numeric' })}</h3>
+                <div style="color: white; line-height: 1.6;">
+                    <p><strong>Total Sales:</strong> KSh ${totalSales.toFixed(2)}</p>
+                    <p><strong>Total Expenses:</strong> KSh ${totalExpenses.toFixed(2)}</p>
+                    <p><strong>Net Profit:</strong> KSh ${(totalSales - totalExpenses).toFixed(2)}</p>
+                    <p><strong>Number of Transactions:</strong> ${monthlySales.length}</p>
+                    <p><strong>Outstanding Debts:</strong> KSh ${data.debts.filter(debt => debt.status === 'pending').reduce((sum, debt) => sum + debt.amount, 0).toFixed(2)}</p>
+                </div>
+            `;
+            
+            document.getElementById('reportContent').innerHTML = reportContent;
+        }
+
+        function exportReport() {
+            alert('Report export functionality would integrate with a PDF generation service in production.');
+        }
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            updateDashboard();
+            setTimeout(initializeCharts, 500);
+        });
+
+        // Close modals when clicking outside
+        window.onclick = function(event) {
+            const modals = document.querySelectorAll('.modal');
+            modals.forEach(modal => {
+                if (event.target === modal) {
+                    modal.style.display = 'none';
+                }
+            });
+        }
+    </script>
+</body>
+</html>
