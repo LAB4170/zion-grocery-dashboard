@@ -422,6 +422,16 @@
     </form>
     </div>
     </div>
+
+    <!-- Backup/Restore UI -->
+   <div class="nav-item import-data-btn" onclick="document.getElementById('fileInput').click()">
+    <i>📤</i> Import Data
+    <input type="file" id="fileInput" accept=".json" style="display: none;" onchange="importData(event)">
+   </div>
+   <div class="nav-item export-data-btn" onclick="exportData()">
+    <i>📥</i> Export Data
+   </div>
+    
     <script src="scripts/utils.js"></script>
     <script src="scripts/navigation.js"></script>
     <script src="scripts/modals.js"></script>
