@@ -1,427 +1,437 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Zion Groceries - Dashboard</title>
     <link rel="stylesheet" href="styles/style.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
-</head>
-<body>
+    </head>
+    <body>
     <div class="container">
-        <div class="sidebar">
-            <div class="logo">
-                <h1>🛒 ZION GROCERIES</h1>
-                <p>Dashboard Management System</p>
+    <div class="sidebar">
+    <div class="logo">
+        <h1>🛒 ZION GROCERIES</h1>
+        <p>Dashboard Management System</p>
+    </div>
+
+    <div class="nav-item active" onclick="showSection('dashboard')">
+        <i>📊</i> Dashboard
+    </div>
+    <div class="nav-item" onclick="showSection('sales')">
+        <i>💰</i> Sales
+    </div>
+    <div class="nav-item" onclick="showSection('sales-settings')">
+        <i>⚙️</i> Sales Settings
+    </div>
+    <div class="nav-item" onclick="showSection('sales-reports')">
+        <i>📈</i> Sales Reports
+    </div>
+    <div class="nav-item" onclick="showSection('expenses')">
+        <i>💸</i> Expenses
+    </div>
+    <div class="nav-item" onclick="toggleSubmenu('debt-management')">
+        <i>📋</i> Debt Management <span id="debt-arrow">▼</span>
+    </div>
+    <div id="debt-submenu" class="submenu">
+        <div class="nav-item submenu-item" onclick="showSection('individual-debts')">
+            <i>👤</i> Individual Debts
+        </div>
+        <div class="nav-item submenu-item" onclick="showSection('grouped-debts')">
+            <i>👥</i> Grouped Debts
+        </div>
+    </div>
+    <div class="nav-item" onclick="showSection('mpesa')">
+        <i>📱</i> M-Pesa Transactions
+    </div>
+    </div>
+
+    <div class="main-content">
+    <!-- Dashboard Section -->
+    <div id="dashboard" class="section">
+        <div class="header">
+            <h1>Welcome to Zion Groceries Dashboard</h1>
+            <p>Real-time business overview and analytics</p>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-value" id="total-sales">KSh 0</div>
+                <div class="stat-label">Total Sales</div>
             </div>
-            
-            <div class="nav-item active" onclick="showSection('dashboard')">
-                <i>📊</i> Dashboard
+            <div class="stat-card">
+                <div class="stat-value" id="mpesa-total">KSh 0</div>
+                <div class="stat-label">M-Pesa Sales</div>
             </div>
-            <div class="nav-item" onclick="showSection('sales')">
-                <i>💰</i> Sales
+            <div class="stat-card">
+                <div class="stat-value" id="cash-total">KSh 0</div>
+                <div class="stat-label">Cash Sales</div>
             </div>
-            <div class="nav-item" onclick="showSection('sales-settings')">
-                <i>⚙️</i> Sales Settings
+            <div class="stat-card">
+                <div class="stat-value" id="todays-debts">KSh 0</div>
+                <div class="stat-label">Today's Debts</div>
             </div>
-            <div class="nav-item" onclick="showSection('sales-reports')">
-                <i>📈</i> Sales Reports
+            <div class="stat-card">
+                <div class="stat-value" id="daily-expenses">KSh 0</div>
+                <div class="stat-label">Daily Expenses</div>
             </div>
-            <div class="nav-item" onclick="showSection('expenses')">
-                <i>💸</i> Expenses
+            <div class="stat-card">
+                <div class="stat-value" id="monthly-sales">KSh 0</div>
+                <div class="stat-label">Monthly Sales</div>
             </div>
-            <div class="nav-item" onclick="toggleSubmenu('debt-management')">
-                <i>📋</i> Debt Management <span id="debt-arrow">▼</span>
+            <div class="stat-card">
+                <div class="stat-value" id="monthly-expenses">KSh 0</div>
+                <div class="stat-label">Monthly Expenses</div>
             </div>
-            <div id="debt-submenu" class="submenu">
-                <div class="nav-item submenu-item" onclick="showSection('individual-debts')">
-                    <i>👤</i> Individual Debts
-                </div>
-                <div class="nav-item submenu-item" onclick="showSection('grouped-debts')">
-                    <i>👥</i> Grouped Debts
-                </div>
-            </div>
-            <div class="nav-item" onclick="showSection('mpesa')">
-                <i>📱</i> M-Pesa Transactions
+            <div class="stat-card">
+                <div class="stat-value" id="outstanding-debt">KSh 0</div>
+                <div class="stat-label">Outstanding Debt</div>
             </div>
         </div>
 
-        <div class="main-content">
-            <!-- Dashboard Section -->
-            <div id="dashboard" class="section">
-                <div class="header">
-                    <h1>Welcome to Zion Groceries Dashboard</h1>
-                    <p>Real-time business overview and analytics</p>
-                </div>
-
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <div class="stat-value" id="total-sales">KSh 0</div>
-                        <div class="stat-label">Total Sales</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value" id="mpesa-total">KSh 0</div>
-                        <div class="stat-label">M-Pesa Sales</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value" id="cash-total">KSh 0</div>
-                        <div class="stat-label">Cash Sales</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value" id="todays-debts">KSh 0</div>
-                        <div class="stat-label">Today's Debts</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value" id="daily-expenses">KSh 0</div>
-                        <div class="stat-label">Daily Expenses</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value" id="monthly-sales">KSh 0</div>
-                        <div class="stat-label">Monthly Sales</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value" id="monthly-expenses">KSh 0</div>
-                        <div class="stat-label">Monthly Expenses</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value" id="outstanding-debt">KSh 0</div>
-                        <div class="stat-label">Outstanding Debt</div>
-                    </div>
-                </div>
-
-                 <!-- New grid container for content sections -->
-                <div class="content-grid">
-                    <div class="content-section">
-                        <h3>Monthly Payment Distribution</h3>
-                        <div class="chart-container">
-                            <canvas id="paymentChart" width="400" height="200"></canvas>
-                        </div>
-                    </div>
-
-                    <div class="content-section">
-                        <h3>Weekly Sales Trends</h3>
-                        <div class="chart-container">
-                            <canvas id="weeklyChart" width="400" height="200"></canvas>
-                        </div>
-                    </div>
+            <!-- New grid container for content sections -->
+        <div class="content-grid">
+            <div class="content-section">
+                <h3>Monthly Payment Distribution</h3>
+                <div class="chart-container">
+                    <canvas id="paymentChart" width="400" height="200"></canvas>
                 </div>
             </div>
 
-            <!-- Sales Section -->
-            <div id="sales" class="section hidden">
-                <div class="section-header">
-                    <h2 style="color: white;">Sales Management</h2>
-                    <button class="btn" onclick="openModal('salesModal')">Create New Sale</button>
+            <div class="content-section">
+                <h3>Weekly Sales Trends</h3>
+                <div class="chart-container">
+                    <canvas id="weeklyChart" width="400" height="200"></canvas>
                 </div>
-                
-                <input type="text" class="search-box" placeholder="Search sales..." onkeyup="searchTable('salesTable', this.value)">
-                
-                <table class="table" id="salesTable">
-                    <thead>
-                        <tr>
-                            <th>Date</th>
-                            <th>Product</th>
-                            <th>Quantity</th>
-                            <th>Unit Price</th>
-                            <th>Total</th>
-                            <th>Payment Method</th>
-                            <th>Status</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="salesTableBody">
-                    </tbody>
-                </table>
-            </div>
-
-            <!-- Sales Settings Section -->
-            <div id="sales-settings" class="section hidden">
-                <div class="section-header">
-                    <h2 style="color: white;">Sales Settings - Product Management</h2>
-                    <button class="btn" onclick="openModal('productModal')">Add New Product</button>
-                </div>
-                
-                <input type="text" class="search-box" placeholder="Search products..." onkeyup="searchTable('productsTable', this.value)">
-                
-                <table class="table" id="productsTable">
-                    <thead>
-                        <tr>
-                            <th>Product Name</th>
-                            <th>Category</th>
-                            <th>Unit Price</th>
-                            <th>Stock Quantity</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="productsTableBody">
-                    </tbody>
-                </table>
-            </div>
-
-            <!-- Sales Reports Section -->
-            <div id="sales-reports" class="section hidden">
-                <div class="section-header">
-                    <h2 style="color: white;">Sales Reports</h2>
-                    <div>
-                        <button class="btn" onclick="generateDailyReport()">Daily Report</button>
-                        <button class="btn" onclick="generateWeeklyReport()">Weekly Report</button>
-                        <button class="btn" onclick="generateMonthlyReport()">Monthly Report</button>
-                        <button class="btn" onclick="exportReport()">Export PDF</button>
-                    </div>
-                </div>
-                
-                <div class="content-section">
-                    <div id="reportContent">
-                        <p style="color: white; text-align: center; padding: 40px;">Select a report type to view analytics</p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Expenses Section -->
-            <div id="expenses" class="section hidden">
-                <div class="section-header">
-                    <h2 style="color: white;">Expenses Management</h2>
-                    <button class="btn" onclick="openModal('expenseModal')">Add New Expense</button>
-                </div>
-                
-                <input type="text" class="search-box" placeholder="Search expenses..." onkeyup="searchTable('expensesTable', this.value)">
-                
-                <table class="table" id="expensesTable">
-                    <thead>
-                        <tr>
-                            <th>Date</th>
-                            <th>Description</th>
-                            <th>Category</th>
-                            <th>Amount</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="expensesTableBody">
-                    </tbody>
-                </table>
-            </div>
-
-            <!-- Debt Management Section -->
-            <div id="debt-management" class="section hidden">
-                <div class="section-header">
-                    <h2 style="color: white;">Debt Management Overview</h2>
-                </div>
-                
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <div class="stat-value" id="total-outstanding">KSh 0</div>
-                        <div class="stat-label">Total Outstanding</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value" id="total-debtors">0</div>
-                        <div class="stat-label">Total Debtors</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value" id="overdue-debts">KSh 0</div>
-                        <div class="stat-label">Overdue Debts</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Individual Debts Section -->
-            <div id="individual-debts" class="section hidden">
-                <div class="section-header">
-                    <h2 style="color: white;">Individual Debts</h2>
-                    <button class="btn" onclick="openModal('debtModal')">Record New Debt</button>
-                </div>
-                
-                <input type="text" class="search-box" placeholder="Search debts..." onkeyup="searchTable('debtsTable', this.value)">
-                
-                <table class="table" id="debtsTable">
-                    <thead>
-                        <tr>
-                            <th>Date</th>
-                            <th>Customer Name</th>
-                            <th>Phone</th>
-                            <th>Amount</th>
-                            <th>Status</th>
-                            <th>Due Date</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="debtsTableBody">
-                    </tbody>
-                </table>
-            </div>
-
-            <!-- Grouped Debts Section -->
-            <div id="grouped-debts" class="section hidden">
-                <div class="section-header">
-                    <h2 style="color: white;">Grouped Debts</h2>
-                </div>
-                
-                <div class="content-section">
-                    <div id="groupedDebtsContent">
-                        <!-- This will be populated with grouped debt data -->
-                    </div>
-                </div>
-            </div>
-
-            <!-- M-Pesa Section -->
-            <div id="mpesa" class="section hidden">
-                <div class="section-header">
-                    <h2 style="color: white;">M-Pesa Transactions</h2>
-                    <div>
-                        <p style="color: white; margin-bottom: 10px;">Pochi La Biashara: 0117511337</p>
-                        <button class="btn" onclick="refreshMpesaTransactions()">Refresh Transactions</button>
-                    </div>
-                </div>
-                
-                <table class="table" id="mpesaTable">
-                    <thead>
-                        <tr>
-                            <th>Transaction ID</th>
-                            <th>Date/Time</th>
-                            <th>Amount</th>
-                            <th>Customer Phone</th>
-                            <th>Status</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="mpesaTableBody">
-                    </tbody>
-                </table>
             </div>
         </div>
+    </div>
+
+    <!-- Sales Section -->
+    <div id="sales" class="section hidden">
+        <div class="section-header">
+            <h2 style="color: white;">Sales Management</h2>
+            <button class="btn" onclick="openModal('salesModal')">Create New Sale</button>
+        </div>
+        
+        <input type="text" class="search-box" placeholder="Search sales..." onkeyup="searchTable('salesTable', this.value)">
+        
+        <table class="table" id="salesTable">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Product</th>
+                    <th>Quantity</th>
+                    <th>Unit Price</th>
+                    <th>Total</th>
+                    <th>Payment Method</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="salesTableBody">
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Sales Settings Section -->
+    <div id="sales-settings" class="section hidden">
+        <div class="section-header">
+            <h2 style="color: white;">Sales Settings - Product Management</h2>
+            <button class="btn" onclick="openModal('productModal')">Add New Product</button>
+        </div>
+        
+        <input type="text" class="search-box" placeholder="Search products..." onkeyup="searchTable('productsTable', this.value)">
+        
+        <table class="table" id="productsTable">
+            <thead>
+                <tr>
+                    <th>Product Name</th>
+                    <th>Category</th>
+                    <th>Unit Price</th>
+                    <th>Stock Quantity</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="productsTableBody">
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Sales Reports Section -->
+    <div id="sales-reports" class="section hidden">
+        <div class="section-header">
+            <h2 style="color: white;">Sales Reports</h2>
+            <div>
+                <button class="btn" onclick="generateDailyReport()">Daily Report</button>
+                <button class="btn" onclick="generateWeeklyReport()">Weekly Report</button>
+                <button class="btn" onclick="generateMonthlyReport()">Monthly Report</button>
+                <button class="btn" onclick="exportReport()">Export PDF</button>
+            </div>
+        </div>
+        
+        <div class="content-section">
+            <div id="reportContent">
+                <p style="color: white; text-align: center; padding: 40px;">Select a report type to view analytics</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Expenses Section -->
+    <div id="expenses" class="section hidden">
+        <div class="section-header">
+            <h2 style="color: white;">Expenses Management</h2>
+            <button class="btn" onclick="openModal('expenseModal')">Add New Expense</button>
+        </div>
+        
+        <input type="text" class="search-box" placeholder="Search expenses..." onkeyup="searchTable('expensesTable', this.value)">
+        
+        <table class="table" id="expensesTable">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Description</th>
+                    <th>Category</th>
+                    <th>Amount</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="expensesTableBody">
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Debt Management Section -->
+    <div id="debt-management" class="section hidden">
+        <div class="section-header">
+            <h2 style="color: white;">Debt Management Overview</h2>
+        </div>
+        
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-value" id="total-outstanding">KSh 0</div>
+                <div class="stat-label">Total Outstanding</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="total-debtors">0</div>
+                <div class="stat-label">Total Debtors</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="overdue-debts">KSh 0</div>
+                <div class="stat-label">Overdue Debts</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Individual Debts Section -->
+    <div id="individual-debts" class="section hidden">
+        <div class="section-header">
+            <h2 style="color: white;">Individual Debts</h2>
+            <button class="btn" onclick="openModal('debtModal')">Record New Debt</button>
+        </div>
+        
+        <input type="text" class="search-box" placeholder="Search debts..." onkeyup="searchTable('debtsTable', this.value)">
+        
+        <table class="table" id="debtsTable">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Customer Name</th>
+                    <th>Phone</th>
+                    <th>Amount</th>
+                    <th>Status</th>
+                    <th>Due Date</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="debtsTableBody">
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Grouped Debts Section -->
+    <div id="grouped-debts" class="section hidden">
+        <div class="section-header">
+            <h2 style="color: white;">Grouped Debts</h2>
+        </div>
+        
+        <div class="content-section">
+            <div id="groupedDebtsContent">
+                <!-- This will be populated with grouped debt data -->
+            </div>
+        </div>
+    </div>
+
+    <!-- M-Pesa Section -->
+    <div id="mpesa" class="section hidden">
+        <div class="section-header">
+            <h2 style="color: white;">M-Pesa Transactions</h2>
+            <div>
+                <p style="color: white; margin-bottom: 10px;">Pochi La Biashara: 0117511337</p>
+                <button class="btn" onclick="refreshMpesaTransactions()">Refresh Transactions</button>
+            </div>
+        </div>
+        
+        <table class="table" id="mpesaTable">
+            <thead>
+                <tr>
+                    <th>Transaction ID</th>
+                    <th>Date/Time</th>
+                    <th>Amount</th>
+                    <th>Customer Phone</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="mpesaTableBody">
+            </tbody>
+        </table>
+    </div>
+    </div>
     </div>
 
     <!-- Modals -->
     <!-- Sales Modal -->
     <div id="salesModal" class="modal">
-        <div class="modal-content">
-            <span class="close" onclick="closeModal('salesModal')">&times;</span>
-            <h2>Create New Sale</h2>
-            <form onsubmit="addSale(event)">
-                <div class="form-group">
-                    <label>Product</label>
-                    <select id="saleProduct" required>
-                        <option value="">Select Product</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>Quantity</label>
-                    <input type="number" id="saleQuantity" required min="1">
-                </div>
-                <div class="form-group">
-                    <label>Payment Method</label>
-                    <select id="salePaymentMethod" required>
-                        <option value="cash">Cash</option>
-                        <option value="mpesa">M-Pesa</option>
-                        <option value="debt">Debt</option>
-                    </select>
-                </div>
-                <div class="form-group" id="customerInfoGroup" style="display: none;">
-                    <label>Customer Name</label>
-                    <input type="text" id="customerName">
-                </div>
-                <div class="form-group" id="customerPhoneGroup" style="display: none;">
-                    <label>Customer Phone</label>
-                    <input type="tel" id="customerPhone">
-                </div>
-                <button type="submit" class="btn">Create Sale</button>
-            </form>
+    <div class="modal-content">
+    <span class="close" onclick="closeModal('salesModal')">&times;</span>
+    <h2>Create New Sale</h2>
+    <form onsubmit="addSale(event)">
+        <div class="form-group">
+            <label>Product</label>
+            <select id="saleProduct" required>
+                <option value="">Select Product</option>
+            </select>
         </div>
+        <div class="form-group">
+            <label>Quantity</label>
+            <input type="number" id="saleQuantity" required min="1">
+        </div>
+        <div class="form-group">
+            <label>Payment Method</label>
+            <select id="salePaymentMethod" required>
+                <option value="cash">Cash</option>
+                <option value="mpesa">M-Pesa</option>
+                <option value="debt">Debt</option>
+            </select>
+        </div>
+        <div class="form-group" id="customerInfoGroup" style="display: none;">
+            <label>Customer Name</label>
+            <input type="text" id="customerName">
+        </div>
+        <div class="form-group" id="customerPhoneGroup" style="display: none;">
+            <label>Customer Phone</label>
+            <input type="tel" id="customerPhone">
+        </div>
+        <button type="submit" class="btn">Create Sale</button>
+    </form>
+    </div>
     </div>
 
     <!-- Product Modal -->
     <div id="productModal" class="modal">
-        <div class="modal-content">
-            <span class="close" onclick="closeModal('productModal')">&times;</span>
-            <h2>Add New Product</h2>
-            <form onsubmit="addProduct(event)">
-                <div class="form-group">
-                    <label>Product Name</label>
-                    <input type="text" id="productName" required>
-                </div>
-                <div class="form-group">
-                    <label>Category</label>
-                    <select id="productCategory" required>
-                        <option value="fruits">Fruits</option>
-                        <option value="vegetables">Vegetables</option>
-                        <option value="dairy">Dairy</option>
-                        <option value="grains">Grains</option>
-                        <option value="beverages">Beverages</option>
-                        <option value="snacks">Snacks</option>
-                        <option value="household">Household</option>
-                        <option value="fun">Fun (PlayStation Sales)</option>
-                        <option value="other">Other</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>Unit Price (KSh)</label>
-                    <input type="number" id="productPrice" required min="0" step="0.01">
-                </div>
-                <div class="form-group">
-                    <label>Stock Quantity</label>
-                    <input type="number" id="productStock" required min="0">
-                </div>
-                <button type="submit" class="btn">Add Product</button>
-            </form>
+    <div class="modal-content">
+    <span class="close" onclick="closeModal('productModal')">&times;</span>
+    <h2>Add New Product</h2>
+    <form onsubmit="addProduct(event)">
+        <div class="form-group">
+            <label>Product Name</label>
+            <input type="text" id="productName" required>
         </div>
+        <div class="form-group">
+            <label>Category</label>
+            <select id="productCategory" required>
+                <option value="fruits">Fruits</option>
+                <option value="vegetables">Vegetables</option>
+                <option value="dairy">Dairy</option>
+                <option value="grains">Grains</option>
+                <option value="beverages">Beverages</option>
+                <option value="snacks">Snacks</option>
+                <option value="household">Household</option>
+                <option value="fun">Fun (PlayStation Sales)</option>
+                <option value="other">Other</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Unit Price (KSh)</label>
+            <input type="number" id="productPrice" required min="0" step="0.01">
+        </div>
+        <div class="form-group">
+            <label>Stock Quantity</label>
+            <input type="number" id="productStock" required min="0">
+        </div>
+        <button type="submit" class="btn">Add Product</button>
+    </form>
+    </div>
     </div>
 
     <!-- Expense Modal -->
     <div id="expenseModal" class="modal">
-        <div class="modal-content">
-            <span class="close" onclick="closeModal('expenseModal')">&times;</span>
-            <h2>Add New Expense</h2>
-            <form onsubmit="addExpense(event)">
-                <div class="form-group">
-                    <label>Description</label>
-                    <textarea id="expenseDescription" required rows="3"></textarea>
-                </div>
-                <div class="form-group">
-                    <label>Category</label>
-                    <select id="expenseCategory" required>
-                        <option value="inventory">Inventory Purchase</option>
-                        <option value="utilities">Utilities</option>
-                        <option value="rent">Rent</option>
-                        <option value="transport">Transport</option>
-                        <option value="marketing">Marketing</option>
-                        <option value="maintenance">Maintenance</option>
-                        <option value="other">Other</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>Amount (KSh)</label>
-                    <input type="number" id="expenseAmount" required min="0" step="0.01">
-                </div>
-                <button type="submit" class="btn">Add Expense</button>
-            </form>
+    <div class="modal-content">
+    <span class="close" onclick="closeModal('expenseModal')">&times;</span>
+    <h2>Add New Expense</h2>
+    <form onsubmit="addExpense(event)">
+        <div class="form-group">
+            <label>Description</label>
+            <textarea id="expenseDescription" required rows="3"></textarea>
         </div>
+        <div class="form-group">
+            <label>Category</label>
+            <select id="expenseCategory" required>
+                <option value="inventory">Inventory Purchase</option>
+                <option value="utilities">Utilities</option>
+                <option value="rent">Rent</option>
+                <option value="transport">Transport</option>
+                <option value="marketing">Marketing</option>
+                <option value="maintenance">Maintenance</option>
+                <option value="other">Other</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Amount (KSh)</label>
+            <input type="number" id="expenseAmount" required min="0" step="0.01">
+        </div>
+        <button type="submit" class="btn">Add Expense</button>
+    </form>
+    </div>
     </div>
 
     <!-- Debt Modal -->
     <div id="debtModal" class="modal">
-        <div class="modal-content">
-            <span class="close" onclick="closeModal('debtModal')">&times;</span>
-            <h2>Record New Debt</h2>
-            <form onsubmit="addDebt(event)">
-                <div class="form-group">
-                    <label>Customer Name</label>
-                    <input type="text" id="debtCustomerName" required>
-                </div>
-                <div class="form-group">
-                    <label>Customer Phone</label>
-                    <input type="tel" id="debtCustomerPhone" required>
-                </div>
-                <div class="form-group">
-                    <label>Amount (KSh)</label>
-                    <input type="number" id="debtAmount" required min="0" step="0.01">
-                </div>
-                <div class="form-group">
-                    <label>Due Date</label>
-                    <input type="date" id="debtDueDate" required>
-                </div>
-                <button type="submit" class="btn">Record Debt</button>
-            </form>
+    <div class="modal-content">
+    <span class="close" onclick="closeModal('debtModal')">&times;</span>
+    <h2>Record New Debt</h2>
+    <form onsubmit="addDebt(event)">
+        <div class="form-group">
+            <label>Customer Name</label>
+            <input type="text" id="debtCustomerName" required>
         </div>
+        <div class="form-group">
+            <label>Customer Phone</label>
+            <input type="tel" id="debtCustomerPhone" required>
+        </div>
+        <div class="form-group">
+            <label>Amount (KSh)</label>
+            <input type="number" id="debtAmount" required min="0" step="0.01">
+        </div>
+        <div class="form-group">
+            <label>Due Date</label>
+            <input type="date" id="debtDueDate" required>
+        </div>
+        <button type="submit" class="btn">Record Debt</button>
+    </form>
     </div>
-    <script src="scripts/script.js"></script>
-</body>
-</html>
+    </div>
+    <script src="scripts/utils.js"></script>
+    <script src="scripts/navigation.js"></script>
+    <script src="scripts/modals.js"></script>
+    <script src="scripts/products.js"></script>
+    <script src="scripts/sales.js"></script>
+    <script src="scripts/expenses.js"></script>
+    <script src="scripts/debts.js"></script>
+    <script src="scripts/mpesa.js"></script>
+    <script src="scripts/dashboard.js"></script>
+    <script src="scripts/reports.js"></script>
+    <script src="scripts/main.js"></script>
+    </body>
+    </html>
