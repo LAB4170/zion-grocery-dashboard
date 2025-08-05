@@ -1,49 +1,49 @@
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Zion Groceries - Dashboard</title>
-    <link rel="stylesheet" href="styles/style.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
-    </head>
-    <body>
-    <div class="container">
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Zion Groceries - Dashboard</title>
+<link rel="stylesheet" href="styles/style.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+</head>
+<body>
+<div class="container">
     <div class="sidebar">
-    <div class="logo">
-        <h1>🛒 ZION GROCERIES</h1>
-        <p>Dashboard Management System</p>
-    </div>
+        <div class="logo">
+            <h1>🛒 ZION GROCERIES</h1>
+            <p>Dashboard Management System</p>
+        </div>
 
-    <div class="nav-item active" onclick="showSection('dashboard')">
-        <i>📊</i> Dashboard
-    </div>
-    <div class="nav-item" onclick="showSection('sales')">
-        <i>💰</i> Sales
-    </div>
-    <div class="nav-item" onclick="showSection('sales-settings')">
-        <i>⚙️</i> Sales Settings
-    </div>
-    <div class="nav-item" onclick="showSection('sales-reports')">
-        <i>📈</i> Sales Reports
-    </div>
-    <div class="nav-item" onclick="showSection('expenses')">
-        <i>💸</i> Expenses
-    </div>
-    <div class="nav-item" onclick="toggleSubmenu('debt-management')">
-        <i>📋</i> Debt Management <span id="debt-arrow">▼</span>
-    </div>
-    <div id="debt-submenu" class="submenu">
-        <div class="nav-item submenu-item" onclick="showSection('individual-debts')">
-            <i>👤</i> Individual Debts
+        <div class="nav-item active" onclick="showSection('dashboard')">
+            <i>📊</i> Dashboard
         </div>
-        <div class="nav-item submenu-item" onclick="showSection('grouped-debts')">
-            <i>👥</i> Grouped Debts
+        <div class="nav-item" onclick="showSection('sales')">
+            <i>💰</i> Sales
         </div>
-    </div>
-    <div class="nav-item" onclick="showSection('mpesa')">
-        <i>📱</i> M-Pesa Transactions
-    </div>
+        <div class="nav-item" onclick="showSection('sales-settings')">
+            <i>⚙️</i> Sales Settings
+        </div>
+        <div class="nav-item" onclick="showSection('sales-reports')">
+            <i>📈</i> Sales Reports
+        </div>
+        <div class="nav-item" onclick="showSection('expenses')">
+            <i>💸</i> Expenses
+        </div>
+        <div class="nav-item" onclick="toggleSubmenu('debt-management')">
+            <i>📋</i> Debt Management <span id="debt-arrow">▼</span>
+        </div>
+        <div id="debt-submenu" class="submenu">
+            <div class="nav-item submenu-item" onclick="showSection('individual-debts')">
+                <i>👤</i> Individual Debts
+            </div>
+            <div class="nav-item submenu-item" onclick="showSection('grouped-debts')">
+                <i>👥</i> Grouped Debts
+            </div>
+        </div>
+        <div class="nav-item" onclick="showSection('mpesa')">
+            <i>📱</i> M-Pesa Transactions
+        </div>
     </div>
 
     <div class="main-content">
@@ -262,33 +262,34 @@
         </div>
     </div>
 
-    <!-- M-Pesa Section -->
-    <div id="mpesa" class="section hidden">
-        <div class="section-header">
-            <h2 style="color: white;">M-Pesa Transactions</h2>
-            <div>
-                <p style="color: white; margin-bottom: 10px;">Pochi La Biashara: 0117511337</p>
-                <button class="btn" onclick="refreshMpesaTransactions()">Refresh Transactions</button>
+<!-- M-Pesa Section -->
+        <div id="mpesa" class="section hidden">
+            <div class="section-header">
+                <h2 style="color: white;">M-Pesa Transactions</h2>
+                <div>
+                    <p style="color: white; margin-bottom: 10px;">Pochi La Biashara: 0117511337</p>
+                    <button class="btn" onclick="addManualMpesaTransaction()">Add M-Pesa Transaction</button>
+                    <button class="btn" onclick="refreshMpesaTransactions()">Refresh Transactions</button>
+                </div>
             </div>
+            
+            <table class="table" id="mpesaTable">
+                <thead>
+                    <tr>
+                        <th>Transaction ID</th>
+                        <th>Date/Time</th>
+                        <th>Amount</th>
+                        <th>Customer Phone</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="mpesaTableBody">
+                </tbody>
+            </table>
         </div>
-        
-        <table class="table" id="mpesaTable">
-            <thead>
-                <tr>
-                    <th>Transaction ID</th>
-                    <th>Date/Time</th>
-                    <th>Amount</th>
-                    <th>Customer Phone</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody id="mpesaTableBody">
-            </tbody>
-        </table>
     </div>
-    </div>
-    </div>
+</div>
 
     <!-- Modals -->
     <!-- Sales Modal -->
@@ -423,25 +424,25 @@
     </div>
     </div>
 
-    <!-- Backup/Restore UI -->
-   <div class="nav-item import-data-btn" onclick="document.getElementById('fileInput').click()">
+  <!-- Backup/Restore UI -->
+<div class="nav-item import-data-btn" onclick="document.getElementById('fileInput').click()">
     <i>📤</i> Import Data
     <input type="file" id="fileInput" accept=".json" style="display: none;" onchange="importData(event)">
-   </div>
-   <div class="nav-item export-data-btn" onclick="exportData()">
+</div>
+<div class="nav-item export-data-btn" onclick="exportData()">
     <i>📥</i> Export Data
-   </div>
-    
-    <script src="scripts/utils.js"></script>
-    <script src="scripts/navigation.js"></script>
-    <script src="scripts/modals.js"></script>
-    <script src="scripts/products.js"></script>
-    <script src="scripts/sales.js"></script>
-    <script src="scripts/expenses.js"></script>
-    <script src="scripts/debts.js"></script>
-    <script src="scripts/mpesa.js"></script>
-    <script src="scripts/dashboard.js"></script>
-    <script src="scripts/reports.js"></script>
-    <script src="scripts/main.js"></script>
-    </body>
-    </html>
+</div>
+
+<script src="scripts/utils.js"></script>
+<script src="scripts/navigation.js"></script>
+<script src="scripts/modals.js"></script>
+<script src="scripts/products.js"></script>
+<script src="scripts/sales.js"></script>
+<script src="scripts/expenses.js"></script>
+<script src="scripts/debts.js"></script>
+<script src="scripts/mpesa.js"></script>
+<script src="scripts/dashboard.js"></script>
+<script src="scripts/reports.js"></script>
+<script src="scripts/main.js"></script>
+</body>
+</html>

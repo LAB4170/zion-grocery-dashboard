@@ -1,3 +1,4 @@
+// Product Management with Auto-Save
 function addProduct(event) {
     event.preventDefault();
     
@@ -11,11 +12,25 @@ function addProduct(event) {
         stock: parseInt(document.getElementById('productStock').value)
     };
     
+    // Validate inputs
+    if (!productData.name || isNaN(productData.price) || isNaN(productData.stock)) {
+        alert('Please fill all fields with valid values');
+        return;
+    }
+    
+    if (productData.price < 0 || productData.stock < 0) {
+        alert('Price and stock cannot be negative');
+        return;
+    }
+
     if (editingId) {
         // Update existing product
         const productIndex = data.products.findIndex(p => p.id === parseInt(editingId));
         if (productIndex !== -1) {
-            data.products[productIndex] = { ...data.products[productIndex], ...productData };
+            data.products[productIndex] = { 
+                ...data.products[productIndex], 
+                ...productData 
+            };
         }
         
         // Reset the editing state
@@ -33,6 +48,7 @@ function addProduct(event) {
     
     renderProductsTable();
     updateDashboard();
+    data.save(); // Auto-save to LocalStorage
     closeModal('productModal');
     form.reset();
 }
@@ -82,6 +98,7 @@ function deleteProduct(id) {
         data.products = data.products.filter(product => product.id !== id);
         renderProductsTable();
         updateDashboard();
+        data.save(); // Auto-save to LocalStorage
     }
 }
 

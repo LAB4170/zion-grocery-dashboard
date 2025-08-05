@@ -1,255 +1,218 @@
-// Report functions with table styling
+// Report functions with auto-save and enhanced reporting
 function generateDailyReport() {
     const today = new Date().toISOString().split('T')[0];
-    const todaysSales = data.sales.filter(sale => sale.date === today);
-    const todaysExpenses = data.expenses.filter(expense => expense.date === today);
-    
-    const totalSales = todaysSales.reduce((sum, sale) => sum + sale.total, 0);
-    const totalExpenses = todaysExpenses.reduce((sum, expense) => sum + expense.amount, 0);
-    
-    // Calculate payment method breakdown
-    const cashSales = todaysSales.filter(s => s.paymentMethod === 'cash').reduce((sum, sale) => sum + sale.total, 0);
-    const mpesaSales = todaysSales.filter(s => s.paymentMethod === 'mpesa').reduce((sum, sale) => sum + sale.total, 0);
-    const debtSales = todaysSales.filter(s => s.paymentMethod === 'debt').reduce((sum, sale) => sum + sale.total, 0);
-    
-    const reportContent = `
-        <h3 style="color: white; margin-bottom: 20px;">Daily Report - ${today}</h3>
-        
-        <!-- Summary Table -->
-        <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px; background: rgba(255,255,255,0.1); border-radius: 8px; overflow: hidden;">
-            <thead>
-                <tr style="background: rgba(255,255,255,0.2);">
-                    <th style="color: white; padding: 12px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.3);">Metric</th>
-                    <th style="color: white; padding: 12px; text-align: right; border-bottom: 1px solid rgba(255,255,255,0.3);">Amount (KSh)</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td style="color: white; padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.1);">Total Sales</td>
-                    <td style="color: #4ade80; padding: 12px; text-align: right; font-weight: bold; border-bottom: 1px solid rgba(255,255,255,0.1);">${totalSales.toFixed(2)}</td>
-                </tr>
-                <tr>
-                    <td style="color: white; padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.1);">Total Expenses</td>
-                    <td style="color: #f87171; padding: 12px; text-align: right; font-weight: bold; border-bottom: 1px solid rgba(255,255,255,0.1);">${totalExpenses.toFixed(2)}</td>
-                </tr>
-                <tr>
-                    <td style="color: white; padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.1);">Net Profit</td>
-                    <td style="color: ${(totalSales - totalExpenses) >= 0 ? '#4ade80' : '#f87171'}; padding: 12px; text-align: right; font-weight: bold; border-bottom: 1px solid rgba(255,255,255,0.1);">${(totalSales - totalExpenses).toFixed(2)}</td>
-                </tr>
-                <tr>
-                    <td style="color: white; padding: 12px;">Number of Transactions</td>
-                    <td style="color: white; padding: 12px; text-align: right; font-weight: bold;">${todaysSales.length}</td>
-                </tr>
-            </tbody>
-        </table>
-
-        <!-- Payment Method Breakdown Table -->
-        <h4 style="color: white; margin-bottom: 15px;">Payment Method Breakdown</h4>
-        <table style="width: 100%; border-collapse: collapse; background: rgba(255,255,255,0.1); border-radius: 8px; overflow: hidden;">
-            <thead>
-                <tr style="background: rgba(255,255,255,0.2);">
-                    <th style="color: white; padding: 12px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.3);">Payment Method</th>
-                    <th style="color: white; padding: 12px; text-align: right; border-bottom: 1px solid rgba(255,255,255,0.3);">Amount (KSh)</th>
-                    <th style="color: white; padding: 12px; text-align: right; border-bottom: 1px solid rgba(255,255,255,0.3);">Percentage</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td style="color: white; padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.1);">Cash</td>
-                    <td style="color: white; padding: 12px; text-align: right; border-bottom: 1px solid rgba(255,255,255,0.1);">${cashSales.toFixed(2)}</td>
-                    <td style="color: white; padding: 12px; text-align: right; border-bottom: 1px solid rgba(255,255,255,0.1);">${totalSales > 0 ? ((cashSales / totalSales) * 100).toFixed(1) : '0.0'}%</td>
-                </tr>
-                <tr>
-                    <td style="color: white; padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.1);">M-Pesa</td>
-                    <td style="color: white; padding: 12px; text-align: right; border-bottom: 1px solid rgba(255,255,255,0.1);">${mpesaSales.toFixed(2)}</td>
-                    <td style="color: white; padding: 12px; text-align: right; border-bottom: 1px solid rgba(255,255,255,0.1);">${totalSales > 0 ? ((mpesaSales / totalSales) * 100).toFixed(1) : '0.0'}%</td>
-                </tr>
-                <tr>
-                    <td style="color: white; padding: 12px;">Debts</td>
-                    <td style="color: white; padding: 12px; text-align: right;">${debtSales.toFixed(2)}</td>
-                    <td style="color: white; padding: 12px; text-align: right;">${totalSales > 0 ? ((debtSales / totalSales) * 100).toFixed(1) : '0.0'}%</td>
-                </tr>
-            </tbody>
-        </table>
-    `;
-    
-    document.getElementById('reportContent').innerHTML = reportContent;
+    generateReport('daily', today);
+    data.save(); // Save report generation activity
 }
 
 function generateWeeklyReport() {
     const weekAgo = new Date();
     weekAgo.setDate(weekAgo.getDate() - 7);
-    
-    const weeklySales = data.sales.filter(sale => new Date(sale.date) >= weekAgo);
-    const weeklyExpenses = data.expenses.filter(expense => new Date(expense.date) >= weekAgo);
-    
-    const totalSales = weeklySales.reduce((sum, sale) => sum + sale.total, 0);
-    const totalExpenses = weeklyExpenses.reduce((sum, expense) => sum + expense.amount, 0);
-    
-    // Calculate payment method breakdown
-    const cashSales = weeklySales.filter(s => s.paymentMethod === 'cash').reduce((sum, sale) => sum + sale.total, 0);
-    const mpesaSales = weeklySales.filter(s => s.paymentMethod === 'mpesa').reduce((sum, sale) => sum + sale.total, 0);
-    const debtSales = weeklySales.filter(s => s.paymentMethod === 'debt').reduce((sum, sale) => sum + sale.total, 0);
-    
-    const reportContent = `
-        <h3 style="color: white; margin-bottom: 20px;">Weekly Report - Last 7 Days</h3>
-        
-        <!-- Summary Table -->
-        <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px; background: rgba(255,255,255,0.1); border-radius: 8px; overflow: hidden;">
-            <thead>
-                <tr style="background: rgba(255,255,255,0.2);">
-                    <th style="color: white; padding: 12px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.3);">Metric</th>
-                    <th style="color: white; padding: 12px; text-align: right; border-bottom: 1px solid rgba(255,255,255,0.3);">Amount (KSh)</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td style="color: white; padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.1);">Total Sales</td>
-                    <td style="color: #4ade80; padding: 12px; text-align: right; font-weight: bold; border-bottom: 1px solid rgba(255,255,255,0.1);">${totalSales.toFixed(2)}</td>
-                </tr>
-                <tr>
-                    <td style="color: white; padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.1);">Total Expenses</td>
-                    <td style="color: #f87171; padding: 12px; text-align: right; font-weight: bold; border-bottom: 1px solid rgba(255,255,255,0.1);">${totalExpenses.toFixed(2)}</td>
-                </tr>
-                <tr>
-                    <td style="color: white; padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.1);">Net Profit</td>
-                    <td style="color: ${(totalSales - totalExpenses) >= 0 ? '#4ade80' : '#f87171'}; padding: 12px; text-align: right; font-weight: bold; border-bottom: 1px solid rgba(255,255,255,0.1);">${(totalSales - totalExpenses).toFixed(2)}</td>
-                </tr>
-                <tr>
-                    <td style="color: white; padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.1);">Number of Transactions</td>
-                    <td style="color: white; padding: 12px; text-align: right; font-weight: bold; border-bottom: 1px solid rgba(255,255,255,0.1);">${weeklySales.length}</td>
-                </tr>
-                <tr>
-                    <td style="color: white; padding: 12px;">Average Daily Sales</td>
-                    <td style="color: white; padding: 12px; text-align: right; font-weight: bold;">${(totalSales / 7).toFixed(2)}</td>
-                </tr>
-            </tbody>
-        </table>
-
-        <!-- Payment Method Breakdown Table -->
-        <h4 style="color: white; margin-bottom: 15px;">Payment Method Breakdown</h4>
-        <table style="width: 100%; border-collapse: collapse; background: rgba(255,255,255,0.1); border-radius: 8px; overflow: hidden;">
-            <thead>
-                <tr style="background: rgba(255,255,255,0.2);">
-                    <th style="color: white; padding: 12px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.3);">Payment Method</th>
-                    <th style="color: white; padding: 12px; text-align: right; border-bottom: 1px solid rgba(255,255,255,0.3);">Amount (KSh)</th>
-                    <th style="color: white; padding: 12px; text-align: right; border-bottom: 1px solid rgba(255,255,255,0.3);">Percentage</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td style="color: white; padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.1);">Cash</td>
-                    <td style="color: white; padding: 12px; text-align: right; border-bottom: 1px solid rgba(255,255,255,0.1);">${cashSales.toFixed(2)}</td>
-                    <td style="color: white; padding: 12px; text-align: right; border-bottom: 1px solid rgba(255,255,255,0.1);">${totalSales > 0 ? ((cashSales / totalSales) * 100).toFixed(1) : '0.0'}%</td>
-                </tr>
-                <tr>
-                    <td style="color: white; padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.1);">M-Pesa</td>
-                    <td style="color: white; padding: 12px; text-align: right; border-bottom: 1px solid rgba(255,255,255,0.1);">${mpesaSales.toFixed(2)}</td>
-                    <td style="color: white; padding: 12px; text-align: right; border-bottom: 1px solid rgba(255,255,255,0.1);">${totalSales > 0 ? ((mpesaSales / totalSales) * 100).toFixed(1) : '0.0'}%</td>
-                </tr>
-                <tr>
-                    <td style="color: white; padding: 12px;">Debts</td>
-                    <td style="color: white; padding: 12px; text-align: right;">${debtSales.toFixed(2)}</td>
-                    <td style="color: white; padding: 12px; text-align: right;">${totalSales > 0 ? ((debtSales / totalSales) * 100).toFixed(1) : '0.0'}%</td>
-                </tr>
-            </tbody>
-        </table>
-    `;
-    
-    document.getElementById('reportContent').innerHTML = reportContent;
+    generateReport('weekly', weekAgo.toISOString().split('T')[0]);
+    data.save();
 }
 
 function generateMonthlyReport() {
-    const currentMonth = new Date().getMonth();
-    const currentYear = new Date().getFullYear();
-    
-    const monthlySales = data.sales.filter(sale => {
-        const saleDate = new Date(sale.date);
-        return saleDate.getMonth() === currentMonth && saleDate.getFullYear() === currentYear;
-    });
-    
-    const monthlyExpenses = data.expenses.filter(expense => {
-        const expenseDate = new Date(expense.date);
-        return expenseDate.getMonth() === currentMonth && expenseDate.getFullYear() === currentYear;
-    });
-    
-    const totalSales = monthlySales.reduce((sum, sale) => sum + sale.total, 0);
-    const totalExpenses = monthlyExpenses.reduce((sum, expense) => sum + expense.amount, 0);
-    const outstandingDebts = data.debts.filter(debt => debt.status === 'pending').reduce((sum, debt) => sum + debt.amount, 0);
-    
-    // Calculate payment method breakdown
-    const cashSales = monthlySales.filter(s => s.paymentMethod === 'cash').reduce((sum, sale) => sum + sale.total, 0);
-    const mpesaSales = monthlySales.filter(s => s.paymentMethod === 'mpesa').reduce((sum, sale) => sum + sale.total, 0);
-    const debtSales = monthlySales.filter(s => s.paymentMethod === 'debt').reduce((sum, sale) => sum + sale.total, 0);
-    
-    const reportContent = `
-        <h3 style="color: white; margin-bottom: 20px;">Monthly Report - ${new Date().toLocaleString('default', { month: 'long', year: 'numeric' })}</h3>
-        
-        <!-- Summary Table -->
-        <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px; background: rgba(255,255,255,0.1); border-radius: 8px; overflow: hidden;">
-            <thead>
-                <tr style="background: rgba(255,255,255,0.2);">
-                    <th style="color: white; padding: 12px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.3);">Metric</th>
-                    <th style="color: white; padding: 12px; text-align: right; border-bottom: 1px solid rgba(255,255,255,0.3);">Amount (KSh)</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td style="color: white; padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.1);">Total Sales</td>
-                    <td style="color: #4ade80; padding: 12px; text-align: right; font-weight: bold; border-bottom: 1px solid rgba(255,255,255,0.1);">${totalSales.toFixed(2)}</td>
-                </tr>
-                <tr>
-                    <td style="color: white; padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.1);">Total Expenses</td>
-                    <td style="color: #f87171; padding: 12px; text-align: right; font-weight: bold; border-bottom: 1px solid rgba(255,255,255,0.1);">${totalExpenses.toFixed(2)}</td>
-                </tr>
-                <tr>
-                    <td style="color: white; padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.1);">Net Profit</td>
-                    <td style="color: ${(totalSales - totalExpenses) >= 0 ? '#4ade80' : '#f87171'}; padding: 12px; text-align: right; font-weight: bold; border-bottom: 1px solid rgba(255,255,255,0.1);">${(totalSales - totalExpenses).toFixed(2)}</td>
-                </tr>
-                <tr>
-                    <td style="color: white; padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.1);">Number of Transactions</td>
-                    <td style="color: white; padding: 12px; text-align: right; font-weight: bold; border-bottom: 1px solid rgba(255,255,255,0.1);">${monthlySales.length}</td>
-                </tr>
-                <tr>
-                    <td style="color: white; padding: 12px;">Outstanding Debts</td>
-                    <td style="color: #fbbf24; padding: 12px; text-align: right; font-weight: bold;">${outstandingDebts.toFixed(2)}</td>
-                </tr>
-            </tbody>
-        </table>
+    const firstDayOfMonth = new Date();
+    firstDayOfMonth.setDate(1);
+    generateReport('monthly', firstDayOfMonth.toISOString().split('T')[0]);
+    data.save();
+}
 
-        <!-- Payment Method Breakdown Table -->
-        <h4 style="color: white; margin-bottom: 15px;">Payment Method Breakdown</h4>
-        <table style="width: 100%; border-collapse: collapse; background: rgba(255,255,255,0.1); border-radius: 8px; overflow: hidden;">
-            <thead>
-                <tr style="background: rgba(255,255,255,0.2);">
-                    <th style="color: white; padding: 12px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.3);">Payment Method</th>
-                    <th style="color: white; padding: 12px; text-align: right; border-bottom: 1px solid rgba(255,255,255,0.3);">Amount (KSh)</th>
-                    <th style="color: white; padding: 12px; text-align: right; border-bottom: 1px solid rgba(255,255,255,0.3);">Percentage</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td style="color: white; padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.1);">Cash</td>
-                    <td style="color: white; padding: 12px; text-align: right; border-bottom: 1px solid rgba(255,255,255,0.1);">${cashSales.toFixed(2)}</td>
-                    <td style="color: white; padding: 12px; text-align: right; border-bottom: 1px solid rgba(255,255,255,0.1);">${totalSales > 0 ? ((cashSales / totalSales) * 100).toFixed(1) : '0.0'}%</td>
-                </tr>
-                <tr>
-                    <td style="color: white; padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.1);">M-Pesa</td>
-                    <td style="color: white; padding: 12px; text-align: right; border-bottom: 1px solid rgba(255,255,255,0.1);">${mpesaSales.toFixed(2)}</td>
-                    <td style="color: white; padding: 12px; text-align: right; border-bottom: 1px solid rgba(255,255,255,0.1);">${totalSales > 0 ? ((mpesaSales / totalSales) * 100).toFixed(1) : '0.0'}%</td>
-                </tr>
-                <tr>
-                    <td style="color: white; padding: 12px;">Debts</td>
-                    <td style="color: white; padding: 12px; text-align: right;">${debtSales.toFixed(2)}</td>
-                    <td style="color: white; padding: 12px; text-align: right;">${totalSales > 0 ? ((debtSales / totalSales) * 100).toFixed(1) : '0.0'}%</td>
-                </tr>
-            </tbody>
-        </table>
-    `;
+function generateReport(timeframe, startDate) {
+    const endDate = new Date().toISOString().split('T')[0];
+    const filteredSales = data.sales.filter(sale => sale.date >= startDate && sale.date <= endDate);
+    const filteredExpenses = data.expenses.filter(expense => expense.date >= startDate && expense.date <= endDate);
     
-    document.getElementById('reportContent').innerHTML = reportContent;
+    // 1. Financial Summary Report
+    const financialReport = generateFinancialReport(filteredSales, filteredExpenses, timeframe);
+    
+    // 2. Product Performance Report
+    const productReport = generateProductReport(filteredSales);
+    
+    // 3. Inventory Status Report
+    const inventoryReport = generateInventoryReport();
+    
+    // 4. Payment Method Analysis
+    const paymentReport = generatePaymentReport(filteredSales);
+    
+    document.getElementById('reportContent').innerHTML = `
+        ${financialReport}
+        ${productReport}
+        ${inventoryReport}
+        ${paymentReport}
+    `;
+}
+
+function generateFinancialReport(sales, expenses, timeframe) {
+    const totalSales = sales.reduce((sum, sale) => sum + sale.total, 0);
+    const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0);
+    const netProfit = totalSales - totalExpenses;
+    
+    return `
+        <div class="report-section">
+            <h3 style="color: white; border-bottom: 1px solid #444; padding-bottom: 10px;">
+                ${timeframe.charAt(0).toUpperCase() + timeframe.slice(1)} Financial Summary
+            </h3>
+            <div class="financial-grid">
+                <div class="financial-card" style="background: rgba(76, 175, 80, 0.2);">
+                    <div class="financial-value">KSh ${totalSales.toFixed(2)}</div>
+                    <div class="financial-label">Total Sales</div>
+                </div>
+                <div class="financial-card" style="background: rgba(244, 67, 54, 0.2);">
+                    <div class="financial-value">KSh ${totalExpenses.toFixed(2)}</div>
+                    <div class="financial-label">Total Expenses</div>
+                </div>
+                <div class="financial-card" style="background: ${netProfit >= 0 ? 'rgba(76, 175, 80, 0.2)' : 'rgba(244, 67, 54, 0.2)'}">
+                    <div class="financial-value" style="color: ${netProfit >= 0 ? '#4CAF50' : '#F44336'}">KSh ${netProfit.toFixed(2)}</div>
+                    <div class="financial-label">Net Profit</div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function generateProductReport(sales) {
+    // Group sales by product
+    const productSales = {};
+    sales.forEach(sale => {
+        if (!productSales[sale.productId]) {
+            productSales[sale.productId] = {
+                name: sale.productName,
+                total: 0,
+                quantity: 0
+            };
+        }
+        productSales[sale.productId].total += sale.total;
+        productSales[sale.productId].quantity += sale.quantity;
+    });
+    
+    let productRows = '';
+    Object.values(productSales).forEach(product => {
+        productRows += `
+            <tr>
+                <td>${product.name}</td>
+                <td>${product.quantity}</td>
+                <td>KSh ${product.total.toFixed(2)}</td>
+                <td>KSh ${(product.total / product.quantity).toFixed(2)}</td>
+            </tr>
+        `;
+    });
+    
+    return `
+        <div class="report-section">
+            <h3 style="color: white; border-bottom: 1px solid #444; padding-bottom: 10px; margin-top: 30px;">
+                Product Performance
+            </h3>
+            <table class="report-table">
+                <thead>
+                    <tr>
+                        <th>Product</th>
+                        <th>Quantity Sold</th>
+                        <th>Total Revenue</th>
+                        <th>Average Price</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${productRows}
+                </tbody>
+            </table>
+        </div>
+    `;
+}
+
+function generateInventoryReport() {
+    // Sort by stock quantity (lowest first)
+    const sortedProducts = [...data.products].sort((a, b) => a.stock - b.stock);
+    
+    let inventoryRows = '';
+    sortedProducts.forEach(product => {
+        const stockStatus = product.stock === 0 ? 'Out of Stock' : 
+                          product.stock <= 5 ? 'Low Stock' : 'In Stock';
+        const statusClass = product.stock === 0 ? 'out-of-stock' : 
+                          product.stock <= 5 ? 'low-stock' : 'in-stock';
+        
+        inventoryRows += `
+            <tr>
+                <td>${product.name}</td>
+                <td>${product.category}</td>
+                <td>${product.stock}</td>
+                <td><span class="${statusClass}">${stockStatus}</span></td>
+            </tr>
+        `;
+    });
+    
+    return `
+        <div class="report-section">
+            <h3 style="color: white; border-bottom: 1px solid #444; padding-bottom: 10px; margin-top: 30px;">
+                Inventory Status
+            </h3>
+            <table class="report-table">
+                <thead>
+                    <tr>
+                        <th>Product</th>
+                        <th>Category</th>
+                        <th>Current Stock</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${inventoryRows}
+                </tbody>
+            </table>
+        </div>
+    `;
+}
+
+function generatePaymentReport(sales) {
+    const paymentMethods = {
+        cash: { total: 0, count: 0 },
+        mpesa: { total: 0, count: 0 },
+        debt: { total: 0, count: 0 }
+    };
+    
+    sales.forEach(sale => {
+        paymentMethods[sale.paymentMethod].total += sale.total;
+        paymentMethods[sale.paymentMethod].count++;
+    });
+    
+    const totalSales = sales.reduce((sum, sale) => sum + sale.total, 0);
+    
+    return `
+        <div class="report-section">
+            <h3 style="color: white; border-bottom: 1px solid #444; padding-bottom: 10px; margin-top: 30px;">
+                Payment Method Analysis
+            </h3>
+            <div class="payment-methods-grid">
+                <div class="payment-method-card">
+                    <h4>Cash</h4>
+                    <div>KSh ${paymentMethods.cash.total.toFixed(2)}</div>
+                    <div>${paymentMethods.cash.count} transactions</div>
+                    <div>${totalSales > 0 ? ((paymentMethods.cash.total / totalSales) * 100).toFixed(1) : 0}%</div>
+                </div>
+                <div class="payment-method-card">
+                    <h4>M-Pesa</h4>
+                    <div>KSh ${paymentMethods.mpesa.total.toFixed(2)}</div>
+                    <div>${paymentMethods.mpesa.count} transactions</div>
+                    <div>${totalSales > 0 ? ((paymentMethods.mpesa.total / totalSales) * 100).toFixed(1) : 0}%</div>
+                </div>
+                <div class="payment-method-card">
+                    <h4>Debt</h4>
+                    <div>KSh ${paymentMethods.debt.total.toFixed(2)}</div>
+                    <div>${paymentMethods.debt.count} transactions</div>
+                    <div>${totalSales > 0 ? ((paymentMethods.debt.total / totalSales) * 100).toFixed(1) : 0}%</div>
+                </div>
+            </div>
+        </div>
+    `;
 }
 
 function exportReport() {
-    alert('Report export functionality would integrate with a PDF generation service in production.');
+    // Save the current report content
+    const reportContent = document.getElementById('reportContent').innerHTML;
+    localStorage.setItem('lastGeneratedReport', reportContent);
+    
+    // In a real implementation, this would generate a PDF
+    alert('Report saved and ready for export. In production, this would generate a PDF.');
+    data.save();
 }

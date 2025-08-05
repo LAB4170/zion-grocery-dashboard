@@ -1,20 +1,51 @@
-// Debt management
+// Debt Management with Auto-Save
 function addDebt(event) {
     event.preventDefault();
     
+    // Validate inputs
+    const customerName = document.getElementById('debtCustomerName').value.trim();
+    const customerPhone = document.getElementById('debtCustomerPhone').value.trim();
+    const amount = parseFloat(document.getElementById('debtAmount').value);
+    const dueDate = document.getElementById('debtDueDate').value;
+    
+    if (!customerName || !customerPhone || isNaN(amount) || !dueDate) {
+        alert('Please fill all fields with valid values');
+        return;
+    }
+    
+    if (amount <= 0) {
+        alert('Debt amount must be positive');
+        return;
+    }
+    
+    // Validate Kenyan phone number format (254XXXXXXXXX or 07XXXXXXXX)
+    const phoneRegex = /^(?:254|\+254|0)?(7\d{8})$/;
+    if (!phoneRegex.test(customerPhone)) {
+        alert('Please enter a valid Kenyan phone number (e.g., 07XXXXXXXX or 2547XXXXXXXX)');
+        return;
+    }
+    
+    // Validate due date is in the future
+    const today = new Date().toISOString().split('T')[0];
+    if (dueDate < today) {
+        alert('Due date must be in the future');
+        return;
+    }
+
     const debt = {
         id: Date.now(),
-        date: new Date().toISOString().split('T')[0],
-        customerName: document.getElementById('debtCustomerName').value,
-        customerPhone: document.getElementById('debtCustomerPhone').value,
-        amount: parseFloat(document.getElementById('debtAmount').value),
+        date: today,
+        customerName: customerName,
+        customerPhone: customerPhone.replace(/^(?:254|\+254|0)?(7\d{8})$/, '254$1'), // Standardize to 254 format
+        amount: amount,
         status: 'pending',
-        dueDate: document.getElementById('debtDueDate').value
+        dueDate: dueDate
     };
     
     data.debts.push(debt);
     renderDebtsTable();
     updateDashboard();
+    data.save(); // Auto-save to LocalStorage
     closeModal('debtModal');
     event.target.reset();
 }
@@ -40,7 +71,6 @@ function renderDebtsTable() {
         tbody.appendChild(row);
     });
     
-    // Update grouped debts
     updateGroupedDebts();
 }
 
@@ -119,6 +149,7 @@ function markAllCustomerDebtsPaid(customerName, customerPhone) {
         });
         renderDebtsTable();
         updateDashboard();
+        data.save(); // Auto-save to LocalStorage
     }
 }
 
@@ -128,6 +159,7 @@ function markDebtPaid(id) {
         debt.status = 'paid';
         renderDebtsTable();
         updateDashboard();
+        data.save(); // Auto-save to LocalStorage
     }
 }
 
@@ -136,5 +168,6 @@ function deleteDebt(id) {
         data.debts = data.debts.filter(debt => debt.id !== id);
         renderDebtsTable();
         updateDashboard();
+        data.save(); // Auto-save to LocalStorage
     }
 }
