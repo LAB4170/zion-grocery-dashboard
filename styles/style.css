@@ -357,3 +357,30 @@ body {
         grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     }
 }
+
+/* Backup/Restore buttons */
+#fileInput {
+    display: none;
+}
+
+.nav-item i {
+    margin-right: 10px;
+}
+
+/* Fixed position for backup buttons */
+.nav-item[onclick*="exportData"],
+.nav-item[onclick*="fileInput"] {
+    position: fixed;
+    left: 20px;
+    background: #34495e;
+    width: calc(100% - 40px);
+    max-width: 250px;
+}
+
+.nav-item[onclick*="exportData"] {
+    bottom: 60px;
+}
+
+.nav-item[onclick*="fileInput"] {
+    bottom: 100px;
+}
