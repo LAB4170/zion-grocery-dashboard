@@ -1,15 +1,30 @@
-// Expense management
+// Expense Management with Auto-Save
 function addExpense(event) {
     event.preventDefault();
     
     const form = event.target;
     const editingId = form.dataset.editingId;
     
+    // Validate inputs
+    const description = document.getElementById('expenseDescription').value.trim();
+    const category = document.getElementById('expenseCategory').value;
+    const amount = parseFloat(document.getElementById('expenseAmount').value);
+    
+    if (!description || !category || isNaN(amount)) {
+        alert('Please fill all fields with valid values');
+        return;
+    }
+    
+    if (amount <= 0) {
+        alert('Expense amount must be positive');
+        return;
+    }
+
     const expenseData = {
         date: new Date().toISOString().split('T')[0],
-        description: document.getElementById('expenseDescription').value,
-        category: document.getElementById('expenseCategory').value,
-        amount: parseFloat(document.getElementById('expenseAmount').value)
+        description: description,
+        category: category,
+        amount: amount
     };
     
     if (editingId) {
@@ -37,6 +52,7 @@ function addExpense(event) {
     
     renderExpensesTable();
     updateDashboard();
+    data.save(); // Auto-save to LocalStorage
     closeModal('expenseModal');
     form.reset();
 }
@@ -65,7 +81,10 @@ function renderExpensesTable() {
     const tbody = document.getElementById('expensesTableBody');
     tbody.innerHTML = '';
     
-    data.expenses.forEach(expense => {
+    // Sort expenses by date (newest first)
+    const sortedExpenses = [...data.expenses].sort((a, b) => new Date(b.date) - new Date(a.date));
+    
+    sortedExpenses.forEach(expense => {
         const row = document.createElement('tr');
         row.innerHTML = `
             <td>${expense.date}</td>
@@ -86,5 +105,6 @@ function deleteExpense(id) {
         data.expenses = data.expenses.filter(expense => expense.id !== id);
         renderExpensesTable();
         updateDashboard();
+        data.save(); // Auto-save to LocalStorage
     }
 }

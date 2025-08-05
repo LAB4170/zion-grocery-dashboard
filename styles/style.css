@@ -384,3 +384,75 @@ body {
 .nav-item[onclick*="fileInput"] {
     bottom: 100px;
 }
+/* Reports styling */
+.report-section {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.report-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+}
+
+.report-table th, .report-table td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.report-table th {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+}
+
+.financial-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin-top: 20px;
+}
+
+.financial-card {
+    padding: 20px;
+    border-radius: 8px;
+    text-align: center;
+}
+
+.financial-value {
+    font-size: 24px;
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+.financial-label {
+    font-size: 14px;
+    opacity: 0.8;
+}
+
+.payment-methods-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 15px;
+    margin-top: 20px;
+}
+
+.payment-method-card {
+    background: rgba(255, 255, 255, 0.05);
+    padding: 15px;
+    border-radius: 8px;
+}
+
+.payment-method-card h4 {
+    margin-top: 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding-bottom: 10px;
+}
+
+/* Status indicators */
+.in-stock { color: #4CAF50; }
+.low-stock { color: #FFC107; }
+.out-of-stock { color: #F44336; }
