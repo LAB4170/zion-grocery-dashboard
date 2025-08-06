@@ -1,0 +1,45 @@
+.hidden {
+    display: none;
+}
+
+// Status indicators
+.in-stock { 
+    background: $success-status;
+    color: white;
+}
+.low-stock { 
+    background: $warning-gradient;
+    color: white;
+}
+.out-of-stock { 
+    background: $danger-gradient;
+    color: white;
+}
+
+.mpesa-status {
+    background: $success-status;
+    color: white;
+    padding: 5px 10px;
+    border-radius: 15px;
+    font-size: 12px;
+}
+
+.debt-status-pending {
+    background: $pending-status;
+    color: white;
+    padding: 5px 10px;
+    border-radius: 15px;
+    font-size: 12px;
+}
+
+.debt-status-paid {
+    background: $success-status;
+    color: white;
+    padding: 5px 10px;
+    border-radius: 15px;
+    font-size: 12px;
+}
+
+#fileInput {
+    display: none;
+}

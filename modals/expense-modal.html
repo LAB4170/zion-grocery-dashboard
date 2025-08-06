@@ -1,0 +1,30 @@
+<!-- Expense Modal -->
+<div id="expenseModal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="closeModal('expenseModal')">&times;</span>
+        <h2>Add New Expense</h2>
+        <form onsubmit="addExpense(event)">
+            <div class="form-group">
+                <label>Description</label>
+                <textarea id="expenseDescription" required rows="3"></textarea>
+            </div>
+            <div class="form-group">
+                <label>Category</label>
+                <select id="expenseCategory" required>
+                    <option value="inventory">Inventory Purchase</option>
+                    <option value="utilities">Utilities</option>
+                    <option value="rent">Rent</option>
+                    <option value="transport">Transport</option>
+                    <option value="marketing">Marketing</option>
+                    <option value="maintenance">Maintenance</option>
+                    <option value="other">Other</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Amount (KSh)</label>
+                <input type="number" id="expenseAmount" required min="0" step="0.01">
+            </div>
+            <button type="submit" class="btn">Add Expense</button>
+        </form>
+    </div>
+</div>

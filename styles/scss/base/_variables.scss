@@ -1,0 +1,27 @@
+// Colors
+$primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+$secondary-gradient: linear-gradient(45deg, #4CAF50, #45a049);
+$danger-gradient: linear-gradient(45deg, #f44336, #d32f2f);
+$warning-gradient: linear-gradient(45deg, #ff9800, #f57c00);
+$success-status: linear-gradient(45deg, #4CAF50, #45a049);
+$pending-status: linear-gradient(45deg, #ff9800, #f57c00);
+
+// Spacing
+$spacing-unit: 8px;
+$spacing-xs: $spacing-unit * 1;  // 8px
+$spacing-sm: $spacing-unit * 2;  // 16px
+$spacing-md: $spacing-unit * 3;  // 24px
+$spacing-lg: $spacing-unit * 4;  // 32px
+$spacing-xl: $spacing-unit * 5;  // 40px
+
+// Border Radius
+$border-radius-sm: 5px;
+$border-radius-md: 10px;
+$border-radius-lg: 15px;
+$border-radius-xl: 20px;
+
+// Breakpoints
+$breakpoint-xs: 480px;
+$breakpoint-sm: 768px;
+$breakpoint-md: 992px;
+$breakpoint-lg: 1200px;

@@ -1,0 +1,60 @@
+<!-- Debt Management Section -->
+<div id="debt-management" class="section hidden">
+    <div class="section-header">
+        <h2 style="color: white;">Debt Management Overview</h2>
+    </div>
+    
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-value" id="total-outstanding">KSh 0</div>
+            <div class="stat-label">Total Outstanding</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" id="total-debtors">0</div>
+            <div class="stat-label">Total Debtors</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" id="overdue-debts">KSh 0</div>
+            <div class="stat-label">Overdue Debts</div>
+        </div>
+    </div>
+</div>
+
+<!-- Individual Debts Section -->
+<div id="individual-debts" class="section hidden">
+    <div class="section-header">
+        <h2 style="color: white;">Individual Debts</h2>
+        <button class="btn" onclick="openModal('debtModal')">Record New Debt</button>
+    </div>
+    
+    <input type="text" class="search-box" placeholder="Search debts..." onkeyup="searchTable('debtsTable', this.value)">
+    
+    <table class="table" id="debtsTable">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Customer Name</th>
+                <th>Phone</th>
+                <th>Amount</th>
+                <th>Status</th>
+                <th>Due Date</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody id="debtsTableBody">
+        </tbody>
+    </table>
+</div>
+
+<!-- Grouped Debts Section -->
+<div id="grouped-debts" class="section hidden">
+    <div class="section-header">
+        <h2 style="color: white;">Grouped Debts</h2>
+    </div>
+    
+    <div class="content-section">
+        <div id="groupedDebtsContent">
+            <!-- This will be populated with grouped debt data -->
+        </div>
+    </div>
+</div>
