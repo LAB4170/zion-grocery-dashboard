@@ -37,14 +37,61 @@ const data = {
   }
 };
 
-// Initialize data on load
+// Dashboard initialization with retry logic
+function initializeDashboard() {
+  // Check if dashboard container exists and has content
+  const dashboardContainer = document.getElementById('dashboard-container');
+  
+  if (dashboardContainer && dashboardContainer.innerHTML.trim() !== '') {
+    // Dashboard is loaded, proceed with initialization
+    console.log('Dashboard content loaded, initializing...');
+    
+    // Load data first
+    data.load();
+    
+    // Update dashboard stats
+    if (typeof updateDashboard === 'function') {
+      updateDashboard();
+    } else {
+      console.error('updateDashboard function not found');
+    }
+    
+    // Initialize charts with slight delay to ensure DOM is ready
+    setTimeout(() => {
+      if (typeof initializeCharts === 'function') {
+        initializeCharts();
+      } else {
+        console.error('initializeCharts function not found');
+      }
+    }, 100);
+  } else {
+    // If not loaded yet, wait and try again (max 10 attempts)
+    const maxAttempts = 10;
+    let attempts = 0;
+    
+    const checkInterval = setInterval(() => {
+      attempts++;
+      if (dashboardContainer && dashboardContainer.innerHTML.trim() !== '') {
+        clearInterval(checkInterval);
+        initializeDashboard();
+      } else if (attempts >= maxAttempts) {
+        clearInterval(checkInterval);
+        console.error('Dashboard failed to load after multiple attempts');
+      }
+    }, 200);
+  }
+}
+
+// Initialize the application
 document.addEventListener('DOMContentLoaded', function() {
-  data.load(); // Load saved data first
-  updateDashboard();
-  setTimeout(initializeCharts, 500);
+  // Start loading the dashboard
+  initializeDashboard();
+  
+  // Auto-save when window closes or refreshes
+  window.addEventListener('beforeunload', function() {
+    data.save();
+  });
 });
 
-// Auto-save when window closes or refreshes
-window.addEventListener('beforeunload', function() {
-  data.save();
-});
+// Make data globally available
+window.appData = data;

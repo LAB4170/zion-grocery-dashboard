@@ -1,0 +1,73 @@
+.inventory-section {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border-radius: 20px;
+    padding: 25px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    margin-top: 30px;
+}
+
+.inventory-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 15px;
+    margin-top: 20px;
+}
+
+.inventory-item {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    padding: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition: all 0.3s ease;
+}
+
+.inventory-item:hover {
+    background: rgba(255, 255, 255, 0.1);
+    transform: translateY(-2px);
+}
+
+.inventory-item h4 {
+    color: white;
+    margin-bottom: 10px;
+    font-size: 1.1em;
+}
+
+.inventory-details {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    font-size: 14px;
+}
+
+.inventory-details span:first-child {
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.inventory-details span:last-child {
+    color: white;
+    font-weight: bold;
+}
+
+.stock-status {
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: bold;
+    text-align: center;
+    margin-top: 10px;
+}
+
+/* Status indicators */
+.in-stock { 
+    background: linear-gradient(45deg, #4CAF50, #45a049);
+    color: white;
+}
+.low-stock { 
+    background: linear-gradient(45deg, #FFC107, #FF9800);
+    color: white;
+}
+.out-of-stock { 
+    background: linear-gradient(45deg, #F44336, #d32f2f);
+    color: white;
+}
