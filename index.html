@@ -15,22 +15,16 @@
     <div class="main-content">
         <!-- Dashboard section will be loaded here -->
         <div id="dashboard-container"></div>
-        
         <!-- Sales section will be loaded here -->
         <div id="sales-container"></div>
-        
         <!-- Sales Settings section will be loaded here -->
         <div id="sales-settings-container"></div>
-        
         <!-- Sales Reports section will be loaded here -->
         <div id="sales-reports-container"></div>
-        
         <!-- Expenses section will be loaded here -->
         <div id="expenses-container"></div>
-        
         <!-- Debts section will be loaded here -->
         <div id="debts-container"></div>
-        
         <!-- M-Pesa section will be loaded here -->
         <div id="mpesa-container"></div>
     </div>
@@ -71,7 +65,12 @@ function loadPartial(url, containerId) {
     fetch(url)
         .then(response => response.text())
         .then(html => {
-            document.getElementById(containerId).innerHTML = html;
+            const container = document.getElementById(containerId);
+            if (container) {
+                container.innerHTML = html;
+            } else {
+                console.error('Container not found:', containerId);
+            }
         })
         .catch(error => console.error('Error loading partial:', error));
 }
@@ -86,7 +85,12 @@ function loadModals() {
     
     Promise.all(modalFiles.map(file => fetch(file).then(r => r.text())))
         .then(htmlArray => {
-            document.getElementById('modals-container').innerHTML = htmlArray.join('');
+            const modalsContainer = document.getElementById('modals-container');
+            if (modalsContainer) {
+                modalsContainer.innerHTML = htmlArray.join('');
+            } else {
+                console.error('Modals container not found');
+            }
         })
         .catch(error => console.error('Error loading modals:', error));
 }
