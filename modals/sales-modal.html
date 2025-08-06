@@ -1,0 +1,36 @@
+<!-- Sales Modal -->
+<div id="salesModal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="closeModal('salesModal')">&times;</span>
+        <h2>Create New Sale</h2>
+        <form onsubmit="addSale(event)">
+            <div class="form-group">
+                <label>Product</label>
+                <select id="saleProduct" required>
+                    <option value="">Select Product</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Quantity</label>
+                <input type="number" id="saleQuantity" required min="1">
+            </div>
+            <div class="form-group">
+                <label>Payment Method</label>
+                <select id="salePaymentMethod" required>
+                    <option value="cash">Cash</option>
+                    <option value="mpesa">M-Pesa</option>
+                    <option value="debt">Debt</option>
+                </select>
+            </div>
+            <div class="form-group" id="customerInfoGroup" style="display: none;">
+                <label>Customer Name</label>
+                <input type="text" id="customerName">
+            </div>
+            <div class="form-group" id="customerPhoneGroup" style="display: none;">
+                <label>Customer Phone</label>
+                <input type="tel" id="customerPhone">
+            </div>
+            <button type="submit" class="btn">Create Sale</button>
+        </form>
+    </div>
+</div>

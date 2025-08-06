@@ -1,0 +1,35 @@
+.dashboard {
+    .inventory-section {
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        border-radius: 20px;
+        padding: 25px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        margin-top: 30px;
+    }
+
+    .inventory-details {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 8px;
+        font-size: 14px;
+
+        span:first-child {
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        span:last-child {
+            color: white;
+            font-weight: bold;
+        }
+    }
+
+    .stock-status {
+        padding: 4px 12px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: bold;
+        text-align: center;
+        margin-top: 10px;
+    }
+}

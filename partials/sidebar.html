@@ -1,0 +1,38 @@
+<div class="sidebar">
+    <div class="logo">
+        <h1>🛒 ZION GROCERIES</h1>
+        <p>Dashboard Management System</p>
+    </div>
+
+    <div class="nav-item active" onclick="showSection('dashboard')">
+        <i>📊</i> Dashboard
+    </div>
+    <div class="nav-item" onclick="showSection('sales')">
+        <i>💰</i> Sales
+    </div>
+    <div class="nav-item" onclick="showSection('sales-settings')">
+        <i>⚙️</i> Sales Settings
+    </div>
+    <div class="nav-item" onclick="showSection('sales-reports')">
+        <i>📈</i> Sales Reports
+    </div>
+    <div class="nav-item" onclick="showSection('expenses')">
+        <i>💸</i> Expenses
+    </div>
+    <div class="nav-item" onclick="toggleSubmenu('debt-management')">
+        <i>📋</i> Debt Management <span id="debt-arrow">▼</span>
+    </div>
+    <div id="debt-submenu" class="submenu">
+        <div class="nav-item submenu-item" onclick="showSection('individual-debts')">
+            <i>👤</i> Individual Debts
+        </div>
+        <div class="nav-item submenu-item" onclick="showSection('grouped-debts')">
+            <i>👥</i> Grouped Debts
+        </div>
+    </div>
+    <div class="nav-item" onclick="showSection('mpesa')">
+        <i>📱</i> M-Pesa Transactions
+    </div>
+
+
+</div>

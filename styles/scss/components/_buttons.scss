@@ -1,0 +1,35 @@
+.btn {
+    background: $secondary-gradient;
+    color: white;
+    border: none;
+    padding: 12px 20px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: all 0.3s ease;
+
+    &:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    }
+
+    &-danger {
+        background: $danger-gradient;
+    }
+
+    &-warning {
+        background: $warning-gradient;
+    }
+
+    &-small {
+        padding: 5px 10px;
+        font-size: 12px;
+        border-radius: 5px;
+    }
+}
+
+.action-buttons {
+    display: flex;
+    gap: 5px;
+    flex-wrap: wrap;
+}

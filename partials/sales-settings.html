@@ -1,0 +1,23 @@
+<!-- Sales Settings Section -->
+<div id="sales-settings" class="section hidden">
+    <div class="section-header">
+        <h2 style="color: white;">Sales Settings - Product Management</h2>
+        <button class="btn" onclick="openModal('productModal')">Add New Product</button>
+    </div>
+    
+    <input type="text" class="search-box" placeholder="Search products..." onkeyup="searchTable('productsTable', this.value)">
+    
+    <table class="table" id="productsTable">
+        <thead>
+            <tr>
+                <th>Product Name</th>
+                <th>Category</th>
+                <th>Unit Price</th>
+                <th>Stock Quantity</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody id="productsTableBody">
+        </tbody>
+    </table>
+</div>

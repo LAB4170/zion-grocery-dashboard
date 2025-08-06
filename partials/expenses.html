@@ -1,0 +1,23 @@
+<!-- Expenses Section -->
+<div id="expenses" class="section hidden">
+    <div class="section-header">
+        <h2 style="color: white;">Expenses Management</h2>
+        <button class="btn" onclick="openModal('expenseModal')">Add New Expense</button>
+    </div>
+    
+    <input type="text" class="search-box" placeholder="Search expenses..." onkeyup="searchTable('expensesTable', this.value)">
+    
+    <table class="table" id="expensesTable">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Description</th>
+                <th>Category</th>
+                <th>Amount</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody id="expensesTableBody">
+        </tbody>
+    </table>
+</div>

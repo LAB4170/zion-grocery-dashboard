@@ -2,8 +2,22 @@
 let paymentChart = null;
 let weeklyChart = null;
 
+// Fetch data from local storage
+function fetchData() {
+    const salesData = localStorage.getItem('salesData');
+    const debtsData = localStorage.getItem('debtsData');
+    const expensesData = localStorage.getItem('expensesData');
+
+    return {
+        sales: salesData ? JSON.parse(salesData) : [],
+        debts: debtsData ? JSON.parse(debtsData) : [],
+        expenses: expensesData ? JSON.parse(expensesData) : []
+    };
+}
+
 // Dashboard updates
 function updateDashboard() {
+    const data = fetchData(); // Fetch data from local storage
     const today = new Date().toISOString().split('T')[0];
     const currentMonth = new Date().getMonth();
     const currentYear = new Date().getFullYear();
@@ -41,13 +55,13 @@ function updateDashboard() {
     document.getElementById('total-outstanding').textContent = `KSh ${outstandingDebt.toFixed(2)}`;
     document.getElementById('total-debtors').textContent = data.debts.filter(debt => debt.status === 'pending').length;
     
-    const overdueDe = data.debts.filter(debt => 
+    const overdueDebts = data.debts.filter(debt => 
         debt.status === 'pending' && new Date(debt.dueDate) < new Date()
     ).reduce((sum, debt) => sum + debt.amount, 0);
-    document.getElementById('overdue-debts').textContent = `KSh ${overdueDe.toFixed(2)}`;
+    document.getElementById('overdue-debts').textContent = `KSh ${overdueDebts.toFixed(2)}`;
     
     // Update charts
-    updateCharts();
+    updateCharts(data);
 }
 
 // Chart functions
@@ -144,7 +158,7 @@ function initializeCharts() {
     updateCharts();
 }
 
-function updateCharts() {
+function updateCharts(data) {
     if (!paymentChart || !weeklyChart) return;
     
     // Update payment distribution
@@ -155,22 +169,63 @@ function updateCharts() {
     paymentChart.data.datasets[0].data = [cashTotal, mpesaTotal, debtTotal, 0];
     paymentChart.update();
     
-    // Update weekly chart with sample data
-    const weeklyData = generateWeeklyData();
+    // Update weekly chart with actual data
+    const weeklyData = getWeeklySalesData(data);
     weeklyChart.data.datasets[0].data = weeklyData.total;
     weeklyChart.data.datasets[1].data = weeklyData.cash;
     weeklyChart.data.datasets[2].data = weeklyData.mpesa;
     weeklyChart.update();
 }
 
-function generateWeeklyData() {
-    // Generate sample weekly data based on current sales
-    const total = data.sales.reduce((sum, sale) => sum + sale.total, 0);
-    const baseDaily = total / 30; // Assume 30 days average
+function getWeeklySalesData(data) {
+    // Get dates for the current week (Monday to Sunday)
+    const now = new Date();
+    const dayOfWeek = now.getDay(); // 0 (Sunday) to 6 (Saturday)
+    const startOfWeek = new Date(now);
+    startOfWeek.setDate(now.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1)); // Adjust to Monday
+    startOfWeek.setHours(0, 0, 0, 0); // Start of day
     
-    return {
-        total: Array.from({length: 7}, () => Math.floor(Math.random() * baseDaily * 2)),
-        cash: Array.from({length: 7}, () => Math.floor(Math.random() * baseDaily)),
-        mpesa: Array.from({length: 7}, () => Math.floor(Math.random() * baseDaily))
+    // Initialize result arrays
+    const result = {
+        total: [0, 0, 0, 0, 0, 0, 0],
+        cash: [0, 0, 0, 0, 0, 0, 0],
+        mpesa: [0, 0, 0, 0, 0, 0, 0]
     };
+    
+    // Process each sale
+    data.sales.forEach(sale => {
+        try {
+            const saleDate = new Date(sale.date);
+            saleDate.setHours(0, 0, 0, 0); // Normalize time
+            
+            // Check if sale is within the current week
+            if (saleDate >= startOfWeek && saleDate <= now) {
+                const dayIndex = (saleDate.getDay() + 6) % 7; // Convert to 0 (Mon) to 6 (Sun)
+                
+                // Add to totals
+                result.total[dayIndex] += sale.total;
+                
+                // Add to payment method specific totals
+                if (sale.paymentMethod === 'cash') {
+                    result.cash[dayIndex] += sale.total;
+                } else if (sale.paymentMethod === 'mpesa') {
+                    result.mpesa[dayIndex] += sale.total;
+                }
+            }
+        } catch (e) {
+            console.error('Error processing sale:', sale, e);
+        }
+    });
+    
+    return result;
 }
+
+// Initialize the dashboard when the page loads
+document.addEventListener('DOMContentLoaded', function() {
+    initializeCharts();
+    updateDashboard();
+});
+
+// Make sure these functions are available globally if needed by other scripts
+window.updateDashboard = updateDashboard;
+window.initializeCharts = initializeCharts;

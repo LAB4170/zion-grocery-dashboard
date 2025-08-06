@@ -1,0 +1,76 @@
+<!-- Dashboard Section -->
+<div id="dashboard" class="section">
+    <div class="header">
+        <h1>Welcome to Zion Groceries Dashboard</h1>
+        <p>Real-time business overview and analytics</p>
+    </div>
+
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-value" id="total-sales">KSh 0</div>
+            <div class="stat-label">Total Sales</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" id="mpesa-total">KSh 0</div>
+            <div class="stat-label">M-Pesa Sales</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" id="cash-total">KSh 0</div>
+            <div class="stat-label">Cash Sales</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" id="todays-debts">KSh 0</div>
+            <div class="stat-label">Today's Debts</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" id="daily-expenses">KSh 0</div>
+            <div class="stat-label">Daily Expenses</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" id="monthly-sales">KSh 0</div>
+            <div class="stat-label">Monthly Sales</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" id="monthly-expenses">KSh 0</div>
+            <div class="stat-label">Monthly Expenses</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" id="outstanding-debt">KSh 0</div>
+            <div class="stat-label">Outstanding Debt</div>
+        </div>
+    </div>
+
+    <div class="content-grid">
+        <div class="content-section">
+            <h3>Payment Distribution</h3>
+            <div class="chart-container">
+                <canvas id="paymentChart"></canvas>
+            </div>
+        </div>
+
+        <div class="content-section">
+            <h3>Weekly Sales Trends</h3>
+            <div class="chart-container">
+                <canvas id="weeklyChart"></canvas>
+            </div>
+        </div>
+
+        <div class="content-section">
+            <h3>Quick Inventory Status</h3>
+            <div class="inventory-grid" id="inventoryOverview">
+                <!-- Will be populated by JavaScript -->
+            </div>
+        </div>
+    </div>
+
+    <div class="inventory-section">
+        <div class="section-header">
+            <h3>Detailed Inventory Management</h3>
+            <button class="btn" onclick="openModal('productModal')">+ Add Item</button>
+        </div>
+        
+        <div class="inventory-grid" id="detailedInventory">
+            <!-- Will be populated by JavaScript -->
+        </div>
+    </div>
+</div>
