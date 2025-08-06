@@ -1,4 +1,3 @@
-// Product Management with Auto-Save
 function addProduct(event) {
     event.preventDefault();
     
@@ -20,6 +19,12 @@ function addProduct(event) {
     
     if (productData.price < 0 || productData.stock < 0) {
         alert('Price and stock cannot be negative');
+        return;
+    }
+
+    // Check if data and data.products are defined
+    if (!data || !Array.isArray(data.products)) {
+        alert('Product data is not available. Please initialize the data.');
         return;
     }
 
@@ -52,6 +57,7 @@ function addProduct(event) {
     closeModal('productModal');
     form.reset();
 }
+
 
 function editProduct(id) {
     const product = data.products.find(p => p.id === id);

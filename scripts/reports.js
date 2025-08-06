@@ -6,11 +6,16 @@ function generateDailyReport() {
 }
 
 function generateWeeklyReport() {
-    const weekAgo = new Date();
-    weekAgo.setDate(weekAgo.getDate() - 7);
+    const today = new Date();
+    const weekAgo = new Date(today);
+    const dayOfWeek = today.getDay(); 
+    const diffToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+    weekAgo.setDate(today.getDate() - diffToMonday);
     generateReport('weekly', weekAgo.toISOString().split('T')[0]);
     data.save();
 }
+
+
 
 function generateMonthlyReport() {
     const firstDayOfMonth = new Date();

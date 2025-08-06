@@ -1,33 +1,79 @@
 // Sales management with LocalStorage auto-save
-document.getElementById('salePaymentMethod').addEventListener('change', function() {
-    const method = this.value;
-    const customerInfo = document.getElementById('customerInfoGroup');
-    const customerPhone = document.getElementById('customerPhoneGroup');
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize all event listeners after DOM is loaded
+    initializeSalesForm();
     
-    if (method === 'debt') {
-        customerInfo.style.display = 'block';
-        customerPhone.style.display = 'block';
-        document.getElementById('customerName').required = true;
-        document.getElementById('customerPhone').required = true;
-    } else {
-        customerInfo.style.display = 'none';
-        customerPhone.style.display = 'none';
-        document.getElementById('customerName').required = false;
-        document.getElementById('customerPhone').required = false;
+    // Load saved form state and sales data
+    loadFormState();
+    
+    const savedSales = localStorage.getItem('salesData');
+    if (savedSales) {
+        data.sales = JSON.parse(savedSales);
+        renderSalesTable();
+    }
+});
+
+function initializeSalesForm() {
+    const paymentMethodSelect = document.getElementById('salePaymentMethod');
+    const saleProduct = document.getElementById('saleProduct');
+    const saleQuantity = document.getElementById('saleQuantity');
+    const customerName = document.getElementById('customerName');
+    const customerPhone = document.getElementById('customerPhone');
+    
+    // Only add event listeners if elements exist
+    if (paymentMethodSelect) {
+        paymentMethodSelect.addEventListener('change', handlePaymentMethodChange);
     }
     
-    // Save form state to LocalStorage
+    if (saleProduct) {
+        saleProduct.addEventListener('change', saveFormState);
+    }
+    
+    if (saleQuantity) {
+        saleQuantity.addEventListener('input', saveFormState);
+    }
+    
+    if (customerName) {
+        customerName.addEventListener('input', saveFormState);
+    }
+    
+    if (customerPhone) {
+        customerPhone.addEventListener('input', saveFormState);
+    }
+}
+
+function handlePaymentMethodChange() {
+    const method = this.value;
+    const customerInfo = document.getElementById('customerInfoGroup');
+    const customerPhoneGroup = document.getElementById('customerPhoneGroup');
+    const customerNameInput = document.getElementById('customerName');
+    const customerPhoneInput = document.getElementById('customerPhone');
+    
+    if (customerInfo && customerPhoneGroup && customerNameInput && customerPhoneInput) {
+        if (method === 'debt') {
+            customerInfo.style.display = 'block';
+            customerPhoneGroup.style.display = 'block';
+            customerNameInput.required = true;
+            customerPhoneInput.required = true;
+        } else {
+            customerInfo.style.display = 'none';
+            customerPhoneGroup.style.display = 'none';
+            customerNameInput.required = false;
+            customerPhoneInput.required = false;
+        }
+    }
+    
     saveFormState();
-});
+}
 
 // Save form data to LocalStorage
 function saveFormState() {
     const formData = {
-        productId: document.getElementById('saleProduct').value,
-        quantity: document.getElementById('saleQuantity').value,
-        paymentMethod: document.getElementById('salePaymentMethod').value,
-        customerName: document.getElementById('customerName').value,
-        customerPhone: document.getElementById('customerPhone').value
+        productId: document.getElementById('saleProduct')?.value || '',
+        quantity: document.getElementById('saleQuantity')?.value || '',
+        paymentMethod: document.getElementById('salePaymentMethod')?.value || '',
+        customerName: document.getElementById('customerName')?.value || '',
+        customerPhone: document.getElementById('customerPhone')?.value || ''
     };
     localStorage.setItem('saleFormData', JSON.stringify(formData));
 }
@@ -38,28 +84,24 @@ function loadFormState() {
     if (savedData) {
         const formData = JSON.parse(savedData);
         
-        document.getElementById('saleProduct').value = formData.productId;
-        document.getElementById('saleQuantity').value = formData.quantity;
-        document.getElementById('salePaymentMethod').value = formData.paymentMethod;
+        const saleProduct = document.getElementById('saleProduct');
+        const saleQuantity = document.getElementById('saleQuantity');
+        const salePaymentMethod = document.getElementById('salePaymentMethod');
+        const customerName = document.getElementById('customerName');
+        const customerPhone = document.getElementById('customerPhone');
         
-        // Trigger payment method change to show/hide customer fields
-        document.getElementById('salePaymentMethod').dispatchEvent(new Event('change'));
+        if (saleProduct) saleProduct.value = formData.productId;
+        if (saleQuantity) saleQuantity.value = formData.quantity;
+        if (salePaymentMethod) {
+            salePaymentMethod.value = formData.paymentMethod;
+            // Trigger payment method change to show/hide customer fields
+            salePaymentMethod.dispatchEvent(new Event('change'));
+        }
         
-        document.getElementById('customerName').value = formData.customerName;
-        document.getElementById('customerPhone').value = formData.customerPhone;
+        if (customerName) customerName.value = formData.customerName;
+        if (customerPhone) customerPhone.value = formData.customerPhone;
     }
 }
-
-// Add event listeners to form fields for auto-save
-document.getElementById('saleProduct').addEventListener('change', saveFormState);
-document.getElementById('saleQuantity').addEventListener('input', saveFormState);
-document.getElementById('customerName').addEventListener('input', saveFormState);
-document.getElementById('customerPhone').addEventListener('input', saveFormState);
-
-// Load saved form state when page loads
-document.addEventListener('DOMContentLoaded', function() {
-    loadFormState();
-});
 
 function editSale(id) {
     const sale = data.sales.find(s => s.id === id);
@@ -68,29 +110,44 @@ function editSale(id) {
     // Find the product to get current details
     const product = data.products.find(p => p.id === sale.productId);
     
+    // Get form elements
+    const saleProduct = document.getElementById('saleProduct');
+    const saleQuantity = document.getElementById('saleQuantity');
+    const salePaymentMethod = document.getElementById('salePaymentMethod');
+    const customerName = document.getElementById('customerName');
+    const customerPhone = document.getElementById('customerPhone');
+    const customerInfoGroup = document.getElementById('customerInfoGroup');
+    const customerPhoneGroup = document.getElementById('customerPhoneGroup');
+    
+    if (!saleProduct || !saleQuantity || !salePaymentMethod) return;
+    
     // Populate the form fields
-    document.getElementById('saleProduct').value = sale.productId;
-    document.getElementById('saleQuantity').value = sale.quantity;
-    document.getElementById('salePaymentMethod').value = sale.paymentMethod;
+    saleProduct.value = sale.productId;
+    saleQuantity.value = sale.quantity;
+    salePaymentMethod.value = sale.paymentMethod;
     
     // Handle customer info for debt sales
-    if (sale.paymentMethod === 'debt') {
-        document.getElementById('customerName').value = sale.customerName;
-        document.getElementById('customerPhone').value = sale.customerPhone;
-        document.getElementById('customerInfoGroup').style.display = 'block';
-        document.getElementById('customerPhoneGroup').style.display = 'block';
-    } else {
-        document.getElementById('customerInfoGroup').style.display = 'none';
-        document.getElementById('customerPhoneGroup').style.display = 'none';
+    if (sale.paymentMethod === 'debt' && customerName && customerPhone && customerInfoGroup && customerPhoneGroup) {
+        customerName.value = sale.customerName;
+        customerPhone.value = sale.customerPhone;
+        customerInfoGroup.style.display = 'block';
+        customerPhoneGroup.style.display = 'block';
+    } else if (customerInfoGroup && customerPhoneGroup) {
+        customerInfoGroup.style.display = 'none';
+        customerPhoneGroup.style.display = 'none';
     }
 
     // Store the sale ID in the form dataset
     const form = document.querySelector('#salesModal form');
-    form.dataset.editingId = id;
+    if (form) {
+        form.dataset.editingId = id;
 
-    // Change button text
-    const submitBtn = form.querySelector('button[type="submit"]');
-    submitBtn.textContent = 'Update Sale';
+        // Change button text
+        const submitBtn = form.querySelector('button[type="submit"]');
+        if (submitBtn) {
+            submitBtn.textContent = 'Update Sale';
+        }
+    }
 
     // Update the dropdown to show current stock
     populateProductDropdown();
@@ -107,12 +164,12 @@ function addSale(event) {
     const form = event.target;
     const editingId = form.dataset.editingId;
     
-    const productId = parseInt(document.getElementById('saleProduct').value);
+    const productId = parseInt(document.getElementById('saleProduct')?.value || 0);
     const product = data.products.find(p => p.id === productId);
-    const quantity = parseInt(document.getElementById('saleQuantity').value);
-    const paymentMethod = document.getElementById('salePaymentMethod').value;
-    const customerName = document.getElementById('customerName').value || '';
-    const customerPhone = document.getElementById('customerPhone').value || '';
+    const quantity = parseInt(document.getElementById('saleQuantity')?.value || 0);
+    const paymentMethod = document.getElementById('salePaymentMethod')?.value || '';
+    const customerName = document.getElementById('customerName')?.value || '';
+    const customerPhone = document.getElementById('customerPhone')?.value || '';
     
     if (!product) {
         alert('Please select a valid product');
@@ -180,9 +237,13 @@ function addSale(event) {
         }
         
         // Reset the editing state
-        delete form.dataset.editingId;
-        const submitBtn = form.querySelector('button[type="submit"]');
-        submitBtn.textContent = 'Add Sale';
+        if (form) {
+            delete form.dataset.editingId;
+            const submitBtn = form.querySelector('button[type="submit"]');
+            if (submitBtn) {
+                submitBtn.textContent = 'Add Sale';
+            }
+        }
     } else {
         // Add new sale
         const sale = {
@@ -237,7 +298,7 @@ function addSale(event) {
     renderProductsTable();
     updateDashboard();
     closeModal('salesModal');
-    form.reset();
+    if (form) form.reset();
     
     // Clear saved form data after successful submission
     localStorage.removeItem('saleFormData');
@@ -245,6 +306,8 @@ function addSale(event) {
 
 function renderSalesTable() {
     const tbody = document.getElementById('salesTableBody');
+    if (!tbody) return;
+    
     tbody.innerHTML = '';
     
     data.sales.forEach(sale => {
@@ -298,12 +361,3 @@ function deleteSale(id) {
         localStorage.setItem('salesData', JSON.stringify(data.sales));
     }
 }
-
-// Load sales data from LocalStorage on page load
-document.addEventListener('DOMContentLoaded', function() {
-    const savedSales = localStorage.getItem('salesData');
-    if (savedSales) {
-        data.sales = JSON.parse(savedSales);
-        renderSalesTable();
-    }
-});

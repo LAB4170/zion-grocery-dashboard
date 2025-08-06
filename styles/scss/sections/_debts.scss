@@ -1,0 +1,42 @@
+.debt-status-pending {
+    background: linear-gradient(45deg, #ff9800, #f57c00);
+    color: white;
+    padding: 5px 10px;
+    border-radius: 15px;
+    font-size: 12px;
+}
+
+.debt-status-paid {
+    background: linear-gradient(45deg, #4CAF50, #45a049);
+    color: white;
+    padding: 5px 10px;
+    border-radius: 15px;
+    font-size: 12px;
+}
+
+.financial-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin-top: 20px;
+}
+
+.financial-card {
+    padding: 20px;
+    border-radius: 8px;
+    text-align: center;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.financial-value {
+    font-size: 24px;
+    font-weight: bold;
+    margin-bottom: 5px;
+    color: white;
+}
+
+.financial-label {
+    font-size: 14px;
+    opacity: 0.8;
+    color: white;
+}
