@@ -3,7 +3,7 @@
     <div class="modal-content">
         <span class="close" onclick="closeModal('expenseModal')">&times;</span>
         <h2>Add New Expense</h2>
-        <form onsubmit="addExpense(event)">
+        <form onsubmit="addExpense(event); return false;">
             <div class="form-group">
                 <label>Description</label>
                 <textarea id="expenseDescription" required rows="3"></textarea>

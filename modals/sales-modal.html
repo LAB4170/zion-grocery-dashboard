@@ -16,7 +16,7 @@
             </div>
             <div class="form-group">
                 <label>Payment Method</label>
-                <select id="salePaymentMethod" required>
+                <select id="salePaymentMethod" required onchange="toggleCustomerInfo()">
                     <option value="cash">Cash</option>
                     <option value="mpesa">M-Pesa</option>
                     <option value="debt">Debt</option>
@@ -34,3 +34,4 @@
         </form>
     </div>
 </div>
+

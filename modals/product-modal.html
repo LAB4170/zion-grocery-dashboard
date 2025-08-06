@@ -3,7 +3,7 @@
     <div class="modal-content">
         <span class="close" onclick="closeModal('productModal')">&times;</span>
         <h2>Add New Product</h2>
-        <form onsubmit="addProduct(event)">
+        <form onsubmit="addProduct(event); return false;">
             <div class="form-group">
                 <label>Product Name</label>
                 <input type="text" id="productName" required>
@@ -34,3 +34,5 @@
         </form>
     </div>
 </div>
+
+
