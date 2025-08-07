@@ -1,6 +1,6 @@
 // Dashboard data and charts management
 let paymentChart, weeklyChart;
-let sales = []; // Declare sales only once
+let sales = []; // Initialize sales from storage
 let debts = [];
 let expenses = [];
 let products = [];
