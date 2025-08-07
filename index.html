@@ -15,6 +15,7 @@
     <div class="main-content">
         <!-- Dashboard section will be loaded here -->
         <div id="dashboard-container"></div>
+        
         <!-- Sales section will be loaded here -->
         <div id="sales-container"></div>
         <!-- Sales Settings section will be loaded here -->
@@ -50,7 +51,7 @@
 document.addEventListener('DOMContentLoaded', function() {
     loadPartial('partials/sidebar.html', 'sidebar-container');
     loadPartial('partials/dashboard.html', 'dashboard-container');
-    loadPartial('partials/sales.html', 'sales-container');
+    loadPartial('partials/sales.html', 'sales-container'); // Corrected
     loadPartial('partials/sales-settings.html', 'sales-settings-container');
     loadPartial('partials/sales-reports.html', 'sales-reports-container');
     loadPartial('partials/expenses.html', 'expenses-container');
@@ -60,6 +61,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Load modals
     loadModals();
 });
+
 
 function loadPartial(url, containerId) {
     fetch(url)

@@ -1,168 +1,148 @@
-// Chart instances
-let paymentChart = null;
-let weeklyChart = null;
+// Dashboard data and charts management
+let paymentChart, weeklyChart;
+let sales = []; // Declare sales only once
+let debts = [];
+let expenses = [];
+let products = [];
 
-// DOM Element IDs that actually exist in your HTML
-const EXISTING_ELEMENTS = [
-    'total-sales', 'mpesa-total', 'cash-total', 'todays-debts',
-    'daily-expenses', 'monthly-sales', 'monthly-expenses',
-    'outstanding-debt', 'paymentChart', 'weeklyChart'
-];
-
-// Enhanced fetch data function
-function fetchData() {
-    try {
-        const salesData = localStorage.getItem('salesData');
-        const debtsData = localStorage.getItem('debtsData');
-        const expensesData = localStorage.getItem('expensesData');
-
-        return {
-            sales: salesData ? safeJsonParse(salesData) : [],
-            debts: debtsData ? safeJsonParse(debtsData) : [],
-            expenses: expensesData ? safeJsonParse(expensesData) : []
-        };
-    } catch (error) {
-        console.error('Error fetching data from localStorage:', error);
-        return { sales: [], debts: [], expenses: [] };
-    }
-}
-
-// Safe JSON parsing
-function safeJsonParse(data) {
-    try {
-        return JSON.parse(data);
-    } catch (e) {
-        console.error('Error parsing JSON:', e);
-        return [];
-    }
-}
-
-// Dashboard updates
-function updateDashboard() {
-    try {
-        const data = fetchData();
-        const today = new Date().toISOString().split('T')[0];
-        const currentMonth = new Date().getMonth();
-        const currentYear = new Date().getFullYear();
-        
-        // Calculate totals with proper fallbacks
-        const totals = calculateTotals(data, today, currentMonth, currentYear);
-        
-        // Update only the elements that exist in the DOM
-        updateElementText('total-sales', formatCurrency(totals.totalSales));
-        updateElementText('mpesa-total', formatCurrency(totals.mpesaTotal));
-        updateElementText('cash-total', formatCurrency(totals.cashTotal));
-        updateElementText('todays-debts', formatCurrency(totals.todaysDebts));
-        updateElementText('daily-expenses', formatCurrency(totals.dailyExpenses));
-        updateElementText('monthly-sales', formatCurrency(totals.monthlySales));
-        updateElementText('monthly-expenses', formatCurrency(totals.monthlyExpenses));
-        updateElementText('outstanding-debt', formatCurrency(totals.outstandingDebt));
-        
-        // Update charts
-        updateCharts(data);
-    } catch (error) {
-        console.error('Error updating dashboard:', error);
-    }
-}
-
-// Calculate all totals in one function
-function calculateTotals(data, today, currentMonth, currentYear) {
-    return {
-        totalSales: calculateTotal(data.sales),
-        mpesaTotal: calculatePaymentTotal(data.sales, 'mpesa'),
-        cashTotal: calculatePaymentTotal(data.sales, 'cash'),
-        todaysDebts: calculateDailyTotal(data.debts, today),
-        dailyExpenses: calculateDailyTotal(data.expenses, today),
-        monthlySales: calculateMonthlyTotal(data.sales, currentMonth, currentYear),
-        monthlyExpenses: calculateMonthlyTotal(data.expenses, currentMonth, currentYear),
-        outstandingDebt: calculateOutstandingDebt(data.debts)
-    };
-}
-
-// Helper calculation functions
-function calculateTotal(items = []) {
-    return items.reduce((sum, item) => sum + (Number(item?.total) || 0), 0);
-}
-
-function calculatePaymentTotal(sales = [], method) {
-    return sales.filter(sale => sale?.paymentMethod === method)
-               .reduce((sum, sale) => sum + (Number(sale?.total) || 0), 0);
-}
-
-function calculateDailyTotal(items = [], date) {
-    return items.filter(item => item?.date === date)
-               .reduce((sum, item) => sum + (Number(item?.amount) || 0), 0);
-}
-
-function calculateMonthlyTotal(items = [], month, year) {
-    return items.filter(item => {
-        try {
-            const itemDate = new Date(item?.date);
-            return itemDate.getMonth() === month && itemDate.getFullYear() === year;
-        } catch {
-            return false;
-        }
-    }).reduce((sum, item) => sum + (Number(item?.amount || item?.total) || 0), 0);
-}
-
-function calculateOutstandingDebt(debts = []) {
-    return debts.filter(debt => debt?.status === 'pending')
-               .reduce((sum, debt) => sum + (Number(debt?.amount) || 0), 0);
-}
-
+// Utility function for currency formatting
 function formatCurrency(amount) {
-    return `KSh ${Number(amount).toFixed(2)}`;
+    return 'KSh ' + amount.toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,');
 }
 
-// Enhanced element text updater
-function updateElementText(elementId, text) {
+async function fetchDashboardData() {
     try {
-        const element = document.getElementById(elementId);
-        if (element) {
-            element.textContent = text;
-        } else if (EXISTING_ELEMENTS.includes(elementId)) {
-            console.warn(`Element ${elementId} not found but expected in HTML`);
-        }
+        const responses = await Promise.all([
+            fetch('/api/sales'),
+            fetch('/api/debts'),
+            fetch('/api/expenses'),
+            fetch('/api/products')
+        ]);
+        
+        sales = await responses[0].json(); // Assigning value to existing sales variable
+        debts = await responses[1].json();
+        expenses = await responses[2].json();
+        products = await responses[3].json();
+        
+        loadDashboardData();
     } catch (error) {
-        console.error(`Error updating element ${elementId}:`, error);
+        console.error('Error loading dashboard data:', error);
+        // Show error to user
+        alert('Failed to load dashboard data. Please try again later.');
     }
 }
 
-// Chart functions
-function initializeCharts() {
-    try {
-        const paymentCanvas = document.getElementById('paymentChart');
-        const weeklyCanvas = document.getElementById('weeklyChart');
-        
-        if (!paymentCanvas || !weeklyCanvas) {
-            console.error('Chart canvases not found');
-            return;
-        }
-        
-        // Destroy existing charts
-        if (paymentChart) paymentChart.destroy();
-        if (weeklyChart) weeklyChart.destroy();
-        
-        // Payment distribution chart
-        paymentChart = new Chart(paymentCanvas.getContext('2d'), getPaymentChartConfig());
-        
-        // Weekly sales chart
-        weeklyChart = new Chart(weeklyCanvas.getContext('2d'), getWeeklyChartConfig());
-        
-        updateCharts(fetchData());
-    } catch (error) {
-        console.error('Error initializing charts:', error);
+function loadDashboardData() {
+    if (typeof Chart === 'undefined') {
+        console.error('Chart.js is not loaded');
+        return;
     }
+    
+    updateDashboardStats();
+    updateInventoryOverview();
+    updateDetailedInventory();
+    createCharts();
 }
 
-function getPaymentChartConfig() {
-    return {
-        type: 'pie',
+function updateDashboardStats() {
+    const today = new Date().toISOString().split('T')[0];
+    const currentMonth = new Date().getMonth();
+    const currentYear = new Date().getFullYear();
+    
+    // Total sales
+    const totalSales = sales.reduce((sum, sale) => sum + sale.total, 0);
+    document.getElementById('total-sales').textContent = formatCurrency(totalSales);
+    
+    // M-Pesa sales
+    const mpesaSales = sales.filter(s => s.paymentMethod === 'mpesa').reduce((sum, sale) => sum + sale.total, 0);
+    document.getElementById('mpesa-total').textContent = formatCurrency(mpesaSales);
+    
+    // Cash sales
+    const cashSales = sales.filter(s => s.paymentMethod === 'cash').reduce((sum, sale) => sum + sale.total, 0);
+    document.getElementById('cash-total').textContent = formatCurrency(cashSales);
+    
+    // Today's debts
+    const todaysDebts = debts.filter(d => d.date === today && d.status === 'pending').reduce((sum, debt) => sum + debt.amount, 0);
+    document.getElementById('todays-debts').textContent = formatCurrency(todaysDebts);
+    
+    // Daily expenses
+    const dailyExpenses = expenses.filter(e => e.date === today).reduce((sum, expense) => sum + expense.amount, 0);
+    document.getElementById('daily-expenses').textContent = formatCurrency(dailyExpenses);
+    
+    // Monthly sales
+    const monthlySales = sales.filter(s => {
+        const saleDate = new Date(s.createdAt);
+        return saleDate.getMonth() === currentMonth && saleDate.getFullYear() === currentYear;
+    }).reduce((sum, sale) => sum + sale.total, 0);
+    document.getElementById('monthly-sales').textContent = formatCurrency(monthlySales);
+    
+    // Monthly expenses
+    const monthlyExpenses = expenses.filter(e => {
+        const expenseDate = new Date(e.createdAt);
+        return expenseDate.getMonth() === currentMonth && expenseDate.getFullYear() === currentYear;
+    }).reduce((sum, expense) => sum + expense.amount, 0);
+    document.getElementById('monthly-expenses').textContent = formatCurrency(monthlyExpenses);
+    
+    // Outstanding debt
+    const outstandingDebt = debts.filter(d => d.status === 'pending').reduce((sum, debt) => sum + debt.amount, 0);
+    document.getElementById('outstanding-debt').textContent = formatCurrency(outstandingDebt);
+}
+
+function updateInventoryOverview() {
+    const container = document.getElementById('inventoryOverview');
+    if (!container) return;
+    
+    const lowStockProducts = products.filter(p => p.stock <= 5);
+    
+    container.innerHTML = lowStockProducts.length > 0 
+        ? lowStockProducts.map(product => `
+            <div class="inventory-item low-stock">
+                <h4>${product.name}</h4>
+                <p>Stock: ${product.stock}</p>
+                <p class="warning">Low Stock!</p>
+            </div>
+        `).join('')
+        : '<p style="color: white;">All products have sufficient stock</p>';
+}
+
+function updateDetailedInventory() {
+    const container = document.getElementById('detailedInventory');
+    if (!container) return;
+    
+    container.innerHTML = products.map(product => `
+        <div class="inventory-item ${product.stock <= 5 ? 'low-stock' : ''}">
+            <h4>${product.name}</h4>
+            <p>Category: ${product.category}</p>
+            <p>Price: ${formatCurrency(product.price)}</p>
+            <p>Stock: ${product.stock}</p>
+        </div>
+    `).join('');
+}
+
+function createCharts() {
+    createPaymentChart();
+    createWeeklyChart();
+}
+
+function createPaymentChart() {
+    const ctx = document.getElementById('paymentChart');
+    if (!ctx) return;
+    
+    if (paymentChart) {
+        paymentChart.destroy();
+    }
+    
+    const cashTotal = sales.filter(s => s.paymentMethod === 'cash').reduce((sum, sale) => sum + sale.total, 0);
+    const mpesaTotal = sales.filter(s => s.paymentMethod === 'mpesa').reduce((sum, sale) => sum + sale.total, 0);
+    const debtTotal = sales.filter(s => s.paymentMethod === 'debt').reduce((sum, sale) => sum + sale.total, 0);
+    
+    paymentChart = new Chart(ctx, {
+        type: 'doughnut',
         data: {
-            labels: ['Cash', 'M-Pesa', 'Debts', 'Unresolved'],
+            labels: ['Cash', 'M-Pesa', 'Debt'],
             datasets: [{
-                data: [0, 0, 0, 0],
-                backgroundColor: ['#4CAF50', '#2196F3', '#FF9800', '#F44336']
+                data: [cashTotal, mpesaTotal, debtTotal],
+                backgroundColor: ['#4CAF50', '#2196F3', '#FF9800']
             }]
         },
         options: {
@@ -172,151 +152,78 @@ function getPaymentChartConfig() {
                     labels: {
                         color: 'white'
                     }
-                },
-                title: {
-                    display: true,
-                    text: 'Payment Distribution',
-                    color: 'white',
-                    font: {
-                        size: 16
-                    }
                 }
             }
         }
-    };
+    });
 }
 
-function getWeeklyChartConfig() {
-    return {
+function createWeeklyChart() {
+    const ctx = document.getElementById('weeklyChart');
+    if (!ctx) return;
+    
+    if (weeklyChart) {
+        weeklyChart.destroy();
+    }
+    
+    // Get last 7 days of sales data
+    const last7Days = [];
+    const salesByDay = [];
+    
+    for (let i = 6; i >= 0; i--) {
+        const date = new Date();
+        date.setDate(date.getDate() - i);
+        const dateString = date.toISOString().split('T')[0];
+        
+        last7Days.push(date.toLocaleDateString('en-KE', { weekday: 'short' }));
+        const dailySales = sales.filter(s => {
+            const saleDate = new Date(s.date);
+            return saleDate.toISOString().split('T')[0] === dateString;
+        }).reduce((sum, sale) => sum + sale.total, 0);
+        salesByDay.push(dailySales);
+    }
+    
+    weeklyChart = new Chart(ctx, {
         type: 'line',
         data: {
-            labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-            datasets: [
-                {
-                    label: 'Total Sales',
-                    data: [0, 0, 0, 0, 0, 0, 0],
-                    borderColor: '#4CAF50',
-                    backgroundColor: 'rgba(76, 175, 80, 0.1)',
-                    tension: 0.4
-                },
-                {
-                    label: 'Cash',
-                    data: [0, 0, 0, 0, 0, 0, 0],
-                    borderColor: '#2196F3',
-                    backgroundColor: 'rgba(33, 150, 243, 0.1)',
-                    tension: 0.4
-                },
-                {
-                    label: 'M-Pesa',
-                    data: [0, 0, 0, 0, 0, 0, 0],
-                    borderColor: '#FF9800',
-                    backgroundColor: 'rgba(255, 152, 0, 0.1)',
-                    tension: 0.4
-                }
-            ]
+            labels: last7Days,
+            datasets: [{
+                label: 'Sales',
+                data: salesByDay,
+                borderColor: '#4CAF50',
+                backgroundColor: 'rgba(76, 175, 80, 0.1)',
+                tension: 0.4
+            }]
         },
         options: {
             responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        color: 'white'
+                    }
+                },
+                x: {
+                    ticks: {
+                        color: 'white'
+                    }
+                }
+            },
             plugins: {
                 legend: {
                     labels: {
                         color: 'white'
                     }
-                },
-                title: {
-                    display: true,
-                    text: 'Weekly Sales Trends',
-                    color: 'white',
-                    font: {
-                        size: 16
-                    }
-                }
-            },
-            scales: {
-                y: {
-                    ticks: { color: 'white' },
-                    grid: { color: 'rgba(255, 255, 255, 0.1)' }
-                },
-                x: {
-                    ticks: { color: 'white' },
-                    grid: { color: 'rgba(255, 255, 255, 0.1)' }
                 }
             }
         }
-    };
+    });
 }
 
-function updateCharts(data) {
-    try {
-        if (!paymentChart || !weeklyChart) return;
-        
-        // Update payment distribution
-        const cashTotal = calculatePaymentTotal(data.sales, 'cash');
-        const mpesaTotal = calculatePaymentTotal(data.sales, 'mpesa');
-        const debtTotal = calculatePaymentTotal(data.sales, 'debt');
-        
-        paymentChart.data.datasets[0].data = [cashTotal, mpesaTotal, debtTotal, 0];
-        paymentChart.update();
-        
-        // Update weekly chart
-        const weeklyData = getWeeklySalesData(data);
-        weeklyChart.data.datasets[0].data = weeklyData.total;
-        weeklyChart.data.datasets[1].data = weeklyData.cash;
-        weeklyChart.data.datasets[2].data = weeklyData.mpesa;
-        weeklyChart.update();
-    } catch (error) {
-        console.error('Error updating charts:', error);
-    }
-}
-
-function getWeeklySalesData(data) {
-    const result = {
-        total: [0, 0, 0, 0, 0, 0, 0],
-        cash: [0, 0, 0, 0, 0, 0, 0],
-        mpesa: [0, 0, 0, 0, 0, 0, 0]
-    };
-    
-    try {
-        const now = new Date();
-        const dayOfWeek = now.getDay();
-        const startOfWeek = new Date(now);
-        startOfWeek.setDate(now.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1));
-        startOfWeek.setHours(0, 0, 0, 0);
-
-        data.sales?.forEach(sale => {
-            try {
-                const saleDate = new Date(sale?.date);
-                saleDate.setHours(0, 0, 0, 0);
-                
-                if (saleDate >= startOfWeek && saleDate <= now) {
-                    const dayIndex = (saleDate.getDay() + 6) % 7;
-                    const amount = Number(sale?.total) || 0;
-                    
-                    result.total[dayIndex] += amount;
-                    
-                    if (sale?.paymentMethod === 'cash') {
-                        result.cash[dayIndex] += amount;
-                    } else if (sale?.paymentMethod === 'mpesa') {
-                        result.mpesa[dayIndex] += amount;
-                    }
-                }
-            } catch (e) {
-                console.error('Error processing sale:', sale, e);
-            }
-        });
-    } catch (error) {
-        console.error('Error generating weekly sales data:', error);
-    }
-    
-    return result;
-}
-
-// Initialize the dashboard when the page loads
+// Initialize dashboard when DOM is ready
 document.addEventListener('DOMContentLoaded', function() {
-    initializeCharts();
-    updateDashboard();
+    fetchDashboardData();
+    // Set up periodic refresh (every 5 minutes)
+    setInterval(fetchDashboardData, 300000);
 });
-
-// Make functions available globally
-window.updateDashboard = updateDashboard;
-window.initializeCharts = initializeCharts;

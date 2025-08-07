@@ -1,125 +1,122 @@
+// Product management functions
+
+// Function to get data from storage
+function getFromStorage(key, defaultValue) {
+    const data = localStorage.getItem(key);
+    return data ? JSON.parse(data) : defaultValue;
+}
+
+// Function to save data to storage
+function saveToStorage(key, value) {
+    localStorage.setItem(key, JSON.stringify(value));
+}
+
+// Function to generate a unique ID for products
+function generateId() {
+    return '_' + Math.random().toString(36).substr(2, 9);
+}
+
+// Function to format currency
+function formatCurrency(amount) {
+    return `$${amount.toFixed(2)}`;
+}
+
+// Function to show notifications
+function showNotification(message) {
+    alert(message); // Simple alert for demonstration
+}
+
+// Function to close modal
+function closeModal(modalId) {
+    document.getElementById(modalId).style.display = 'none';
+}
+
+// Function to open modal
+function openModal(modalId) {
+    document.getElementById(modalId).style.display = 'block';
+}
+
+// Initialize products from storage
+let products = getFromStorage('products', []);
+
 function addProduct(event) {
     event.preventDefault();
     
-    const form = event.target;
-    const editingId = form.dataset.editingId;
+    const name = document.getElementById('productName').value;
+    const category = document.getElementById('productCategory').value;
+    const price = parseFloat(document.getElementById('productPrice').value);
+    const stock = parseInt(document.getElementById('productStock').value);
     
-    const productData = {
-        name: document.getElementById('productName').value,
-        category: document.getElementById('productCategory').value,
-        price: parseFloat(document.getElementById('productPrice').value),
-        stock: parseInt(document.getElementById('productStock').value)
+    const product = {
+        id: generateId(),
+        name,
+        category,
+        price,
+        stock,
+        createdAt: new Date().toISOString()
     };
     
-    // Validate inputs
-    if (!productData.name || isNaN(productData.price) || isNaN(productData.stock)) {
-        alert('Please fill all fields with valid values');
-        return;
-    }
+    products.push(product);
+    saveToStorage('products', products);
     
-    if (productData.price < 0 || productData.stock < 0) {
-        alert('Price and stock cannot be negative');
-        return;
-    }
-
-    // Check if data and data.products are defined
-    if (!data || !Array.isArray(data.products)) {
-        alert('Product data is not available. Please initialize the data.');
-        return;
-    }
-
-    if (editingId) {
-        // Update existing product
-        const productIndex = data.products.findIndex(p => p.id === parseInt(editingId));
-        if (productIndex !== -1) {
-            data.products[productIndex] = { 
-                ...data.products[productIndex], 
-                ...productData 
-            };
-        }
-        
-        // Reset the editing state
-        delete form.dataset.editingId;
-        const submitBtn = form.querySelector('button[type="submit"]');
-        submitBtn.textContent = 'Add Product';
-    } else {
-        // Add new product
-        const product = {
-            id: Date.now(),
-            ...productData
-        };
-        data.products.push(product);
-    }
-    
-    renderProductsTable();
-    updateDashboard();
-    data.save(); // Auto-save to LocalStorage
     closeModal('productModal');
-    form.reset();
-}
-
-
-function editProduct(id) {
-    const product = data.products.find(p => p.id === id);
-    if (!product) return;
-
-    document.getElementById('productName').value = product.name;
-    document.getElementById('productCategory').value = product.category;
-    document.getElementById('productPrice').value = product.price;
-    document.getElementById('productStock').value = product.stock;
-
-    // Store the product ID in the form dataset
-    const form = document.querySelector('#productModal form');
-    form.dataset.editingId = id;
-
-    // Change button text
-    const submitBtn = form.querySelector('button[type="submit"]');
-    submitBtn.textContent = 'Update Product';
-
-    openModal('productModal');
-}
-
-function renderProductsTable() {
-    const tbody = document.getElementById('productsTableBody');
-    tbody.innerHTML = '';
+    showNotification('Product added successfully!');
     
-    data.products.forEach(product => {
-        const row = document.createElement('tr');
-        row.innerHTML = `
+    if (currentSection === 'sales-settings') {
+        loadProductsData();
+    }
+    
+    updateDashboardStats();
+}
+
+function loadProductsData() {
+    const tbody = document.getElementById('productsTableBody');
+    if (!tbody) return;
+    
+    tbody.innerHTML = products.map(product => `
+        <tr>
             <td>${product.name}</td>
             <td>${product.category}</td>
-            <td>KSh ${product.price.toFixed(2)}</td>
+            <td>${formatCurrency(product.price)}</td>
             <td>${product.stock}</td>
-            <td class="action-buttons">
-                <button class="btn btn-small" onclick="editProduct(${product.id})">Edit</button>
-                <button class="btn btn-danger btn-small" onclick="deleteProduct(${product.id})">Delete</button>
+            <td>
+                <button class="btn-small" onclick="editProduct('${product.id}')">Edit</button>
+                <button class="btn-small btn-danger" onclick="deleteProduct('${product.id}')">Delete</button>
             </td>
-        `;
-        tbody.appendChild(row);
-    });
+        </tr>
+    `).join('');
 }
 
-function deleteProduct(id) {
+function deleteProduct(productId) {
     if (confirm('Are you sure you want to delete this product?')) {
-        data.products = data.products.filter(product => product.id !== id);
-        renderProductsTable();
-        updateDashboard();
-        data.save(); // Auto-save to LocalStorage
+        products = products.filter(p => String(p.id) !== String(productId));
+        saveToStorage('products', products);
+        loadProductsData();
+        showNotification('Product deleted successfully!');
+        updateDashboardStats();
     }
 }
 
-function populateProductDropdown() {
+function editProduct(productId) {
+    const product = products.find(p => p.id === productId);
+    if (product) {
+        document.getElementById('productName').value = product.name;
+        document.getElementById('productCategory').value = product.category;
+        document.getElementById('productPrice').value = product.price;
+        document.getElementById('productStock').value = product.stock;
+        
+        openModal('productModal');
+        
+        document.getElementById('productModal').setAttribute('data-editing', productId);
+    }
+}
+
+function populateProductSelect() {
     const select = document.getElementById('saleProduct');
-    select.innerHTML = '<option value="">Select Product</option>';
+    if (!select) return;
     
-    data.products.forEach(product => {
-        if (product.stock > 0) { // Only show products with stock
-            const option = document.createElement('option');
-            option.value = product.id;
-            option.textContent = `${product.name} - KSh ${product.price.toFixed(2)} (Stock: ${product.stock})`;
-            option.style.background = '#2c3e50';
-            option.style.color = 'white';
-            select.appendChild(option);
-        }
-    });
+    select.innerHTML = '<option value="">Select Product</option>' + 
+        products.filter(p => p.stock > 0).map(product => 
+            `<option value="${product.id}">${product.name} (${product.stock} available)</option>`
+        ).join('');
 }
