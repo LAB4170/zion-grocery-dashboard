@@ -6,24 +6,21 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function initializeApp() {
-    // Load initial data first
+    // Load ONLY from storage (default to empty arrays)
     products = getFromStorage('products', []);
     sales = getFromStorage('sales', []);
     expenses = getFromStorage('expenses', []);
     debts = getFromStorage('debts', []);
     mpesaTransactions = getFromStorage('mpesa', []);
-    
-    // Wait a bit for DOM to be fully ready, then set up navigation
-    setTimeout(() => {
-        showSection('dashboard');
-        
-        // Removed the sample data addition logic
-        if (products.length === 0) {
-            console.warn('No products found. Please add your products to get started.');
-        }
-        
-        console.log('Zion Groceries Dashboard initialized successfully');
-    }, 100);
+
+    // No setTimeout needed if DOM is already ready (DOMContentLoaded ensures this)
+    showSection('dashboard');
+
+    // Optional: Log warnings if critical data is missing (no preloading)
+    if (products.length === 0) {
+        console.warn('Product list is empty. Add products to begin.');
+    }
+    console.log('App initialized with user data only.');
 }
 
 // Function to search through the products table
