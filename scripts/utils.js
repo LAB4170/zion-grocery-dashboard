@@ -1,55 +1,113 @@
-// Utility functions with LocalStorage auto-save
+// Utility functions used across the application
+window.utils = {
+    formatCurrency: function(amount) {
+        if (isNaN(parseFloat(amount))) return 'KSh 0.00';
+        return `KSh ${parseFloat(amount).toLocaleString('en-KE', { 
+            minimumFractionDigits: 2, 
+            maximumFractionDigits: 2 
+        })}`;
+    },
 
-// Save all data to LocalStorage
-function saveDataToLocalStorage() {
-  try {
-    localStorage.setItem('zionGroceriesData', JSON.stringify(data));
-    console.log('Data auto-saved to LocalStorage');
-  } catch (e) {
-    console.error('Error saving to LocalStorage:', e);
-    // Handle quota exceeded or other storage errors
-    if (e.name === 'QuotaExceededError') {
-      alert('Warning: Your browser storage is full. Some data may not be saved.');
+    formatDate: function(dateString) {
+        try {
+            const date = new Date(dateString);
+            if (isNaN(date.getTime())) return 'Invalid Date';
+            return date.toLocaleDateString('en-KE', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric'
+            });
+        } catch (e) {
+            console.error('Date formatting error:', e);
+            return 'Invalid Date';
+        }
+    },
+
+    generateId: function() {
+        return Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
+    },
+
+    searchTable: function(tableId, searchValue) {
+        try {
+            const table = document.getElementById(tableId);
+            if (!table) return;
+            
+            const rows = table.getElementsByTagName('tr');
+            for (let i = 1; i < rows.length; i++) {
+                const row = rows[i];
+                const cells = row.getElementsByTagName('td');
+                let found = false;
+                
+                for (let j = 0; j < cells.length; j++) {
+                    if (cells[j].textContent.toLowerCase().includes(searchValue.toLowerCase())) {
+                        found = true;
+                        break;
+                    }
+                }
+                
+                row.style.display = found ? '' : 'none';
+            }
+        } catch (error) {
+            console.error('Search error:', error);
+        }
+    },
+
+    showNotification: function(message, type = 'success') {
+        // Create notification element
+        const notification = document.createElement('div');
+        notification.className = `notification ${type}`;
+        notification.textContent = message;
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            border-radius: 5px;
+            color: white;
+            font-weight: bold;
+            z-index: 10000;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        `;
+        
+        // Set background color based on type
+        const colors = {
+            success: '#4CAF50',
+            error: '#f44336',
+            warning: '#ff9800',
+            info: '#2196F3'
+        };
+        notification.style.backgroundColor = colors[type] || colors.success;
+        
+        document.body.appendChild(notification);
+        
+        // Fade in
+        setTimeout(() => notification.style.opacity = '1', 10);
+        
+        // Remove after 3 seconds
+        setTimeout(() => {
+            notification.style.opacity = '0';
+            setTimeout(() => document.body.removeChild(notification), 300);
+        }, 3000);
+    },
+
+    saveToStorage: function(key, data) {
+        try {
+            localStorage.setItem(key, JSON.stringify(data));
+            return true;
+        } catch (error) {
+            console.error('Storage error:', error);
+            return false;
+        }
+    },
+
+    getFromStorage: function(key, defaultValue = []) {
+        try {
+            const item = localStorage.getItem(key);
+            return item ? JSON.parse(item) : defaultValue;
+        } catch (error) {
+            console.error('Storage read error:', error);
+            return defaultValue;
+        }
     }
-  }
-}
-
-// Load data from LocalStorage
-function loadDataFromLocalStorage() {
-  const savedData = localStorage.getItem('zionGroceriesData');
-  if (savedData) {
-    try {
-      const parsedData = JSON.parse(savedData);
-      
-      // Validate the loaded data structure
-      if (parsedData && Array.isArray(parsedData.products) && Array.isArray(parsedData.sales)) {
-        Object.assign(data, parsedData);
-        console.log('Data loaded from LocalStorage');
-        return true;
-      } else {
-        console.error('Invalid data structure loaded from LocalStorage');
-      }
-    } catch (e) {
-      console.error('Error loading from LocalStorage:', e);
-    }
-  }
-  return false;
-}
-
-// Initialize data with LocalStorage auto-load
-document.addEventListener('DOMContentLoaded', function() {
-  if (loadDataFromLocalStorage()) {
-    // Data loaded successfully, render all tables
-    renderProductsTable();
-    renderSalesTable();
-    renderDebtsTable();
-    renderMpesaTable();
-    updateDashboard();
-  }
-});
-
-// Auto-save data periodically (every 30 seconds)
-setInterval(saveDataToLocalStorage, 30000);
-
-// Also save before page unload
-window.addEventListener('beforeunload', saveDataToLocalStorage);
+};
