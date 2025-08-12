@@ -1,10 +1,11 @@
 // M-Pesa transaction management
 
-let mpesaTransactions = getFromStorage('mpesa', []);
+// Use global mpesaTransactions variable for consistency
+let mpesaTransactions = window.mpesaTransactions || [];
 
 function addMpesaFromSale(sale) {
     const transaction = {
-        id: generateId(),
+        id: window.utils.generateId(),
         transactionId: `MP${Date.now()}`,
         amount: sale.total,
         customerPhone: sale.customerPhone,
@@ -15,7 +16,8 @@ function addMpesaFromSale(sale) {
     };
     
     mpesaTransactions.push(transaction);
-    saveToStorage('mpesa', mpesaTransactions);
+    window.mpesaTransactions = mpesaTransactions;
+    window.utils.saveToStorage('mpesa', mpesaTransactions);
 }
 
 function addManualMpesaTransaction() {
@@ -31,7 +33,7 @@ function addManualMpesaTransaction() {
 
     if (customerPhone) {
         const transaction = {
-            id: generateId(),
+            id: window.utils.generateId(),
             transactionId: `MP${Date.now()}`,
             amount: parsedAmount,
             customerPhone,
@@ -41,9 +43,9 @@ function addManualMpesaTransaction() {
         };
         
         mpesaTransactions.push(transaction);
-        saveToStorage('mpesa', mpesaTransactions);
+        window.utils.saveToStorage('mpesa', mpesaTransactions);
         loadMpesaData();
-        showNotification('M-Pesa transaction added!');
+        window.utils.showNotification('M-Pesa transaction added!');
         updateDashboardStats();
     }
 }
@@ -62,8 +64,8 @@ function loadMpesaData() {
     tbody.innerHTML = mpesaTransactions.map(transaction => `
         <tr>
             <td>${transaction.transactionId}</td>
-            <td>${formatDate(transaction.createdAt)}</td>
-            <td>${formatCurrency(transaction.amount)}</td>
+            <td>${window.utils.formatDate(transaction.createdAt)}</td>
+            <td>${window.utils.formatCurrency(transaction.amount)}</td>
             <td>${transaction.customerPhone}</td>
             <td><span class="status ${transaction.status}">${transaction.status}</span></td>
             <td>
@@ -76,9 +78,9 @@ function loadMpesaData() {
 function deleteMpesaTransaction(transactionId) {
     if (confirm('Are you sure you want to delete this transaction?')) {
         mpesaTransactions = mpesaTransactions.filter(t => t.id !== transactionId);
-        saveToStorage('mpesa', mpesaTransactions);
+        window.utils.saveToStorage('mpesa', mpesaTransactions);
         loadMpesaData();
-        showNotification('Transaction deleted!');
+        window.utils.showNotification('Transaction deleted!');
         updateDashboardStats();
     }
 }

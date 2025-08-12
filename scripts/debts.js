@@ -1,6 +1,7 @@
 // Debt management functions
 
-let debts = getFromStorage('debts', []);
+// Use global debts variable for consistency
+let debts = window.debts || [];
 
 function addDebt(event) {
     event.preventDefault();
@@ -11,14 +12,14 @@ function addDebt(event) {
     
     // Validate amount
     if (isNaN(amount) || amount <= 0) {
-        showNotification('Please enter a valid amount.');
+        window.utils.showNotification('Please enter a valid amount.', 'error');
         return; // Exit the function if the amount is invalid
     }
     
     const dueDate = document.getElementById('debtDueDate').value;
     
     const debt = {
-        id: generateId(),
+        id: window.utils.generateId(),
         customerName,
         customerPhone,
         amount,
@@ -29,22 +30,26 @@ function addDebt(event) {
     };
     
     debts.push(debt);
-    saveToStorage('debts', debts);
+    window.debts = debts;
+    window.utils.saveToStorage('debts', debts);
     
-    closeModal('debtModal');
-    showNotification('Debt recorded successfully!');
+    window.utils.closeModal('debtModal');
+    window.utils.showNotification('Debt recorded successfully!');
     
-    if (currentSection === 'individual-debts') {
+    if (window.currentSection === 'individual-debts') {
         loadDebtsData();
     }
     
-    updateDashboardStats();
+    // Update dashboard
+    if (typeof updateDashboardStats === 'function') {
+        updateDashboardStats();
+    }
 }
 
 
 function addDebtFromSale(sale) {
     const debt = {
-        id: generateId(),
+        id: window.utils.generateId(),
         customerName: sale.customerName,
         customerPhone: sale.customerPhone,
         amount: sale.total,
@@ -56,32 +61,44 @@ function addDebtFromSale(sale) {
     };
     
     debts.push(debt);
-    saveToStorage('debts', debts);
+    window.utils.saveToStorage('debts', debts);
 }
 
 function loadDebtsData() {
     const tbody = document.getElementById('debtsTableBody');
     if (!tbody) return;
     
-    tbody.innerHTML = debts.map(debt => `
-        <tr>
-            <td>${formatDate(debt.createdAt)}</td>
-            <td>${debt.customerName}</td>
-            <td>${debt.customerPhone}</td>
-            <td>${formatCurrency(debt.amount)}</td>
-            <td><span class="status ${debt.status}">${debt.status}</span></td>
-            <td>${formatDate(debt.dueDate)}</td>
-            <td>
-                <button class="btn-small" onclick="markDebtPaid('${debt.id}')">Mark Paid</button>
-                <button class="btn-small btn-danger" onclick="deleteDebt('${debt.id}')">Delete</button>
-            </td>
-        </tr>
-    `).join('');
+    // Sync with global variables
+    debts = window.debts || [];
+    
+    tbody.innerHTML = debts.map(debt => {
+        const statusBadge = debt.status === 'pending' ? 
+            '<span class="status-badge pending">PENDING</span>' : 
+            '<span class="status-badge paid">PAID</span>';
+            
+        return `
+            <tr>
+                <td>${window.utils.formatDate(debt.createdAt)}</td>
+                <td>${debt.customerName || 'Unknown Customer'}</td>
+                <td>${debt.customerPhone || 'N/A'}</td>
+                <td>${window.utils.formatCurrency(debt.amount || 0)}</td>
+                <td>${statusBadge}</td>
+                <td>${window.utils.formatDate(debt.dueDate)}</td>
+                <td class="action-buttons">
+                    ${debt.status === 'pending' ? `<button class="btn-small" onclick="markDebtPaid('${debt.id}')">Mark Paid</button>` : ''}
+                    <button class="btn-small btn-danger" onclick="deleteDebt('${debt.id}')">Delete</button>
+                </td>
+            </tr>
+        `;
+    }).join('');
 }
 
 function loadGroupedDebtsData() {
     const content = document.getElementById('groupedDebtsContent');
     if (!content) return;
+    
+    // Sync with global variables
+    debts = window.debts || [];
     
     // Group debts by customer
     const groupedDebts = debts.reduce((groups, debt) => {
@@ -104,11 +121,11 @@ function loadGroupedDebtsData() {
     content.innerHTML = Object.values(groupedDebts).map(group => `
         <div class="debt-group">
             <h4>${group.customerName} (${group.customerPhone})</h4>
-            <p>Total Outstanding: ${formatCurrency(group.totalAmount)}</p>
+            <p>Total Outstanding: ${window.utils.formatCurrency(group.totalAmount)}</p>
             <div class="debt-list">
                 ${group.debts.map(debt => `
                     <div class="debt-item">
-                        <span>${formatDate(debt.createdAt)} - ${formatCurrency(debt.amount)} - ${debt.status}</span>
+                        <span>${window.utils.formatDate(debt.createdAt)} - ${window.utils.formatCurrency(debt.amount)} - ${debt.status}</span>
                     </div>
                 `).join('')}
             </div>
@@ -121,9 +138,9 @@ function markDebtPaid(debtId) {
     if (debt) {
         debt.status = 'paid';
         debt.paidAt = new Date().toISOString();
-        saveToStorage('debts', debts);
+        window.utils.saveToStorage('debts', debts);
         loadDebtsData();
-        showNotification('Debt marked as paid!');
+        window.utils.showNotification('Debt marked as paid!');
         updateDashboardStats();
     }
 }
@@ -131,9 +148,9 @@ function markDebtPaid(debtId) {
 function deleteDebt(debtId) {
     if (confirm('Are you sure you want to delete this debt record?')) {
         debts = debts.filter(d => d.id !== debtId);
-        saveToStorage('debts', debts);
+        window.utils.saveToStorage('debts', debts);
         loadDebtsData();
-        showNotification('Debt record deleted!');
+        window.utils.showNotification('Debt record deleted!');
         updateDashboardStats();
     }
 }

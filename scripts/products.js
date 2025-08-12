@@ -1,43 +1,7 @@
 // Product management functions
 
-// Function to get data from storage
-function getFromStorage(key, defaultValue) {
-    const data = localStorage.getItem(key);
-    return data ? JSON.parse(data) : defaultValue;
-}
-
-// Function to save data to storage
-function saveToStorage(key, value) {
-    localStorage.setItem(key, JSON.stringify(value));
-}
-
-// Function to generate a unique ID for products
-function generateId() {
-    return '_' + Math.random().toString(36).substr(2, 9);
-}
-
-// Function to format currency
-function formatCurrency(amount) {
-    return `$${amount.toFixed(2)}`;
-}
-
-// Function to show notifications
-function showNotification(message) {
-    alert(message); // Simple alert for demonstration
-}
-
-// Function to close modal
-function closeModal(modalId) {
-    document.getElementById(modalId).style.display = 'none';
-}
-
-// Function to open modal
-function openModal(modalId) {
-    document.getElementById(modalId).style.display = 'block';
-}
-
-// Initialize products from storage
-let products = getFromStorage('products', []);
+// Use global products variable for consistency
+let products = window.products || [];
 
 function addProduct(event) {
     event.preventDefault();
@@ -47,8 +11,14 @@ function addProduct(event) {
     const price = parseFloat(document.getElementById('productPrice').value);
     const stock = parseInt(document.getElementById('productStock').value);
     
+    // Validation
+    if (!name || !category || isNaN(price) || isNaN(stock)) {
+        window.utils.showNotification('Please fill all fields correctly', 'error');
+        return;
+    }
+    
     const product = {
-        id: generateId(),
+        id: window.utils.generateId(),
         name,
         category,
         price,
@@ -56,45 +26,69 @@ function addProduct(event) {
         createdAt: new Date().toISOString()
     };
     
+    // Update both local and global variables
     products.push(product);
-    saveToStorage('products', products);
+    window.products = products;
+    window.utils.saveToStorage('products', products);
     
-    closeModal('productModal');
-    showNotification('Product added successfully!');
+    window.utils.closeModal('productModal');
+    window.utils.showNotification('Product added successfully!');
     
-    if (currentSection === 'sales-settings') {
+    if (window.currentSection === 'sales-settings') {
         loadProductsData();
     }
     
-    updateDashboardStats();
+    // Update dashboard and refresh product select
+    if (typeof updateDashboardStats === 'function') {
+        updateDashboardStats();
+    }
+    populateProductSelect();
 }
 
-function loadProductsData() {
+function loadProductsData(filteredProducts = null) {
     const tbody = document.getElementById('productsTableBody');
     if (!tbody) return;
     
-    tbody.innerHTML = products.map(product => `
-        <tr>
-            <td>${product.name}</td>
-            <td>${product.category}</td>
-            <td>${formatCurrency(product.price)}</td>
-            <td>${product.stock}</td>
-            <td>
-                <button class="btn-small" onclick="editProduct('${product.id}')">Edit</button>
-                <button class="btn-small btn-danger" onclick="deleteProduct('${product.id}')">Delete</button>
-            </td>
-        </tr>
-    `).join('');
+    // Sync with global variables
+    products = window.products || [];
+    const productsToShow = filteredProducts || products;
+    
+    tbody.innerHTML = productsToShow.map(product => {
+        const stockClass = (product.stock || 0) <= 5 ? 'low-stock' : '';
+        const stockIndicator = (product.stock || 0) <= 5 ? '⚠️' : '';
+        
+        return `
+            <tr class="${stockClass}">
+                <td>${product.name || 'Unknown Product'}</td>
+                <td><span class="category-badge">${product.category || 'Uncategorized'}</span></td>
+                <td>${window.utils.formatCurrency(product.price || 0)}</td>
+                <td>${stockIndicator} ${product.stock || 0}</td>
+                <td class="action-buttons">
+                    <button class="btn-small" onclick="editProduct('${product.id}')">Edit</button>
+                    <button class="btn-small btn-danger" onclick="deleteProduct('${product.id}')">Delete</button>
+                </td>
+            </tr>
+        `;
+    }).join('');
 }
 
 function deleteProduct(productId) {
-    if (confirm('Are you sure you want to delete this product?')) {
-        products = products.filter(p => String(p.id) !== String(productId));
-        saveToStorage('products', products);
-        loadProductsData();
-        showNotification('Product deleted successfully!');
+    if (!confirm('Are you sure you want to delete this product?')) {
+        return;
+    }
+    
+    products = products.filter(p => p.id !== productId);
+    window.products = products;
+    window.utils.saveToStorage('products', products);
+    
+    window.utils.showNotification('Product deleted successfully!');
+    loadProductsData();
+    
+    // Update dashboard and refresh product select
+    if (typeof updateDashboardStats === 'function') {
         updateDashboardStats();
     }
+    populateProductSelect();
 }
 
 function editProduct(productId) {
@@ -105,7 +99,7 @@ function editProduct(productId) {
         document.getElementById('productPrice').value = product.price;
         document.getElementById('productStock').value = product.stock;
         
-        openModal('productModal');
+        window.utils.openModal('productModal');
         
         document.getElementById('productModal').setAttribute('data-editing', productId);
     }
@@ -115,8 +109,12 @@ function populateProductSelect() {
     const select = document.getElementById('saleProduct');
     if (!select) return;
     
+    // Sync with global variables
+    products = window.products || [];
+    
     select.innerHTML = '<option value="">Select Product</option>' + 
-        products.filter(p => p.stock > 0).map(product => 
-            `<option value="${product.id}">${product.name} (${product.stock} available)</option>`
-        ).join('');
+        products.map(product => {
+            const stockInfo = (product.stock || 0) <= 5 ? ` (Low Stock: ${product.stock || 0})` : ` (Stock: ${product.stock || 0})`;
+            return `<option value="${product.id}">${product.name || 'Unknown Product'} - ${window.utils.formatCurrency(product.price || 0)}${stockInfo}</option>`;
+        }).join('');
 }

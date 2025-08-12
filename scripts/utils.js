@@ -109,5 +109,21 @@ window.utils = {
             console.error('Storage read error:', error);
             return defaultValue;
         }
+    },
+
+    openModal: function(modalId) {
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            modal.style.display = 'block';
+            modal.classList.add('show');
+        }
+    },
+
+    closeModal: function(modalId) {
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            modal.style.display = 'none';
+            modal.classList.remove('show');
+        }
     }
 };
