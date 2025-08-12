@@ -1,22 +1,18 @@
-// Modal management functions
+// Modal management functions - Enhanced versions of utils modal functions
 
 function openModal(modalId) {
-    const modal = document.getElementById(modalId);
-    if (modal) {
-        modal.style.display = 'block';
-        
-        // Load products for sales modal
-        if (modalId === 'salesModal') {
-            populateProductSelect();
-        }
+    // Use utils function but add specific logic
+    window.utils.openModal(modalId);
+    
+    // Load products for sales modal
+    if (modalId === 'salesModal') {
+        populateProductSelect();
     }
 }
 
 function closeModal(modalId) {
     const modal = document.getElementById(modalId);
     if (modal) {
-        modal.style.display = 'none';
-        
         // Reset form if it exists
         const form = modal.querySelector('form');
         if (form) {
@@ -29,6 +25,9 @@ function closeModal(modalId) {
             document.getElementById('customerPhoneGroup').style.display = 'none';
         }
     }
+    
+    // Use utils function for consistent behavior
+    window.utils.closeModal(modalId);
 }
 
 // Close modals when clicking outside

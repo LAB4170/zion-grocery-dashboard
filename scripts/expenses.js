@@ -1,6 +1,7 @@
 // Expenses management functions
 
-let expenses = getFromStorage('expenses', []);
+// Use global expenses variable for consistency
+let expenses = window.expenses || [];
 
 function addExpense(event) {
     event.preventDefault();
@@ -11,12 +12,12 @@ function addExpense(event) {
     
     // Input validation for amount
     if (isNaN(amount) || amount <= 0) {
-        showNotification('Please enter a valid amount greater than zero.');
+        window.utils.showNotification('Please enter a valid amount greater than zero.', 'error');
         return; // Exit the function if the amount is invalid
     }
     
     const expense = {
-        id: generateId(),
+        id: window.utils.generateId(),
         description,
         category,
         amount,
@@ -25,16 +26,20 @@ function addExpense(event) {
     };
     
     expenses.push(expense);
-    saveToStorage('expenses', expenses);
+    window.expenses = expenses;
+    window.utils.saveToStorage('expenses', expenses);
     
-    closeModal('expenseModal');
-    showNotification('Expense added successfully!');
+    window.utils.closeModal('expenseModal');
+    window.utils.showNotification('Expense added successfully!');
     
-    if (currentSection === 'expenses') {
+    if (window.currentSection === 'expenses') {
         loadExpensesData();
     }
     
-    updateDashboardStats();
+    // Update dashboard
+    if (typeof updateDashboardStats === 'function') {
+        updateDashboardStats();
+    }
 }
 
 
@@ -42,12 +47,15 @@ function loadExpensesData() {
     const tbody = document.getElementById('expensesTableBody');
     if (!tbody) return;
     
+    // Sync with global variables
+    expenses = window.expenses || [];
+    
     tbody.innerHTML = expenses.map(expense => `
         <tr>
-            <td>${formatDate(expense.createdAt)}</td>
-            <td>${expense.description}</td>
-            <td>${expense.category}</td>
-            <td>${formatCurrency(expense.amount)}</td>
+            <td>${window.utils.formatDate(expense.createdAt)}</td>
+            <td>${expense.description || 'No description'}</td>
+            <td><span class="category-badge">${expense.category || 'Uncategorized'}</span></td>
+            <td>${window.utils.formatCurrency(expense.amount || 0)}</td>
             <td>
                 <button class="btn-small btn-danger" onclick="deleteExpense('${expense.id}')">Delete</button>
             </td>
@@ -58,9 +66,9 @@ function loadExpensesData() {
 function deleteExpense(expenseId) {
     if (confirm('Are you sure you want to delete this expense?')) {
         expenses = expenses.filter(e => e.id !== expenseId);
-        saveToStorage('expenses', expenses);
+        window.utils.saveToStorage('expenses', expenses);
         loadExpensesData();
-        showNotification('Expense deleted successfully!');
+        window.utils.showNotification('Expense deleted successfully!');
         updateDashboardStats();
     }
 }

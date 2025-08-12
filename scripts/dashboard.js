@@ -1,9 +1,11 @@
 // Dashboard data and charts management
 let paymentChart, weeklyChart;
-let sales = []; // Initialize sales from storage
-let debts = [];
-let expenses = [];
-let products = [];
+
+// Use global variables for consistency
+let sales = window.sales || [];
+let debts = window.debts || [];
+let expenses = window.expenses || [];
+let products = window.products || [];
 
 // Utility function for currency formatting
 function formatCurrency(amount) {
@@ -12,6 +14,7 @@ function formatCurrency(amount) {
 
 async function fetchDashboardData() {
     try {
+        // Try API first, fallback to localStorage
         const responses = await Promise.all([
             fetch('/api/sales'),
             fetch('/api/debts'),
@@ -19,16 +22,21 @@ async function fetchDashboardData() {
             fetch('/api/products')
         ]);
         
-        sales = await responses[0].json(); // Assigning value to existing sales variable
+        sales = await responses[0].json();
         debts = await responses[1].json();
         expenses = await responses[2].json();
         products = await responses[3].json();
         
         loadDashboardData();
     } catch (error) {
-        console.error('Error loading dashboard data:', error);
-        // Show error to user
-        alert('Failed to load dashboard data. Please try again later.');
+        console.warn('API not available, using localStorage:', error);
+        // Fallback to localStorage
+        sales = window.utils.getFromStorage('sales', []);
+        debts = window.utils.getFromStorage('debts', []);
+        expenses = window.utils.getFromStorage('expenses', []);
+        products = window.utils.getFromStorage('products', []);
+        
+        loadDashboardData();
     }
 }
 
@@ -37,6 +45,12 @@ function loadDashboardData() {
         console.error('Chart.js is not loaded');
         return;
     }
+    
+    // Sync with global variables
+    sales = window.sales || [];
+    debts = window.debts || [];
+    expenses = window.expenses || [];
+    products = window.products || [];
     
     updateDashboardStats();
     updateInventoryOverview();
@@ -49,56 +63,71 @@ function updateDashboardStats() {
     const currentMonth = new Date().getMonth();
     const currentYear = new Date().getFullYear();
     
-    // Total sales
-    const totalSales = sales.reduce((sum, sale) => sum + sale.total, 0);
-    document.getElementById('total-sales').textContent = formatCurrency(totalSales);
+    // Sync with global variables
+    sales = window.sales || [];
+    debts = window.debts || [];
+    expenses = window.expenses || [];
+    products = window.products || [];
     
-    // M-Pesa sales
-    const mpesaSales = sales.filter(s => s.paymentMethod === 'mpesa').reduce((sum, sale) => sum + sale.total, 0);
-    document.getElementById('mpesa-total').textContent = formatCurrency(mpesaSales);
+    // Total sales
+    const totalSales = sales.reduce((sum, sale) => sum + (sale.total || 0), 0);
+    const totalSalesElement = document.getElementById('total-sales');
+    if (totalSalesElement) totalSalesElement.textContent = window.utils.formatCurrency(totalSales);
     
     // Cash sales
-    const cashSales = sales.filter(s => s.paymentMethod === 'cash').reduce((sum, sale) => sum + sale.total, 0);
-    document.getElementById('cash-total').textContent = formatCurrency(cashSales);
+    const cashSales = sales.filter(s => s.paymentMethod === 'cash').reduce((sum, sale) => sum + (sale.total || 0), 0);
+    const cashTotalElement = document.getElementById('cash-total');
+    if (cashTotalElement) cashTotalElement.textContent = window.utils.formatCurrency(cashSales);
+    
+    // M-Pesa sales (removed from dashboard but kept for payment distribution)
+    const mpesaSales = sales.filter(s => s.paymentMethod === 'mpesa').reduce((sum, sale) => sum + (sale.total || 0), 0);
     
     // Today's debts
-    const todaysDebts = debts.filter(d => d.date === today && d.status === 'pending').reduce((sum, debt) => sum + debt.amount, 0);
-    document.getElementById('todays-debts').textContent = formatCurrency(todaysDebts);
+    const todaysDebts = debts.filter(d => d.date === today && d.status === 'pending').reduce((sum, debt) => sum + (debt.amount || 0), 0);
+    const todaysDebtsElement = document.getElementById('todays-debts');
+    if (todaysDebtsElement) todaysDebtsElement.textContent = window.utils.formatCurrency(todaysDebts);
     
     // Daily expenses
-    const dailyExpenses = expenses.filter(e => e.date === today).reduce((sum, expense) => sum + expense.amount, 0);
-    document.getElementById('daily-expenses').textContent = formatCurrency(dailyExpenses);
+    const dailyExpenses = expenses.filter(e => e.date === today).reduce((sum, expense) => sum + (expense.amount || 0), 0);
+    const dailyExpensesElement = document.getElementById('daily-expenses');
+    if (dailyExpensesElement) dailyExpensesElement.textContent = window.utils.formatCurrency(dailyExpenses);
     
     // Monthly sales
     const monthlySales = sales.filter(s => {
         const saleDate = new Date(s.createdAt);
         return saleDate.getMonth() === currentMonth && saleDate.getFullYear() === currentYear;
-    }).reduce((sum, sale) => sum + sale.total, 0);
-    document.getElementById('monthly-sales').textContent = formatCurrency(monthlySales);
+    }).reduce((sum, sale) => sum + (sale.total || 0), 0);
+    const monthlySalesElement = document.getElementById('monthly-sales');
+    if (monthlySalesElement) monthlySalesElement.textContent = window.utils.formatCurrency(monthlySales);
     
     // Monthly expenses
     const monthlyExpenses = expenses.filter(e => {
         const expenseDate = new Date(e.createdAt);
         return expenseDate.getMonth() === currentMonth && expenseDate.getFullYear() === currentYear;
-    }).reduce((sum, expense) => sum + expense.amount, 0);
-    document.getElementById('monthly-expenses').textContent = formatCurrency(monthlyExpenses);
+    }).reduce((sum, expense) => sum + (expense.amount || 0), 0);
+    const monthlyExpensesElement = document.getElementById('monthly-expenses');
+    if (monthlyExpensesElement) monthlyExpensesElement.textContent = window.utils.formatCurrency(monthlyExpenses);
     
     // Outstanding debt
-    const outstandingDebt = debts.filter(d => d.status === 'pending').reduce((sum, debt) => sum + debt.amount, 0);
-    document.getElementById('outstanding-debt').textContent = formatCurrency(outstandingDebt);
+    const outstandingDebt = debts.filter(d => d.status === 'pending').reduce((sum, debt) => sum + (debt.amount || 0), 0);
+    const outstandingDebtElement = document.getElementById('outstanding-debt');
+    if (outstandingDebtElement) outstandingDebtElement.textContent = window.utils.formatCurrency(outstandingDebt);
 }
 
 function updateInventoryOverview() {
     const container = document.getElementById('inventoryOverview');
     if (!container) return;
     
-    const lowStockProducts = products.filter(p => p.stock <= 5);
+    // Sync with global variables
+    products = window.products || [];
+    
+    const lowStockProducts = products.filter(p => (p.stock || 0) <= 5);
     
     container.innerHTML = lowStockProducts.length > 0 
         ? lowStockProducts.map(product => `
             <div class="inventory-item low-stock">
-                <h4>${product.name}</h4>
-                <p>Stock: ${product.stock}</p>
+                <h4>${product.name || 'Unknown Product'}</h4>
+                <p>Stock: ${product.stock || 0}</p>
                 <p class="warning">Low Stock!</p>
             </div>
         `).join('')
@@ -109,12 +138,15 @@ function updateDetailedInventory() {
     const container = document.getElementById('detailedInventory');
     if (!container) return;
     
+    // Sync with global variables
+    products = window.products || [];
+    
     container.innerHTML = products.map(product => `
-        <div class="inventory-item ${product.stock <= 5 ? 'low-stock' : ''}">
-            <h4>${product.name}</h4>
-            <p>Category: ${product.category}</p>
-            <p>Price: ${formatCurrency(product.price)}</p>
-            <p>Stock: ${product.stock}</p>
+        <div class="inventory-item ${(product.stock || 0) <= 5 ? 'low-stock' : ''}">
+            <h4>${product.name || 'Unknown Product'}</h4>
+            <p>Category: ${product.category || 'Uncategorized'}</p>
+            <p>Price: ${window.utils.formatCurrency(product.price || 0)}</p>
+            <p>Stock: ${product.stock || 0}</p>
         </div>
     `).join('');
 }

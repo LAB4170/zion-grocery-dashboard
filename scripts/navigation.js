@@ -80,14 +80,40 @@ function loadSectionData(sectionId) {
     // Validate sectionId
     if (!sectionId) return;
 
+    // Sync global variables before loading section data
+    window.products = window.utils.getFromStorage('products', []);
+    window.sales = window.utils.getFromStorage('sales', []);
+    window.expenses = window.utils.getFromStorage('expenses', []);
+    window.debts = window.utils.getFromStorage('debts', []);
+    window.mpesaTransactions = window.utils.getFromStorage('mpesa', []);
+
     const sectionLoaders = {
-        'dashboard': () => typeof loadDashboardData === 'function' && loadDashboardData(),
-        'sales': () => typeof loadSalesData === 'function' && loadSalesData(),
-        'sales-settings': () => typeof loadProductsData === 'function' && loadProductsData(),
-        'expenses': () => typeof loadExpensesData === 'function' && loadExpensesData(),
-        'individual-debts': () => typeof loadDebtsData === 'function' && loadDebtsData(),
-        'grouped-debts': () => typeof loadGroupedDebtsData === 'function' && loadGroupedDebtsData(),
-        'mpesa': () => typeof loadMpesaData === 'function' && loadMpesaData(),
+        'dashboard': () => {
+            if (typeof loadDashboardData === 'function') {
+                loadDashboardData();
+            } else if (typeof updateDashboardStats === 'function') {
+                updateDashboardStats();
+            }
+        },
+        'sales': () => {
+            if (typeof loadSalesData === 'function') loadSalesData();
+            if (typeof populateProductSelect === 'function') populateProductSelect();
+        },
+        'sales-settings': () => {
+            if (typeof loadProductsData === 'function') loadProductsData();
+        },
+        'expenses': () => {
+            if (typeof loadExpensesData === 'function') loadExpensesData();
+        },
+        'individual-debts': () => {
+            if (typeof loadDebtsData === 'function') loadDebtsData();
+        },
+        'grouped-debts': () => {
+            if (typeof loadGroupedDebtsData === 'function') loadGroupedDebtsData();
+        },
+        'mpesa': () => {
+            if (typeof loadMpesaData === 'function') loadMpesaData();
+        },
         'sales-reports': () => console.log('Reports section loaded')
     };
 

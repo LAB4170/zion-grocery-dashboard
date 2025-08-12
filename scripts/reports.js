@@ -13,15 +13,15 @@ function generateDailyReport() {
     const reportContent = document.getElementById('reportContent');
     reportContent.innerHTML = `
         <div class="report">
-            <h3>Daily Report - ${formatDate(today)}</h3>
+            <h3>Daily Report - ${window.utils.formatDate(today)}</h3>
             <div class="report-stats">
                 <div class="report-stat">
                     <h4>Sales Summary</h4>
                     <p>Total Sales: ${formatCurrency(totalSales)}</p>
                     <p>Number of Transactions: ${todaySales.length}</p>
-                    <p>Cash Sales: ${formatCurrency(todaySales.filter(s => s.paymentMethod === 'cash').reduce((sum, s) => sum + s.total, 0))}</p>
-                    <p>M-Pesa Sales: ${formatCurrency(todaySales.filter(s => s.paymentMethod === 'mpesa').reduce((sum, s) => sum + s.total, 0))}</p>
-                    <p>Credit Sales: ${formatCurrency(todaySales.filter(s => s.paymentMethod === 'debt').reduce((sum, s) => sum + s.total, 0))}</p>
+                    <p>Cash Sales: ${window.utils.formatCurrency(todaySales.filter(s => s.paymentMethod === 'cash').reduce((sum, s) => sum + s.total, 0))}</p>
+                    <p>M-Pesa Sales: ${window.utils.formatCurrency(todaySales.filter(s => s.paymentMethod === 'mpesa').reduce((sum, s) => sum + s.total, 0))}</p>
+                    <p>Credit Sales: ${window.utils.formatCurrency(todaySales.filter(s => s.paymentMethod === 'debt').reduce((sum, s) => sum + s.total, 0))}</p>
                 </div>
                 <div class="report-stat">
                     <h4>Expenses Summary</h4>
@@ -30,7 +30,7 @@ function generateDailyReport() {
                 </div>
                 <div class="report-stat">
                     <h4>Net Profit</h4>
-                    <p>Net Profit: ${formatCurrency(totalSales - totalExpenses)}</p>
+                    <p>Net Profit: ${window.utils.formatCurrency(totalSales - totalExpenses)}</p>
                 </div>
             </div>
             <div class="report-details">
