@@ -192,47 +192,86 @@ function createWeeklyChart() {
         weeklyChart.destroy();
     }
     
-    // Get last 7 days of sales data
-    const last7Days = [];
+    // Get current week's dates (Monday to Sunday)
+    const currentWeekDates = [];
     const salesByDay = [];
     
-    for (let i = 6; i >= 0; i--) {
-        const date = new Date();
-        date.setDate(date.getDate() - i);
+    // Get current date
+    const today = new Date();
+    
+    // Find Monday of current week
+    const currentDay = today.getDay(); // 0 = Sunday, 1 = Monday, etc.
+    const mondayOffset = currentDay === 0 ? -6 : 1 - currentDay; // If Sunday, go back 6 days
+    const monday = new Date(today);
+    monday.setDate(today.getDate() + mondayOffset);
+    
+    // Generate current week's dates (Monday to Sunday)
+    for (let i = 0; i < 7; i++) {
+        const date = new Date(monday);
+        date.setDate(monday.getDate() + i);
         const dateString = date.toISOString().split('T')[0];
         
-        last7Days.push(date.toLocaleDateString('en-KE', { weekday: 'short' }));
-        const dailySales = sales.filter(s => {
-            const saleDate = new Date(s.date);
+        // Format as "Mon 12/08" (day and date)
+        const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
+        const dateFormat = date.toLocaleDateString('en-US', { day: '2-digit', month: '2-digit' });
+        currentWeekDates.push(`${dayName} ${dateFormat}`);
+        
+        // Calculate daily sales for this date
+        const dailySales = (window.sales || []).filter(s => {
+            const saleDate = new Date(s.date || s.createdAt);
             return saleDate.toISOString().split('T')[0] === dateString;
-        }).reduce((sum, sale) => sum + sale.total, 0);
+        }).reduce((sum, sale) => sum + (sale.total || 0), 0);
+        
         salesByDay.push(dailySales);
     }
+    
+    // Find maximum sales value to set appropriate scale
+    const maxSales = Math.max(...salesByDay, 0);
+    const yAxisMax = Math.ceil(maxSales / 100) * 100 + 100; // Round up to next 100
     
     weeklyChart = new Chart(ctx, {
         type: 'line',
         data: {
-            labels: last7Days,
+            labels: currentWeekDates,
             datasets: [{
-                label: 'Sales',
+                label: 'Daily Sales (KSh)',
                 data: salesByDay,
                 borderColor: '#4CAF50',
                 backgroundColor: 'rgba(76, 175, 80, 0.1)',
-                tension: 0.4
+                tension: 0.4,
+                fill: true,
+                pointBackgroundColor: '#4CAF50',
+                pointBorderColor: '#ffffff',
+                pointBorderWidth: 2,
+                pointRadius: 5
             }]
         },
         options: {
             responsive: true,
+            maintainAspectRatio: false,
             scales: {
                 y: {
                     beginAtZero: true,
+                    max: yAxisMax,
                     ticks: {
-                        color: 'white'
+                        stepSize: 100,
+                        color: 'white',
+                        callback: function(value) {
+                            return 'KSh ' + value.toLocaleString();
+                        }
+                    },
+                    grid: {
+                        color: 'rgba(255, 255, 255, 0.1)'
                     }
                 },
                 x: {
                     ticks: {
-                        color: 'white'
+                        color: 'white',
+                        maxRotation: 45,
+                        minRotation: 45
+                    },
+                    grid: {
+                        color: 'rgba(255, 255, 255, 0.1)'
                     }
                 }
             },
@@ -241,6 +280,18 @@ function createWeeklyChart() {
                     labels: {
                         color: 'white'
                     }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return 'Sales: KSh ' + context.parsed.y.toLocaleString();
+                        }
+                    }
+                }
+            },
+            elements: {
+                line: {
+                    borderWidth: 3
                 }
             }
         }

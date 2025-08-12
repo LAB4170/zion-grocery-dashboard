@@ -11,14 +11,14 @@ function initializeApp() {
     window.sales = window.utils.getFromStorage('sales', []);
     window.expenses = window.utils.getFromStorage('expenses', []);
     window.debts = window.utils.getFromStorage('debts', []);
-    window.mpesaTransactions = window.utils.getFromStorage('mpesa', []);
+
 
     // Assign to local variables for backward compatibility
     products = window.products;
     sales = window.sales;
     expenses = window.expenses;
     debts = window.debts;
-    mpesaTransactions = window.mpesaTransactions;
+
 
     // No setTimeout needed if DOM is already ready (DOMContentLoaded ensures this)
     showSection('dashboard');
@@ -61,7 +61,7 @@ window.products = [];
 window.sales = [];
 window.expenses = [];
 window.debts = [];
-window.mpesaTransactions = [];
+
 window.currentSection = null;
 
 // Export functions for global access
@@ -83,9 +83,7 @@ window.viewSaleDetails = viewSaleDetails;
 window.deleteExpense = deleteExpense;
 window.markDebtPaid = markDebtPaid;
 window.deleteDebt = deleteDebt;
-window.addManualMpesaTransaction = addManualMpesaTransaction;
-window.refreshMpesaTransactions = refreshMpesaTransactions;
-window.deleteMpesaTransaction = deleteMpesaTransaction;
+
 window.generateDailyReport = generateDailyReport;
 window.generateWeeklyReport = generateWeeklyReport;
 window.generateMonthlyReport = generateMonthlyReport;
