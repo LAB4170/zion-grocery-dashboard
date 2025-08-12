@@ -85,7 +85,7 @@ function loadSectionData(sectionId) {
     window.sales = window.utils.getFromStorage('sales', []);
     window.expenses = window.utils.getFromStorage('expenses', []);
     window.debts = window.utils.getFromStorage('debts', []);
-    window.mpesaTransactions = window.utils.getFromStorage('mpesa', []);
+
 
     const sectionLoaders = {
         'dashboard': () => {
@@ -99,6 +99,9 @@ function loadSectionData(sectionId) {
             if (typeof loadSalesData === 'function') loadSalesData();
             if (typeof populateProductSelect === 'function') populateProductSelect();
         },
+        'products': () => {
+            if (typeof loadProductsData === 'function') loadProductsData();
+        },
         'sales-settings': () => {
             if (typeof loadProductsData === 'function') loadProductsData();
         },
@@ -111,9 +114,7 @@ function loadSectionData(sectionId) {
         'grouped-debts': () => {
             if (typeof loadGroupedDebtsData === 'function') loadGroupedDebtsData();
         },
-        'mpesa': () => {
-            if (typeof loadMpesaData === 'function') loadMpesaData();
-        },
+
         'sales-reports': () => console.log('Reports section loaded')
     };
 

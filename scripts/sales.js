@@ -85,10 +85,7 @@ function addSale(event) {
             addDebtFromSale(sale);
         }
         
-        // Add M-Pesa transaction if payment method is M-Pesa
-        if (paymentMethod === 'mpesa') {
-            addMpesaFromSale(sale);
-        }
+        // M-Pesa transactions are handled as regular sales
         
         window.utils.showNotification('Sale recorded successfully!');
     }
