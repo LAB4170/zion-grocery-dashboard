@@ -1,7 +1,7 @@
 // Product management functions
 
-// Use global products variable for consistency
-let products = window.products || [];
+// Use global products variable for consistency - no redeclaration needed
+// Access window.products directly to avoid conflicts
 
 function addProduct(event) {
     event.preventDefault();
@@ -26,10 +26,10 @@ function addProduct(event) {
         createdAt: new Date().toISOString()
     };
     
-    // Update both local and global variables
-    products.push(product);
-    window.products = products;
-    window.utils.saveToStorage('products', products);
+    // Update global products array
+    window.products = window.products || [];
+    window.products.push(product);
+    window.utils.saveToStorage('products', window.products);
     
     window.utils.closeModal('productModal');
     window.utils.showNotification('Product added successfully!');

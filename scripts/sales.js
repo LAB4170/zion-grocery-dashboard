@@ -1,7 +1,7 @@
 // Sales management functions
 
-// Use global sales variable for consistency
-let sales = window.sales || [];
+// Use global sales variable for consistency - no redeclaration needed
+// Access window.sales directly to avoid conflicts
 
 function addSale(event) {
     event.preventDefault();
