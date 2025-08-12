@@ -1,11 +1,8 @@
 // Dashboard data and charts management
 let paymentChart, weeklyChart;
 
-// Use global variables for consistency
-let sales = window.sales || [];
-let debts = window.debts || [];
-let expenses = window.expenses || [];
-let products = window.products || [];
+// Use global variables for consistency - no redeclaration
+// Access global variables directly from window object
 
 // Utility function for currency formatting
 function formatCurrency(amount) {
@@ -22,19 +19,19 @@ async function fetchDashboardData() {
             fetch('/api/products')
         ]);
         
-        sales = await responses[0].json();
-        debts = await responses[1].json();
-        expenses = await responses[2].json();
-        products = await responses[3].json();
+        window.sales = await responses[0].json();
+        window.debts = await responses[1].json();
+        window.expenses = await responses[2].json();
+        window.products = await responses[3].json();
         
         loadDashboardData();
     } catch (error) {
         console.warn('API not available, using localStorage:', error);
         // Fallback to localStorage
-        sales = window.utils.getFromStorage('sales', []);
-        debts = window.utils.getFromStorage('debts', []);
-        expenses = window.utils.getFromStorage('expenses', []);
-        products = window.utils.getFromStorage('products', []);
+        window.sales = window.utils.getFromStorage('sales', []);
+        window.debts = window.utils.getFromStorage('debts', []);
+        window.expenses = window.utils.getFromStorage('expenses', []);
+        window.products = window.utils.getFromStorage('products', []);
         
         loadDashboardData();
     }
@@ -46,11 +43,8 @@ function loadDashboardData() {
         return;
     }
     
-    // Sync with global variables
-    sales = window.sales || [];
-    debts = window.debts || [];
-    expenses = window.expenses || [];
-    products = window.products || [];
+    // Use global variables directly - no reassignment needed
+    // window.sales, window.debts, window.expenses, window.products are already available
     
     updateDashboardStats();
     updateInventoryOverview();
@@ -63,11 +57,11 @@ function updateDashboardStats() {
     const currentMonth = new Date().getMonth();
     const currentYear = new Date().getFullYear();
     
-    // Sync with global variables
-    sales = window.sales || [];
-    debts = window.debts || [];
-    expenses = window.expenses || [];
-    products = window.products || [];
+    // Use global variables directly
+    const sales = window.sales || [];
+    const debts = window.debts || [];
+    const expenses = window.expenses || [];
+    const products = window.products || [];
     
     // Total sales
     const totalSales = sales.reduce((sum, sale) => sum + (sale.total || 0), 0);
@@ -252,6 +246,13 @@ function createWeeklyChart() {
         }
     });
 }
+
+// Export functions for global access
+window.updateDashboardStats = updateDashboardStats;
+window.updateInventoryOverview = updateInventoryOverview;
+window.updateDetailedInventory = updateDetailedInventory;
+window.fetchDashboardData = fetchDashboardData;
+window.loadDashboardData = loadDashboardData;
 
 // Initialize dashboard when DOM is ready
 document.addEventListener('DOMContentLoaded', function() {
