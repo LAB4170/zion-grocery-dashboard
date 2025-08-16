@@ -2,8 +2,8 @@
 <div id="salesModal" class="modal">
     <div class="modal-content">
         <span class="close" onclick="closeModal('salesModal')">&times;</span>
-        <h2>Create New Sale</h2>
-        <form onsubmit="addSale(event)">
+        <h2 id="salesModalTitle">Create New Sale</h2>
+        <form id="saleForm" onsubmit="addSale(event)">
             <div class="form-group">
                 <label>Product</label>
                 <select id="saleProduct" required>
@@ -30,7 +30,7 @@
                 <label>Customer Phone</label>
                 <input type="tel" id="customerPhone">
             </div>
-            <button type="submit" class="btn">Create Sale</button>
+            <button type="submit" class="btn" id="salesModalSubmit">Create Sale</button>
         </form>
     </div>
 </div>
