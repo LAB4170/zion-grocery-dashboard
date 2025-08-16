@@ -1,36 +1,69 @@
-// Reports generation and management
+// Reports generation and management - FIXED VERSION
 
 function generateDailyReport() {
-    const today = new Date().toISOString().split('T')[0];
-    const todaySales = sales.filter(s => s.date === today);
-    const todayExpenses = expenses.filter(e => e.date === today);
-    const todayDebts = debts.filter(d => d.date === today);
-    
-    const totalSales = todaySales.reduce((sum, sale) => sum + sale.total, 0);
-    const totalExpenses = todayExpenses.reduce((sum, expense) => sum + expense.amount, 0);
-    const totalDebts = todayDebts.reduce((sum, debt) => sum + debt.amount, 0);
-    
-    const reportContent = document.getElementById('reportContent');
-    reportContent.innerHTML = `
+  const today = new Date().toISOString().split("T")[0];
+  const sales = window.sales || [];
+  const expenses = window.expenses || [];
+  const debts = window.debts || [];
+
+  const todaySales = sales.filter((s) => s.date === today);
+  const todayExpenses = expenses.filter((e) => e.date === today);
+  const todayDebts = debts.filter((d) => d.date === today);
+
+  const totalSales = todaySales.reduce(
+    (sum, sale) => sum + (sale.total || 0),
+    0
+  );
+  const totalExpenses = todayExpenses.reduce(
+    (sum, expense) => sum + (expense.amount || 0),
+    0
+  );
+  const totalDebts = todayDebts.reduce(
+    (sum, debt) => sum + (debt.amount || 0),
+    0
+  );
+
+  const reportContent = document.getElementById("reportContent");
+  if (!reportContent) return;
+
+  reportContent.innerHTML = `
         <div class="report">
             <h3>Daily Report - ${window.utils.formatDate(today)}</h3>
             <div class="report-stats">
                 <div class="report-stat">
                     <h4>Sales Summary</h4>
-                    <p>Total Sales: ${formatCurrency(totalSales)}</p>
+                    <p>Total Sales: ${window.utils.formatCurrency(
+                      totalSales
+                    )}</p>
                     <p>Number of Transactions: ${todaySales.length}</p>
-                    <p>Cash Sales: ${window.utils.formatCurrency(todaySales.filter(s => s.paymentMethod === 'cash').reduce((sum, s) => sum + s.total, 0))}</p>
-                    <p>M-Pesa Sales: ${window.utils.formatCurrency(todaySales.filter(s => s.paymentMethod === 'mpesa').reduce((sum, s) => sum + s.total, 0))}</p>
-                    <p>Credit Sales: ${window.utils.formatCurrency(todaySales.filter(s => s.paymentMethod === 'debt').reduce((sum, s) => sum + s.total, 0))}</p>
+                    <p>Cash Sales: ${window.utils.formatCurrency(
+                      todaySales
+                        .filter((s) => s.paymentMethod === "cash")
+                        .reduce((sum, s) => sum + (s.total || 0), 0)
+                    )}</p>
+                    <p>M-Pesa Sales: ${window.utils.formatCurrency(
+                      todaySales
+                        .filter((s) => s.paymentMethod === "mpesa")
+                        .reduce((sum, s) => sum + (s.total || 0), 0)
+                    )}</p>
+                    <p>Credit Sales: ${window.utils.formatCurrency(
+                      todaySales
+                        .filter((s) => s.paymentMethod === "debt")
+                        .reduce((sum, s) => sum + (s.total || 0), 0)
+                    )}</p>
                 </div>
                 <div class="report-stat">
                     <h4>Expenses Summary</h4>
-                    <p>Total Expenses: ${formatCurrency(totalExpenses)}</p>
+                    <p>Total Expenses: ${window.utils.formatCurrency(
+                      totalExpenses
+                    )}</p>
                     <p>Number of Expenses: ${todayExpenses.length}</p>
                 </div>
                 <div class="report-stat">
                     <h4>Net Profit</h4>
-                    <p>Net Profit: ${window.utils.formatCurrency(totalSales - totalExpenses)}</p>
+                    <p>Net Profit: ${window.utils.formatCurrency(
+                      totalSales - totalExpenses
+                    )}</p>
                 </div>
             </div>
             <div class="report-details">
@@ -45,14 +78,24 @@ function generateDailyReport() {
                         </tr>
                     </thead>
                     <tbody>
-                        ${todaySales.map(sale => `
+                        ${todaySales
+                          .map(
+                            (sale) => `
                             <tr>
-                                <td>${sale.productName}</td>
-                                <td>${sale.quantity}</td>
-                                <td>${formatCurrency(sale.total)}</td>
-                                <td>${sale.paymentMethod.toUpperCase()}</td>
+                                <td>${
+                                  sale.productName || "Unknown Product"
+                                }</td>
+                                <td>${sale.quantity || 0}</td>
+                                <td>${window.utils.formatCurrency(
+                                  sale.total || 0
+                                )}</td>
+                                <td>${(
+                                  sale.paymentMethod || "unknown"
+                                ).toUpperCase()}</td>
                             </tr>
-                        `).join('')}
+                        `
+                          )
+                          .join("")}
                     </tbody>
                 </table>
             </div>
@@ -61,54 +104,78 @@ function generateDailyReport() {
 }
 
 function generateWeeklyReport() {
-    const endDate = new Date();
-    const startDate = new Date();
-    startDate.setDate(endDate.getDate() - 6);
-    
-    const weekSales = sales.filter(s => {
+  const endDate = new Date();
+  const startDate = new Date();
+  startDate.setDate(endDate.getDate() - 6);
+  startDate.setHours(0, 0, 0, 0);
+  endDate.setHours(23, 59, 59, 999);
+
+  const sales = window.sales || [];
+  const expenses = window.expenses || [];
+
+  const weekSales = sales.filter((s) => {
     const saleDate = new Date(s.createdAt);
-    // Normalize to midnight
     saleDate.setHours(0, 0, 0, 0);
     return saleDate >= startDate && saleDate <= endDate;
-});
+  });
 
-    const weekExpenses = expenses.filter(e => {
+  const weekExpenses = expenses.filter((e) => {
     const expenseDate = new Date(e.createdAt);
-    // Normalize to midnight
     expenseDate.setHours(0, 0, 0, 0);
     return expenseDate >= startDate && expenseDate <= endDate;
-});
+  });
 
-    
-    const totalSales = weekSales.reduce((sum, sale) => sum + sale.total, 0);
-    const totalExpenses = weekExpenses.reduce((sum, expense) => sum + expense.amount, 0);
-    
-    // Group sales by day
-    const salesByDay = {};
-    for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
-        const dateString = d.toISOString().split('T')[0];
-        salesByDay[dateString] = weekSales.filter(s => s.date === dateString).reduce((sum, s) => sum + s.total, 0);
-    }
-    
-    const reportContent = document.getElementById('reportContent');
-    reportContent.innerHTML = `
+  const totalSales = weekSales.reduce(
+    (sum, sale) => sum + (sale.total || 0),
+    0
+  );
+  const totalExpenses = weekExpenses.reduce(
+    (sum, expense) => sum + (expense.amount || 0),
+    0
+  );
+
+  // Group sales by day
+  const salesByDay = {};
+  for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+    const dateString = d.toISOString().split("T")[0];
+    salesByDay[dateString] = weekSales
+      .filter((s) => s.date === dateString)
+      .reduce((sum, s) => sum + (s.total || 0), 0);
+  }
+
+  const reportContent = document.getElementById("reportContent");
+  if (!reportContent) return;
+
+  reportContent.innerHTML = `
         <div class="report">
-            <h3>Weekly Report - ${formatDate(startDate)} to ${formatDate(endDate)}</h3>
+            <h3>Weekly Report - ${window.utils.formatDate(
+              startDate
+            )} to ${window.utils.formatDate(endDate)}</h3>
             <div class="report-stats">
                 <div class="report-stat">
                     <h4>Sales Summary</h4>
-                    <p>Total Sales: ${formatCurrency(totalSales)}</p>
-                    <p>Average Daily Sales: ${formatCurrency(totalSales / 7)}</p>
+                    <p>Total Sales: ${window.utils.formatCurrency(
+                      totalSales
+                    )}</p>
+                    <p>Average Daily Sales: ${window.utils.formatCurrency(
+                      totalSales / 7
+                    )}</p>
                     <p>Number of Transactions: ${weekSales.length}</p>
                 </div>
                 <div class="report-stat">
                     <h4>Expenses Summary</h4>
-                    <p>Total Expenses: ${formatCurrency(totalExpenses)}</p>
-                    <p>Average Daily Expenses: ${formatCurrency(totalExpenses / 7)}</p>
+                    <p>Total Expenses: ${window.utils.formatCurrency(
+                      totalExpenses
+                    )}</p>
+                    <p>Average Daily Expenses: ${window.utils.formatCurrency(
+                      totalExpenses / 7
+                    )}</p>
                 </div>
                 <div class="report-stat">
                     <h4>Net Profit</h4>
-                    <p>Weekly Net Profit: ${formatCurrency(totalSales - totalExpenses)}</p>
+                    <p>Weekly Net Profit: ${window.utils.formatCurrency(
+                      totalSales - totalExpenses
+                    )}</p>
                 </div>
             </div>
             <div class="report-details">
@@ -121,12 +188,16 @@ function generateWeeklyReport() {
                         </tr>
                     </thead>
                     <tbody>
-                        ${Object.entries(salesByDay).map(([date, amount]) => `
+                        ${Object.entries(salesByDay)
+                          .map(
+                            ([date, amount]) => `
                             <tr>
-                                <td>${formatDate(date)}</td>
-                                <td>${formatCurrency(amount)}</td>
+                                <td>${window.utils.formatDate(date)}</td>
+                                <td>${window.utils.formatCurrency(amount)}</td>
                             </tr>
-                        `).join('')}
+                        `
+                          )
+                          .join("")}
                     </tbody>
                 </table>
             </div>
@@ -135,58 +206,95 @@ function generateWeeklyReport() {
 }
 
 function generateMonthlyReport() {
-    const currentMonth = new Date().getMonth();
-    const currentYear = new Date().getFullYear();
-    
-    const monthSales = sales.filter(s => {
-        const saleDate = new Date(s.createdAt);
-        return saleDate.getMonth() === currentMonth && saleDate.getFullYear() === currentYear;
-    });
-    
-    const monthExpenses = expenses.filter(e => {
-        const expenseDate = new Date(e.createdAt);
-        return expenseDate.getMonth() === currentMonth && expenseDate.getFullYear() === currentYear;
-    });
-    
-    const totalSales = monthSales.reduce((sum, sale) => sum + sale.total, 0);
-    const totalExpenses = monthExpenses.reduce((sum, expense) => sum + expense.amount, 0);
-    
-    // Group by product category
-    const salesByCategory = monthSales.reduce((acc, sale) => {
-        const product = products.find(p => p.id === sale.productId);
-        const category = product ? product.category : 'unknown';
-        acc[category] = (acc[category] || 0) + sale.total;
-        return acc;
-    }, {});
-    
-    // Group expenses by category
-    const expensesByCategory = monthExpenses.reduce((acc, expense) => {
-        acc[expense.category] = (acc[expense.category] || 0) + expense.amount;
-        return acc;
-    }, {});
-    
-    const monthName = new Date().toLocaleDateString('en-KE', { month: 'long', year: 'numeric' });
-    
-    const reportContent = document.getElementById('reportContent');
-    reportContent.innerHTML = `
+  const currentMonth = new Date().getMonth();
+  const currentYear = new Date().getFullYear();
+
+  const sales = window.sales || [];
+  const expenses = window.expenses || [];
+  const products = window.products || [];
+
+  const monthSales = sales.filter((s) => {
+    const saleDate = new Date(s.createdAt);
+    return (
+      saleDate.getMonth() === currentMonth &&
+      saleDate.getFullYear() === currentYear
+    );
+  });
+
+  const monthExpenses = expenses.filter((e) => {
+    const expenseDate = new Date(e.createdAt);
+    return (
+      expenseDate.getMonth() === currentMonth &&
+      expenseDate.getFullYear() === currentYear
+    );
+  });
+
+  const totalSales = monthSales.reduce(
+    (sum, sale) => sum + (sale.total || 0),
+    0
+  );
+  const totalExpenses = monthExpenses.reduce(
+    (sum, expense) => sum + (expense.amount || 0),
+    0
+  );
+
+  // Group by product category
+  const salesByCategory = monthSales.reduce((acc, sale) => {
+    const product = products.find((p) => p.id === sale.productId);
+    const category = product ? product.category : "unknown";
+    acc[category] = (acc[category] || 0) + (sale.total || 0);
+    return acc;
+  }, {});
+
+  // Group expenses by category
+  const expensesByCategory = monthExpenses.reduce((acc, expense) => {
+    const category = expense.category || "unknown";
+    acc[category] = (acc[category] || 0) + (expense.amount || 0);
+    return acc;
+  }, {});
+
+  const monthName = new Date().toLocaleDateString("en-KE", {
+    month: "long",
+    year: "numeric",
+  });
+
+  const reportContent = document.getElementById("reportContent");
+  if (!reportContent) return;
+
+  reportContent.innerHTML = `
         <div class="report">
             <h3>Monthly Report - ${monthName}</h3>
             <div class="report-stats">
                 <div class="report-stat">
                     <h4>Sales Summary</h4>
-                    <p>Total Sales: ${formatCurrency(totalSales)}</p>
+                    <p>Total Sales: ${window.utils.formatCurrency(
+                      totalSales
+                    )}</p>
                     <p>Number of Transactions: ${monthSales.length}</p>
-                    <p>Average Transaction: ${formatCurrency(monthSales.length ? totalSales / monthSales.length : 0)}</p>
+                    <p>Average Transaction: ${window.utils.formatCurrency(
+                      monthSales.length ? totalSales / monthSales.length : 0
+                    )}</p>
                 </div>
                 <div class="report-stat">
                     <h4>Expenses Summary</h4>
-                    <p>Total Expenses: ${formatCurrency(totalExpenses)}</p>
+                    <p>Total Expenses: ${window.utils.formatCurrency(
+                      totalExpenses
+                    )}</p>
                     <p>Number of Expenses: ${monthExpenses.length}</p>
                 </div>
                 <div class="report-stat">
                     <h4>Net Profit</h4>
-                    <p>Monthly Net Profit: ${formatCurrency(totalSales - totalExpenses)}</p>
-                    <p>Profit Margin: ${totalSales ? ((totalSales - totalExpenses) / totalSales * 100).toFixed(2) : 0}%</p>
+                    <p>Monthly Net Profit: ${window.utils.formatCurrency(
+                      totalSales - totalExpenses
+                    )}</p>
+                    <p>Profit Margin: ${
+                      totalSales
+                        ? (
+                            ((totalSales - totalExpenses) / totalSales) *
+                            100
+                          ).toFixed(2)
+                        : 0
+                    }%</p>
                 </div>
             </div>
             <div class="report-details">
@@ -200,13 +308,21 @@ function generateMonthlyReport() {
                         </tr>
                     </thead>
                     <tbody>
-                        ${Object.entries(salesByCategory).map(([category, amount]) => `
+                        ${Object.entries(salesByCategory)
+                          .map(
+                            ([category, amount]) => `
                             <tr>
                                 <td>${category}</td>
-                                <td>${formatCurrency(amount)}</td>
-                                <td>${((amount / totalSales) * 100).toFixed(2)}%</td>
+                                <td>${window.utils.formatCurrency(amount)}</td>
+                                <td>${
+                                  totalSales
+                                    ? ((amount / totalSales) * 100).toFixed(2)
+                                    : 0
+                                }%</td>
                             </tr>
-                        `).join('')}
+                        `
+                          )
+                          .join("")}
                     </tbody>
                 </table>
                 
@@ -220,13 +336,23 @@ function generateMonthlyReport() {
                         </tr>
                     </thead>
                     <tbody>
-                        ${Object.entries(expensesByCategory).map(([category, amount]) => `
+                        ${Object.entries(expensesByCategory)
+                          .map(
+                            ([category, amount]) => `
                             <tr>
                                 <td>${category}</td>
-                                <td>${formatCurrency(amount)}</td>
-                                <td>${totalExpenses ? ((amount / totalExpenses) * 100).toFixed(2) : 0}%</td>
+                                <td>${window.utils.formatCurrency(amount)}</td>
+                                <td>${
+                                  totalExpenses
+                                    ? ((amount / totalExpenses) * 100).toFixed(
+                                        2
+                                      )
+                                    : 0
+                                }%</td>
                             </tr>
-                        `).join('')}
+                        `
+                          )
+                          .join("")}
                     </tbody>
                 </table>
             </div>
@@ -235,15 +361,15 @@ function generateMonthlyReport() {
 }
 
 function exportReport() {
-    const reportContent = document.getElementById('reportContent');
-    if (!reportContent || !reportContent.innerHTML.includes('report')) {
-        showNotification('Please generate a report first', 'warning');
-        return;
-    }
-    
-    // Create a new window for printing
-    const printWindow = window.open('', '', 'height=600,width=800');
-    printWindow.document.write(`
+  const reportContent = document.getElementById("reportContent");
+  if (!reportContent || !reportContent.innerHTML.includes("report")) {
+    window.utils.showNotification("Please generate a report first", "warning");
+    return;
+  }
+
+  // Create a new window for printing
+  const printWindow = window.open("", "", "height=600,width=800");
+  printWindow.document.write(`
         <html>
             <head>
                 <title>Zion Groceries Report</title>
@@ -263,8 +389,8 @@ function exportReport() {
             </body>
         </html>
     `);
-    printWindow.document.close();
-    printWindow.print();
-    
-    showNotification('Report exported for printing', 'success');
+  printWindow.document.close();
+  printWindow.print();
+
+  window.utils.showNotification("Report exported for printing", "success");
 }
