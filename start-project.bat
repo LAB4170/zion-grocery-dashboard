@@ -10,14 +10,14 @@ if errorlevel 1 (
 
 REM Start backend in new window
 echo Starting backend server...
-start "Backend Server" cmd /k "cd /d backend && node simple-server.js"
+start "Backend Server" cmd /k "cd /d backend && node server.js"
 
 REM Wait a moment for backend to start
 timeout /t 3 /nobreak >nul
 
 REM Start frontend in new window
 echo Starting frontend server...
-start "Frontend Server" cmd /k "python -m http.server 8080"
+start "Frontend Server" cmd /k "cd /d frontend && python -m http.server 8080"
 
 REM Wait a moment for frontend to start
 timeout /t 3 /nobreak >nul

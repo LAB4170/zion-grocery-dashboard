@@ -11,8 +11,6 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Import routes
-const authRoutes = require('./routes/auth');
-const userRoutes = require('./routes/users');
 const dashboardRoutes = require('./routes/dashboard');
 const productRoutes = require('./routes/products');
 const salesRoutes = require('./routes/sales');
@@ -22,7 +20,6 @@ const mpesaRoutes = require('./routes/mpesa');
 
 // Import middleware
 const { errorHandler } = require('./middleware/errorHandler');
-const { authenticateToken } = require('./middleware/auth');
 
 // Security middleware
 app.use(helmet());
@@ -65,14 +62,12 @@ app.get('/health', (req, res) => {
 });
 
 // API routes
-app.use('/api/auth', authRoutes);
-app.use('/api/products', authenticateToken, productRoutes);
-app.use('/api/sales', authenticateToken, salesRoutes);
-app.use('/api/expenses', authenticateToken, expenseRoutes);
-app.use('/api/debts', authenticateToken, debtRoutes);
-app.use('/api/dashboard', authenticateToken, dashboardRoutes);
+app.use('/api/products', productRoutes);
+app.use('/api/sales', salesRoutes);
+app.use('/api/expenses', expenseRoutes);
+app.use('/api/debts', debtRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/mpesa', mpesaRoutes);
-app.use('/api/users', authenticateToken, userRoutes);
 
 // Serve static files in production
 if (process.env.NODE_ENV === 'production') {
