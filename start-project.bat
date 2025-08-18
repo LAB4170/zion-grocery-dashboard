@@ -22,20 +22,22 @@ start "Frontend Server" cmd /k "cd /d frontend && python -m http.server 8080"
 REM Wait a moment for frontend to start
 timeout /t 3 /nobreak >nul
 
-REM Open browser
-echo Opening application in browser...
-start http://localhost:8080
+REM Open browser to login page
+echo Opening login page in browser...
+start http://localhost:8080/login.html
 
 echo.
 echo ========================================
 echo Zion Grocery Dashboard is now running!
 echo ========================================
-echo Frontend: http://localhost:8080
-echo Backend:  http://localhost:5000
+echo Login Page: http://localhost:8080/login.html
+echo Dashboard:  http://localhost:8080 (after login)
+echo Backend:    http://localhost:5000
 echo.
 echo Login credentials:
-echo Username: admin
-echo Password: admin123
+echo Primary - Username: ZionGroceries  Password: Zion123$
+echo Admin   - Username: admin         Password: admin123
+echo Manager - Username: manager       Password: manager123
 echo.
 echo Press any key to close this window...
 pause >nul
