@@ -8,6 +8,7 @@ function addSale(event) {
 
   const productId = document.getElementById("saleProduct").value;
   const quantity = parseInt(document.getElementById("saleQuantity").value);
+  const saleDate = document.getElementById("saleDate").value;
   const paymentMethod = document.getElementById("salePaymentMethod").value;
   const customerName = document.getElementById("customerName").value;
   const customerPhone = document.getElementById("customerPhone").value;
@@ -50,6 +51,8 @@ function addSale(event) {
     existingSale.customerName = paymentMethod === "cash" ? "" : customerName;
     existingSale.customerPhone = paymentMethod === "cash" ? "" : customerPhone;
     existingSale.status = paymentMethod === "debt" ? "pending" : "completed";
+    existingSale.date = saleDate;
+    existingSale.createdAt = new Date(saleDate + 'T' + new Date().toTimeString().split(' ')[0]).toISOString();
 
     window.utils.saveToStorage("sales", window.sales);
     window.utils.showNotification("Sale updated successfully!");
@@ -73,8 +76,8 @@ function addSale(event) {
       customerName: paymentMethod === "cash" ? "" : customerName,
       customerPhone: paymentMethod === "cash" ? "" : customerPhone,
       status: paymentMethod === "debt" ? "pending" : "completed",
-      createdAt: new Date().toISOString(),
-      date: new Date().toISOString().split("T")[0],
+      createdAt: new Date(saleDate + 'T' + new Date().toTimeString().split(' ')[0]).toISOString(),
+      date: saleDate,
     };
 
     // Use window.sales consistently
@@ -123,7 +126,12 @@ function loadSalesData() {
 
       return `
             <tr data-sale-id="${sale.id}">
-                <td>${window.utils.formatDate(sale.createdAt)}</td>
+                <td>
+                    <div class="date-container">
+                        <span class="date-display">${window.utils.formatDate(sale.createdAt)}</span>
+                        <i class="fas fa-calendar-alt date-edit-icon" onclick="editSaleDate('${sale.id}')" title="Edit Sale Date"></i>
+                    </div>
+                </td>
                 <td>${sale.productName || "Unknown Product"}</td>
                 <td>${sale.quantity || 0}</td>
                 <td>${window.utils.formatCurrency(sale.unitPrice || 0)}</td>
@@ -252,6 +260,11 @@ function editSale(saleId) {
 
   if (productSelect) productSelect.value = sale.productId;
   if (quantityInput) quantityInput.value = sale.quantity;
+  
+  // Set the sale date
+  const saleDateInput = document.getElementById("saleDate");
+  if (saleDateInput) saleDateInput.value = sale.date;
+  
   if (paymentSelect) paymentSelect.value = sale.paymentMethod;
   if (customerNameInput) customerNameInput.value = sale.customerName || "";
   if (customerPhoneInput) customerPhoneInput.value = sale.customerPhone || "";
@@ -275,6 +288,10 @@ function resetSalesModal() {
   if (modal) modal.dataset.saleId = "";
   if (form) form.reset();
 
+  // Set default date to today
+  const saleDateInput = document.getElementById("saleDate");
+  if (saleDateInput) saleDateInput.value = new Date().toISOString().split("T")[0];
+
   // Hide customer info fields
   const customerInfoGroup = document.getElementById("customerInfoGroup");
   const customerPhoneGroup = document.getElementById("customerPhoneGroup");
@@ -282,5 +299,99 @@ function resetSalesModal() {
   if (customerPhoneGroup) customerPhoneGroup.style.display = "none";
 }
 
+// New functions for date editing functionality
+
+function focusDateInput(inputId) {
+  const dateInput = document.getElementById(inputId);
+  if (dateInput) {
+    dateInput.focus();
+    // Try to open the date picker
+    if (dateInput.showPicker) {
+      dateInput.showPicker();
+    } else {
+      // Fallback for browsers that don't support showPicker
+      dateInput.click();
+    }
+  }
+}
+
+function openDatePicker(inputId) {
+  const dateInput = document.getElementById(inputId);
+  if (dateInput) {
+    dateInput.focus();
+    // Multiple approaches to ensure calendar opens
+    if (dateInput.showPicker) {
+      try {
+        dateInput.showPicker();
+      } catch (e) {
+        // Fallback if showPicker fails
+        dateInput.click();
+      }
+    } else {
+      // For browsers without showPicker support
+      dateInput.click();
+    }
+  }
+}
+
+function editSaleDate(saleId) {
+  const sale = (window.sales || []).find(s => s.id === saleId);
+  if (!sale) return;
+  
+  const currentDate = sale.date;
+  const newDate = prompt(
+    `Edit Sale Date (YYYY-MM-DD format):\nCurrent: ${currentDate}`, 
+    currentDate
+  );
+  
+  if (newDate && newDate !== currentDate) {
+    // Validate date format
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!dateRegex.test(newDate)) {
+      window.utils.showNotification("Please enter date in YYYY-MM-DD format", "error");
+      return;
+    }
+    
+    // Validate date range (1940-2099)
+    const inputDate = new Date(newDate);
+    const minDate = new Date('1940-01-01');
+    const maxDate = new Date('2099-12-31');
+    
+    if (inputDate < minDate || inputDate > maxDate) {
+      window.utils.showNotification("Date must be between 1940 and 2099", "error");
+      return;
+    }
+    
+    // Update sale record
+    sale.date = newDate;
+    sale.createdAt = new Date(newDate + 'T' + sale.createdAt.split('T')[1]).toISOString();
+    
+    // Update linked debt record if exists
+    const debts = window.debts || [];
+    const linkedDebt = debts.find(d => d.saleId === saleId);
+    if (linkedDebt) {
+      linkedDebt.date = newDate;
+      linkedDebt.createdAt = sale.createdAt;
+      // Recalculate due date (7 days from new date)
+      linkedDebt.dueDate = new Date(Date.parse(newDate) + 7 * 24 * 60 * 60 * 1000)
+        .toISOString()
+        .split("T")[0];
+      window.utils.saveToStorage("debts", window.debts);
+    }
+    
+    window.utils.saveToStorage("sales", window.sales);
+    loadSalesData();
+    window.utils.showNotification("Sale date updated successfully!");
+    
+    // Update dashboard if visible
+    if (typeof window.updateDashboardStats === "function") {
+      window.updateDashboardStats();
+    }
+  }
+}
+
 // Export for global access
 window.resetSalesModal = resetSalesModal;
+window.focusDateInput = focusDateInput;
+window.openDatePicker = openDatePicker;
+window.editSaleDate = editSaleDate;
