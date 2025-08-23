@@ -122,7 +122,7 @@ function loadSalesData() {
       const statusBadge = getStatusBadge(sale.status);
 
       return `
-            <tr>
+            <tr data-sale-id="${sale.id}">
                 <td>${window.utils.formatDate(sale.createdAt)}</td>
                 <td>${sale.productName || "Unknown Product"}</td>
                 <td>${sale.quantity || 0}</td>
