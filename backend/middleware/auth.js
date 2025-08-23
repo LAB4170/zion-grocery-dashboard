@@ -1,34 +1,34 @@
-const jwt = require('jsonwebtoken');
-const db = require('../config/database');
+const jwt = require("jsonwebtoken");
+const db = require("../config/database");
 
 // Authenticate JWT token
 const authenticateToken = async (req, res, next) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+  const authHeader = req.headers["authorization"];
+  const token = authHeader && authHeader.split(" ")[1]; // Bearer TOKEN
 
   if (!token) {
     return res.status(401).json({
       success: false,
-      message: 'Access token is required'
+      message: "Access token is required",
     });
   }
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    
+
     // Check if user still exists
-    const user = await db('users').where('id', decoded.userId).first();
+    const user = await db("users").where("id", decoded.userId).first();
     if (!user) {
       return res.status(401).json({
         success: false,
-        message: 'User not found'
+        message: "User not found",
       });
     }
 
     if (!user.is_active) {
       return res.status(401).json({
         success: false,
-        message: 'User account is deactivated'
+        message: "User account is deactivated",
       });
     }
 
@@ -36,21 +36,21 @@ const authenticateToken = async (req, res, next) => {
       id: user.id,
       username: user.username,
       email: user.email,
-      role: user.role
+      role: user.role,
     };
-    
+
     next();
   } catch (error) {
-    if (error.name === 'TokenExpiredError') {
+    if (error.name === "TokenExpiredError") {
       return res.status(401).json({
         success: false,
-        message: 'Token has expired'
+        message: "Token has expired",
       });
     }
-    
+
     return res.status(403).json({
       success: false,
-      message: 'Invalid token'
+      message: "Invalid token",
     });
   }
 };
@@ -61,7 +61,7 @@ const requireRole = (roles) => {
     if (!req.user) {
       return res.status(401).json({
         success: false,
-        message: 'Authentication required'
+        message: "Authentication required",
       });
     }
 
@@ -71,7 +71,7 @@ const requireRole = (roles) => {
     if (!allowedRoles.includes(userRole)) {
       return res.status(403).json({
         success: false,
-        message: 'Insufficient permissions'
+        message: "Insufficient permissions",
       });
     }
 
@@ -81,8 +81,8 @@ const requireRole = (roles) => {
 
 // Optional authentication (for public endpoints that benefit from user context)
 const optionalAuth = async (req, res, next) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
+  const authHeader = req.headers["authorization"];
+  const token = authHeader && authHeader.split(" ")[1];
 
   if (!token) {
     req.user = null;
@@ -91,14 +91,14 @@ const optionalAuth = async (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await db('users').where('id', decoded.userId).first();
-    
+    const user = await db("users").where("id", decoded.userId).first();
+
     if (user && user.is_active) {
       req.user = {
         id: user.id,
         username: user.username,
         email: user.email,
-        role: user.role
+        role: user.role,
       };
     } else {
       req.user = null;
@@ -113,5 +113,5 @@ const optionalAuth = async (req, res, next) => {
 module.exports = {
   authenticateToken,
   requireRole,
-  optionalAuth
+  optionalAuth,
 };
