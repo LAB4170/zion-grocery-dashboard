@@ -466,7 +466,7 @@ function generateAnnualReport() {
   `;
 }
 
-// Enhanced export functions
+// Enhanced export functions with proper PDF download
 function exportToPDF() {
   const reportContent = document.getElementById("reportContent");
   if (!reportContent || !reportContent.innerHTML.includes("report")) {
@@ -474,52 +474,244 @@ function exportToPDF() {
     return;
   }
 
-  const printWindow = window.open("", "", "height=800,width=1000");
-  printWindow.document.write(`
+  // Check if jsPDF is available, if not load it dynamically
+  if (typeof window.jsPDF === 'undefined') {
+    loadJsPDFLibrary().then(() => {
+      generatePDFDownload(reportContent);
+    }).catch(() => {
+      // Fallback to HTML-based PDF generation
+      generateHTMLPDF(reportContent);
+    });
+  } else {
+    generatePDFDownload(reportContent);
+  }
+}
+
+function loadJsPDFLibrary() {
+  return new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+    script.onload = () => {
+      window.jsPDF = window.jspdf.jsPDF;
+      resolve();
+    };
+    script.onerror = reject;
+    document.head.appendChild(script);
+  });
+}
+
+function generatePDFDownload(reportContent) {
+  try {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF('p', 'mm', 'a4');
+    
+    // Get report title
+    const reportTitle = reportContent.querySelector('h3').textContent;
+    const currentDate = new Date().toLocaleDateString('en-KE', { 
+      weekday: 'long', 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    });
+    
+    // Add header
+    doc.setFontSize(20);
+    doc.setTextColor(44, 62, 80);
+    doc.text('Zion Groceries', 105, 20, { align: 'center' });
+    
+    doc.setFontSize(14);
+    doc.setTextColor(127, 140, 141);
+    doc.text('Business Analytics Report', 105, 30, { align: 'center' });
+    
+    doc.setFontSize(10);
+    doc.setTextColor(149, 165, 166);
+    doc.text(`Generated on ${currentDate}`, 105, 40, { align: 'center' });
+    
+    // Add report title
+    doc.setFontSize(16);
+    doc.setTextColor(44, 62, 80);
+    doc.text(reportTitle, 20, 55);
+    
+    // Extract and add report statistics
+    const reportStats = reportContent.querySelectorAll('.report-stat');
+    let yPosition = 70;
+    
+    reportStats.forEach((stat, index) => {
+      const title = stat.querySelector('h4').textContent;
+      const paragraphs = stat.querySelectorAll('p');
+      
+      doc.setFontSize(12);
+      doc.setTextColor(41, 128, 185);
+      doc.text(title, 20, yPosition);
+      yPosition += 10;
+      
+      doc.setFontSize(10);
+      doc.setTextColor(51, 51, 51);
+      
+      paragraphs.forEach(p => {
+        const text = p.textContent.trim();
+        if (text && yPosition < 270) {
+          doc.text(text, 25, yPosition);
+          yPosition += 6;
+        }
+      });
+      
+      yPosition += 5;
+      
+      // Add new page if needed
+      if (yPosition > 270 && index < reportStats.length - 1) {
+        doc.addPage();
+        yPosition = 20;
+      }
+    });
+    
+    // Add tables if space allows
+    const tables = reportContent.querySelectorAll('.table');
+    if (tables.length > 0 && yPosition < 200) {
+      tables.forEach((table, tableIndex) => {
+        if (yPosition > 250) {
+          doc.addPage();
+          yPosition = 20;
+        }
+        
+        const tableTitle = table.previousElementSibling;
+        if (tableTitle && tableTitle.tagName === 'H4') {
+          doc.setFontSize(12);
+          doc.setTextColor(44, 62, 80);
+          doc.text(tableTitle.textContent, 20, yPosition);
+          yPosition += 10;
+        }
+        
+        // Add table headers
+        const headers = table.querySelectorAll('th');
+        if (headers.length > 0) {
+          doc.setFontSize(9);
+          doc.setTextColor(255, 255, 255);
+          doc.setFillColor(52, 73, 94);
+          doc.rect(20, yPosition - 5, 170, 8, 'F');
+          
+          let xPosition = 25;
+          const columnWidth = 165 / headers.length;
+          
+          headers.forEach(header => {
+            doc.text(header.textContent.substring(0, 15), xPosition, yPosition);
+            xPosition += columnWidth;
+          });
+          yPosition += 10;
+        }
+        
+        // Add table rows (limited to prevent overflow)
+        const rows = table.querySelectorAll('tbody tr');
+        const maxRows = Math.min(rows.length, 10);
+        
+        doc.setTextColor(51, 51, 51);
+        for (let i = 0; i < maxRows; i++) {
+          if (yPosition > 270) break;
+          
+          const cells = rows[i].querySelectorAll('td');
+          let xPosition = 25;
+          const columnWidth = 165 / cells.length;
+          
+          cells.forEach(cell => {
+            const text = cell.textContent.trim().substring(0, 12);
+            doc.text(text, xPosition, yPosition);
+            xPosition += columnWidth;
+          });
+          yPosition += 6;
+        }
+        
+        if (rows.length > maxRows) {
+          doc.setFontSize(8);
+          doc.setTextColor(149, 165, 166);
+          doc.text(`... and ${rows.length - maxRows} more rows`, 25, yPosition);
+          yPosition += 8;
+        }
+        
+        yPosition += 10;
+      });
+    }
+    
+    // Save the PDF
+    const fileName = `zion-groceries-report-${new Date().toISOString().split('T')[0]}.pdf`;
+    doc.save(fileName);
+    
+    window.utils.showNotification("PDF downloaded successfully", "success");
+    
+  } catch (error) {
+    console.error('PDF generation error:', error);
+    generateHTMLPDF(reportContent);
+  }
+}
+
+function generateHTMLPDF(reportContent) {
+  // Fallback method using HTML to PDF conversion
+  const reportTitle = reportContent.querySelector('h3').textContent;
+  const currentDate = new Date().toLocaleDateString('en-KE', { 
+    weekday: 'long', 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric' 
+  });
+  
+  // Create HTML content for PDF
+  const htmlContent = `
+    <!DOCTYPE html>
     <html>
       <head>
-        <title>Zion Groceries Business Report</title>
+        <title>Zion Groceries Report</title>
         <style>
           * { margin: 0; padding: 0; box-sizing: border-box; }
-          body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 20px; color: #333; }
-          .report { max-width: 100%; }
-          .report h3 { color: #2c3e50; border-bottom: 3px solid #3498db; padding-bottom: 10px; margin-bottom: 30px; }
-          .report-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin: 30px 0; }
-          .report-stat { padding: 20px; border: 2px solid #ecf0f1; border-radius: 8px; background: #f8f9fa; }
-          .report-stat h4 { color: #2980b9; margin-bottom: 15px; font-size: 1.1rem; }
-          .report-stat p { margin: 8px 0; font-size: 0.95rem; }
+          body { font-family: 'Segoe UI', Arial, sans-serif; margin: 20px; color: #333; }
+          .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #3498db; padding-bottom: 20px; }
+          .header h1 { color: #2c3e50; font-size: 24px; margin-bottom: 5px; }
+          .header p { color: #7f8c8d; margin: 5px 0; }
+          .report h3 { color: #2c3e50; font-size: 18px; margin: 20px 0; }
+          .report-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin: 20px 0; }
+          .report-stat { padding: 15px; border: 1px solid #ecf0f1; border-radius: 5px; background: #f8f9fa; }
+          .report-stat h4 { color: #2980b9; font-size: 14px; margin-bottom: 10px; }
+          .report-stat p { font-size: 12px; margin: 5px 0; }
           .amount { font-weight: bold; color: #27ae60; }
           .profit { color: #27ae60; }
           .loss { color: #e74c3c; }
-          .table { width: 100%; border-collapse: collapse; margin: 25px 0; }
-          .table th, .table td { border: 1px solid #bdc3c7; padding: 12px 8px; text-align: left; }
-          .table th { background-color: #34495e; color: white; font-weight: 600; }
+          .table { width: 100%; border-collapse: collapse; margin: 15px 0; font-size: 11px; }
+          .table th, .table td { border: 1px solid #bdc3c7; padding: 8px; text-align: left; }
+          .table th { background-color: #34495e; color: white; }
           .table tr:nth-child(even) { background-color: #f2f2f2; }
-          .category-report { margin: 25px 0; }
-          .category-header { background: #3498db; color: white; padding: 15px; border-radius: 8px 8px 0 0; }
-          .products-breakdown { background: #ecf0f1; border-radius: 0 0 8px 8px; }
-          .product-item { display: flex; justify-content: space-between; padding: 12px 15px; border-bottom: 1px solid #bdc3c7; }
-          .report-details h4 { color: #2c3e50; margin: 25px 0 15px 0; font-size: 1.2rem; }
-          @media print { .no-print { display: none; } }
+          .category-report { margin: 15px 0; page-break-inside: avoid; }
+          .category-header { background: #3498db; color: white; padding: 10px; font-size: 12px; }
+          .products-breakdown { background: #ecf0f1; }
+          .product-item { display: flex; justify-content: space-between; padding: 8px 10px; border-bottom: 1px solid #bdc3c7; font-size: 11px; }
+          .report-details h4 { color: #2c3e50; font-size: 14px; margin: 15px 0 10px 0; }
+          @media print { 
+            body { margin: 0; }
+            .report-stat { page-break-inside: avoid; }
+            .table { page-break-inside: avoid; }
+          }
         </style>
       </head>
       <body>
-        <div style="text-align: center; margin-bottom: 30px;">
-          <h1 style="color: #2c3e50;">Zion Groceries</h1>
-          <p style="color: #7f8c8d; font-size: 1.1rem;">Business Analytics Report</p>
-          <p style="color: #95a5a6;">Generated on ${new Date().toLocaleDateString('en-KE', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+        <div class="header">
+          <h1>Zion Groceries</h1>
+          <p>Business Analytics Report</p>
+          <p>Generated on ${currentDate}</p>
         </div>
         ${reportContent.innerHTML}
       </body>
     </html>
-  `);
-  printWindow.document.close();
+  `;
   
-  setTimeout(() => {
-    printWindow.print();
-  }, 500);
-
-  window.utils.showNotification("PDF export initiated - Use browser print dialog", "success");
+  // Create blob and download
+  const blob = new Blob([htmlContent], { type: 'text/html' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `zion-groceries-report-${new Date().toISOString().split('T')[0]}.html`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+  
+  window.utils.showNotification("Report downloaded as HTML file (can be converted to PDF)", "success");
 }
 
 function exportToExcel() {
