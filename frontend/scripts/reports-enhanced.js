@@ -9,12 +9,46 @@ function initializeYearSelector() {
   const yearSelector = document.getElementById('yearSelector');
   if (yearSelector) {
     const currentYear = new Date().getFullYear();
-    for (let year = currentYear; year >= currentYear - 5; year--) {
+    
+    // Clear existing options except the first one
+    yearSelector.innerHTML = '<option value="">Select Year</option>';
+    
+    // Get years from actual sales data to show only relevant years
+    const sales = window.sales || [];
+    const yearsWithData = new Set();
+    
+    // Extract years from sales data
+    sales.forEach(sale => {
+      const saleYear = new Date(sale.createdAt || sale.date).getFullYear();
+      if (!isNaN(saleYear) && saleYear >= 2020 && saleYear <= currentYear + 1) {
+        yearsWithData.add(saleYear);
+      }
+    });
+    
+    // If no data years found, add current year and previous 2 years
+    if (yearsWithData.size === 0) {
+      for (let year = currentYear; year >= currentYear - 2; year--) {
+        yearsWithData.add(year);
+      }
+    }
+    
+    // Sort years in descending order and add to dropdown
+    const sortedYears = Array.from(yearsWithData).sort((a, b) => b - a);
+    
+    sortedYears.forEach(year => {
       const option = document.createElement('option');
       option.value = year;
       option.textContent = year;
       if (year === currentYear) option.selected = true;
       yearSelector.appendChild(option);
+    });
+    
+    // Add future year option for planning
+    if (!yearsWithData.has(currentYear + 1)) {
+      const futureOption = document.createElement('option');
+      futureOption.value = currentYear + 1;
+      futureOption.textContent = `${currentYear + 1} (Future)`;
+      yearSelector.appendChild(futureOption);
     }
   }
 }
