@@ -36,3 +36,8 @@ Thumbs.db
 # Build outputs
 dist/
 build/
+"node_modules/" 
+"*/node_modules/" 
+"node_modules/" 
+".env" 
+"*.log" 
