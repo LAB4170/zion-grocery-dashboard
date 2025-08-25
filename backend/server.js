@@ -10,12 +10,8 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-<<<<<<< HEAD
 // PostgreSQL database connection - required
 const db = require('./config/database');
-
-=======
->>>>>>> origin/main
 // Import routes
 const dashboardRoutes = require('./routes/dashboard');
 const productRoutes = require('./routes/products');
@@ -63,7 +59,6 @@ app.get('/health', (req, res) => {
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
     environment: process.env.NODE_ENV,
-<<<<<<< HEAD
     version: require('./package.json').version,
     database: 'PostgreSQL Connected'
   });
@@ -83,12 +78,6 @@ app.get('/api/test-db', async (req, res) => {
   }
 });
 
-=======
-    version: require('./package.json').version
-  });
-});
-
->>>>>>> origin/main
 // API routes
 app.use('/api/products', productRoutes);
 app.use('/api/sales', salesRoutes);
