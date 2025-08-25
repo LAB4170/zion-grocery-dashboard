@@ -1,0 +1,38 @@
+# Dependencies
+node_modules/
+.venv/
+
+# Environment files
+.env
+.env.local
+.env.production
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+*.log
+logs/
+
+# Large installers and binaries
+postgresql-installer.exe
+*.exe
+*.msi
+
+# IDE files
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+
+# Build outputs
+dist/
+build/
