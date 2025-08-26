@@ -1,8 +1,4 @@
 {
-    "cSpell.words": [
-        "Biashara",
-        "mpesa",
-        "Pesa",
-        "Pochi"
-    ]
+  "cSpell.words": ["Biashara", "mpesa", "Pesa", "Pochi"],
+  "liveServer.settings.port": 5501
 }
