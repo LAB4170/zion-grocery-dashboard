@@ -1,48 +1,83 @@
-const winston = require('winston');
 const path = require('path');
+const fs = require('fs');
 
 // Create logs directory if it doesn't exist
-const fs = require('fs');
 const logsDir = path.join(__dirname, '../logs');
 if (!fs.existsSync(logsDir)) {
   fs.mkdirSync(logsDir, { recursive: true });
 }
 
-// Define log format
-const logFormat = winston.format.combine(
-  winston.format.timestamp({
-    format: 'YYYY-MM-DD HH:mm:ss'
-  }),
-  winston.format.errors({ stack: true }),
-  winston.format.json()
-);
+// Simple logger implementation without winston
+const logger = {
+  info: (message, meta = {}) => {
+    const logEntry = {
+      level: 'info',
+      message,
+      timestamp: new Date().toISOString(),
+      service: 'zion-grocery-api',
+      ...meta
+    };
+    console.log('INFO:', JSON.stringify(logEntry));
+    
+    // Write to file in production
+    if (process.env.NODE_ENV === 'production') {
+      fs.appendFileSync(
+        path.join(logsDir, 'combined.log'),
+        JSON.stringify(logEntry) + '\n'
+      );
+    }
+  },
 
-// Create logger instance
-const logger = winston.createLogger({
-  level: process.env.LOG_LEVEL || 'info',
-  format: logFormat,
-  defaultMeta: { service: 'zion-grocery-api' },
-  transports: [
-    // Write all logs with level 'error' and below to error.log
-    new winston.transports.File({ 
-      filename: path.join(logsDir, 'error.log'), 
-      level: 'error' 
-    }),
-    // Write all logs with level 'info' and below to combined.log
-    new winston.transports.File({ 
-      filename: path.join(logsDir, 'combined.log') 
-    })
-  ]
-});
+  error: (message, meta = {}) => {
+    const logEntry = {
+      level: 'error',
+      message,
+      timestamp: new Date().toISOString(),
+      service: 'zion-grocery-api',
+      ...meta
+    };
+    console.error('ERROR:', JSON.stringify(logEntry));
+    
+    // Write to file in production
+    if (process.env.NODE_ENV === 'production') {
+      fs.appendFileSync(
+        path.join(logsDir, 'error.log'),
+        JSON.stringify(logEntry) + '\n'
+      );
+    }
+  },
 
-// If we're not in production, log to the console as well
-if (process.env.NODE_ENV !== 'production') {
-  logger.add(new winston.transports.Console({
-    format: winston.format.combine(
-      winston.format.colorize(),
-      winston.format.simple()
-    )
-  }));
-}
+  warn: (message, meta = {}) => {
+    const logEntry = {
+      level: 'warn',
+      message,
+      timestamp: new Date().toISOString(),
+      service: 'zion-grocery-api',
+      ...meta
+    };
+    console.warn('WARN:', JSON.stringify(logEntry));
+    
+    // Write to file in production
+    if (process.env.NODE_ENV === 'production') {
+      fs.appendFileSync(
+        path.join(logsDir, 'combined.log'),
+        JSON.stringify(logEntry) + '\n'
+      );
+    }
+  },
+
+  debug: (message, meta = {}) => {
+    if (process.env.NODE_ENV === 'development' || process.env.LOG_LEVEL === 'debug') {
+      const logEntry = {
+        level: 'debug',
+        message,
+        timestamp: new Date().toISOString(),
+        service: 'zion-grocery-api',
+        ...meta
+      };
+      console.debug('DEBUG:', JSON.stringify(logEntry));
+    }
+  }
+};
 
 module.exports = logger;

@@ -5,14 +5,40 @@ const Product = require('../models/Product');
 const Expense = require('../models/Expense');
 const Debt = require('../models/Debt');
 const { catchAsync } = require('../middleware/errorHandler');
-const redisClient = require('../config/redis');
+
+// Simple in-memory cache
+const cache = new Map();
+const CACHE_TTL = {
+  stats: 5 * 60 * 1000, // 5 minutes
+  charts: 10 * 60 * 1000 // 10 minutes
+};
+
+// Simple cache helper functions
+const getFromCache = (key) => {
+  const item = cache.get(key);
+  if (!item) return null;
+  
+  if (Date.now() > item.expires) {
+    cache.delete(key);
+    return null;
+  }
+  
+  return item.data;
+};
+
+const setCache = (key, data, ttlMs) => {
+  cache.set(key, {
+    data,
+    expires: Date.now() + ttlMs
+  });
+};
 
 // GET /api/dashboard/stats - Get dashboard statistics
 router.get('/stats', catchAsync(async (req, res) => {
   const cacheKey = 'dashboard:stats';
   
   // Try to get from cache first
-  let stats = await redisClient.get(cacheKey);
+  let stats = getFromCache(cacheKey);
   
   if (!stats) {
     // Calculate stats from database
@@ -84,7 +110,7 @@ router.get('/stats', catchAsync(async (req, res) => {
     };
     
     // Cache for 5 minutes
-    await redisClient.set(cacheKey, stats, 300);
+    setCache(cacheKey, stats, CACHE_TTL.stats);
   }
   
   res.json({
@@ -97,7 +123,7 @@ router.get('/stats', catchAsync(async (req, res) => {
 router.get('/charts', catchAsync(async (req, res) => {
   const cacheKey = 'dashboard:charts';
   
-  let chartData = await redisClient.get(cacheKey);
+  let chartData = getFromCache(cacheKey);
   
   if (!chartData) {
     // Get daily sales for the last 7 days
@@ -125,7 +151,7 @@ router.get('/charts', catchAsync(async (req, res) => {
     };
     
     // Cache for 10 minutes
-    await redisClient.set(cacheKey, chartData, 600);
+    setCache(cacheKey, chartData, CACHE_TTL.charts);
   }
   
   res.json({
