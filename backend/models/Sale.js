@@ -1,9 +1,8 @@
 const db = require('../config/database');
-const { v4: uuidv4 } = require('uuid');
 
 class Sale {
   constructor(data) {
-    this.id = data.id || uuidv4();
+    this.id = data.id; 
     this.product_id = data.product_id;
     this.product_name = data.product_name;
     this.quantity = parseInt(data.quantity);
@@ -36,10 +35,9 @@ class Sale {
         throw new Error('Insufficient stock');
       }
       
-      // Create sale record
+      // Create sale record (let PostgreSQL generate ID)
       const [newSale] = await trx('sales')
         .insert({
-          id: sale.id,
           product_id: sale.product_id,
           product_name: sale.product_name,
           quantity: sale.quantity,
@@ -64,13 +62,12 @@ class Sale {
       // If payment method is debt, create debt record
       if (sale.payment_method === 'debt') {
         await trx('debts').insert({
-          id: uuidv4(),
           customer_name: sale.customer_name,
           customer_phone: sale.customer_phone,
           amount: sale.total,
           description: `Sale: ${sale.product_name} (${sale.quantity} units)`,
           status: 'pending',
-          sale_id: sale.id,
+          sale_id: newSale.id,
           created_at: new Date(),
           updated_at: new Date()
         });
