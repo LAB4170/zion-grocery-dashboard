@@ -2,7 +2,6 @@ const express = require('express');
 const router = express.Router();
 const Product = require('../models/Product');
 const { catchAsync, AppError } = require('../middleware/errorHandler');
-const { requireRole } = require('../middleware/auth');
 
 // GET /api/products - Get all products
 router.get('/', catchAsync(async (req, res) => {
@@ -57,7 +56,7 @@ router.get('/:id', catchAsync(async (req, res) => {
 }));
 
 // POST /api/products - Create new product
-router.post('/', requireRole(['admin', 'manager']), catchAsync(async (req, res) => {
+router.post('/', catchAsync(async (req, res) => {
   // Validate input
   const errors = Product.validate(req.body);
   if (errors.length > 0) {
@@ -65,8 +64,7 @@ router.post('/', requireRole(['admin', 'manager']), catchAsync(async (req, res) 
   }
 
   const productData = {
-    ...req.body,
-    user_id: req.user.id
+    ...req.body
   };
 
   const product = await Product.create(productData);
@@ -79,7 +77,7 @@ router.post('/', requireRole(['admin', 'manager']), catchAsync(async (req, res) 
 }));
 
 // PUT /api/products/:id - Update product
-router.put('/:id', requireRole(['admin', 'manager']), catchAsync(async (req, res) => {
+router.put('/:id', catchAsync(async (req, res) => {
   const product = await Product.findById(req.params.id);
   if (!product) {
     throw new AppError('Product not found', 404);
@@ -101,7 +99,7 @@ router.put('/:id', requireRole(['admin', 'manager']), catchAsync(async (req, res
 }));
 
 // PATCH /api/products/:id/stock - Update product stock
-router.patch('/:id/stock', requireRole(['admin', 'manager', 'cashier']), catchAsync(async (req, res) => {
+router.patch('/:id/stock', catchAsync(async (req, res) => {
   const { quantity, operation } = req.body;
   
   if (!quantity || !operation) {
@@ -122,7 +120,7 @@ router.patch('/:id/stock', requireRole(['admin', 'manager', 'cashier']), catchAs
 }));
 
 // DELETE /api/products/:id - Delete product
-router.delete('/:id', requireRole(['admin']), catchAsync(async (req, res) => {
+router.delete('/:id', catchAsync(async (req, res) => {
   const product = await Product.findById(req.params.id);
   if (!product) {
     throw new AppError('Product not found', 404);

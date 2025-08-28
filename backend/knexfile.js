@@ -7,11 +7,14 @@ require('dotenv').config();
 module.exports = {
 
   development: {
-    client: 'sqlite3',
+    client: 'postgresql',
     connection: {
-      filename: process.env.DB_NAME || './database.sqlite'
+      host: process.env.DB_HOST || 'localhost',
+      port: process.env.DB_PORT || 5432,
+      database: process.env.DB_NAME || 'zion_grocery_db',
+      user: process.env.DB_USER || 'postgres',
+      password: process.env.DB_PASSWORD || 'ZionGrocery2024!'
     },
-    useNullAsDefault: true,
     pool: {
       min: 2,
       max: 10

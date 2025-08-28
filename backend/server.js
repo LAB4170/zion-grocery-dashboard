@@ -23,7 +23,10 @@ const debtRoutes = require('./routes/debts');
 const { errorHandler } = require('./middleware/errorHandler');
 
 // Security middleware
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: false, // Allow inline scripts for frontend
+  crossOriginEmbedderPolicy: false
+}));
 app.use(compression());
 
 // Rate limiting
@@ -38,7 +41,7 @@ app.use('/api/', limiter);
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
     ? [process.env.FRONTEND_URL || 'https://your-netlify-app.netlify.app'] 
-    : ['http://localhost:8080', 'http://127.0.0.1:8080'],
+    : ['http://localhost:5000', 'http://127.0.0.1:5000', 'http://localhost:8080', 'http://127.0.0.1:8080'],
   credentials: true
 }));
 
@@ -50,6 +53,9 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 if (process.env.NODE_ENV !== 'test') {
   app.use(morgan('combined'));
 }
+
+// Serve static frontend files
+app.use(express.static(path.join(__dirname, '../frontend')));
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -84,21 +90,19 @@ app.use('/api/expenses', expenseRoutes);
 app.use('/api/debts', debtRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 
-// Serve static files in production
-if (process.env.NODE_ENV === 'production') {
-  app.use(express.static('../'));
-  app.get('*', (req, res) => {
-    res.sendFile(path.resolve(__dirname, '../index.html'));
-  });
-}
-
-// 404 handler
-app.use('*', (req, res) => {
-  res.status(404).json({
-    success: false,
-    message: 'API endpoint not found',
-    path: req.originalUrl
-  });
+// Handle frontend routing - serve index.html for non-API routes
+app.get('*', (req, res) => {
+  // Don't serve index.html for API routes
+  if (req.path.startsWith('/api/')) {
+    return res.status(404).json({
+      success: false,
+      message: 'API endpoint not found',
+      path: req.originalUrl
+    });
+  }
+  
+  // Serve index.html for all other routes (SPA routing)
+  res.sendFile(path.join(__dirname, '../frontend/index.html'));
 });
 
 // Global error handler
@@ -118,9 +122,11 @@ process.on('SIGINT', () => {
 // Start server
 if (process.env.NODE_ENV !== 'test') {
   app.listen(PORT, () => {
-    console.log(`🚀 Zion Grocery API Server running on port ${PORT}`);
+    console.log(`🚀 Zion Grocery Dashboard running on port ${PORT}`);
     console.log(`📊 Environment: ${process.env.NODE_ENV}`);
     console.log(`🏥 Health check: http://localhost:${PORT}/health`);
+    console.log(`🌐 Frontend: http://localhost:${PORT}`);
+    console.log(`📱 Login: http://localhost:${PORT}/login.html`);
   });
 }
 

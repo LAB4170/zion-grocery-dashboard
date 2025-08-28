@@ -1,9 +1,8 @@
 const db = require('../config/database');
-const { v4: uuidv4 } = require('uuid');
 
 class Product {
   constructor(data) {
-    this.id = data.id || uuidv4();
+    this.id = data.id;
     this.name = data.name;
     this.category = data.category;
     this.price = parseFloat(data.price);
@@ -22,7 +21,6 @@ class Product {
     
     const [newProduct] = await db('products')
       .insert({
-        id: product.id,
         name: product.name,
         category: product.category,
         price: product.price,
