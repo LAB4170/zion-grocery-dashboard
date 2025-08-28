@@ -8,6 +8,17 @@ if errorlevel 1 (
     net start postgresql-x64-15
 )
 
+REM Install dependencies if needed
+echo Installing backend dependencies...
+cd /d backend
+if not exist node_modules npm install
+cd ..
+
+echo Installing frontend dependencies...
+cd /d frontend
+if not exist node_modules npm install
+cd ..
+
 REM Start backend in new window
 echo Starting backend server...
 start "Backend Server" cmd /k "cd /d backend && node server.js"
@@ -17,7 +28,7 @@ timeout /t 3 /nobreak >nul
 
 REM Start frontend in new window
 echo Starting frontend server...
-start "Frontend Server" cmd /k "cd /d frontend && python -m http.server 8080"
+start "Frontend Server" cmd /k "cd /d frontend && npx http-server -p 8080"
 
 REM Wait a moment for frontend to start
 timeout /t 3 /nobreak >nul

@@ -18,7 +18,6 @@ const productRoutes = require('./routes/products');
 const salesRoutes = require('./routes/sales');
 const expenseRoutes = require('./routes/expenses');
 const debtRoutes = require('./routes/debts');
-const mpesaRoutes = require('./routes/mpesa');
 
 // Import middleware
 const { errorHandler } = require('./middleware/errorHandler');
@@ -84,7 +83,6 @@ app.use('/api/sales', salesRoutes);
 app.use('/api/expenses', expenseRoutes);
 app.use('/api/debts', debtRoutes);
 app.use('/api/dashboard', dashboardRoutes);
-app.use('/api/mpesa', mpesaRoutes);
 
 // Serve static files in production
 if (process.env.NODE_ENV === 'production') {
