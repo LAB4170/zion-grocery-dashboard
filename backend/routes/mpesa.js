@@ -2,7 +2,6 @@ const express = require('express');
 const router = express.Router();
 const axios = require('axios');
 const { catchAsync, AppError } = require('../middleware/errorHandler');
-const { authenticateToken } = require('../middleware/auth');
 const Sale = require('../models/Sale');
 const Debt = require('../models/Debt');
 
@@ -56,7 +55,7 @@ const generatePassword = (timestamp) => {
 };
 
 // POST /api/mpesa/stk-push - Initiate STK Push
-router.post('/stk-push', authenticateToken, catchAsync(async (req, res) => {
+router.post('/stk-push', catchAsync(async (req, res) => {
   const { phone_number, amount, account_reference, transaction_desc } = req.body;
 
   // Validation
@@ -178,7 +177,7 @@ router.post('/callback', catchAsync(async (req, res) => {
 }));
 
 // GET /api/mpesa/transaction-status/:checkout_request_id - Check transaction status
-router.get('/transaction-status/:checkout_request_id', authenticateToken, catchAsync(async (req, res) => {
+router.get('/transaction-status/:checkout_request_id', catchAsync(async (req, res) => {
   const { checkout_request_id } = req.params;
   
   const access_token = await generateAccessToken();
@@ -222,7 +221,7 @@ router.get('/transaction-status/:checkout_request_id', authenticateToken, catchA
 }));
 
 // POST /api/mpesa/validate-payment - Validate M-Pesa payment code
-router.post('/validate-payment', authenticateToken, catchAsync(async (req, res) => {
+router.post('/validate-payment', catchAsync(async (req, res) => {
   const { mpesa_code, amount, phone_number } = req.body;
 
   if (!mpesa_code) {
@@ -257,7 +256,7 @@ router.post('/validate-payment', authenticateToken, catchAsync(async (req, res) 
 }));
 
 // GET /api/mpesa/config - Get M-Pesa configuration (for frontend)
-router.get('/config', authenticateToken, (req, res) => {
+router.get('/config', catchAsync(async (req, res) => {
   res.json({
     success: true,
     data: {
@@ -265,6 +264,6 @@ router.get('/config', authenticateToken, (req, res) => {
       is_sandbox: process.env.NODE_ENV !== 'production'
     }
   });
-});
+}));
 
 module.exports = router;
