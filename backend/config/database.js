@@ -19,7 +19,7 @@ const dbMonitoring = {
 const config = {
   development: {
     client: "postgresql",
-    connection: {
+    connection: process.env.DATABASE_URL || {
       host: process.env.DB_HOST || "localhost",
       port: parseInt(process.env.DB_PORT) || 5432,
       database: process.env.DB_NAME || "zion_grocery_db",
@@ -56,7 +56,7 @@ const config = {
 
   test: {
     client: "postgresql",
-    connection: {
+    connection: process.env.DATABASE_URL || {
       host: process.env.DB_HOST || "localhost",
       port: parseInt(process.env.DB_PORT) || 5432,
       database: process.env.DB_NAME_TEST || "zion_grocery_db_test",
@@ -79,14 +79,7 @@ const config = {
 
   production: {
     client: "postgresql",
-    connection: {
-      host: process.env.DB_HOST,
-      port: parseInt(process.env.DB_PORT) || 5432,
-      database: process.env.DB_NAME,
-      user: process.env.DB_USER,
-      password: process.env.DB_PASSWORD,
-      ssl: process.env.DB_SSL === "true" ? { rejectUnauthorized: false } : false,
-    },
+    connection: process.env.DATABASE_URL,
     pool: {
       min: 10,
       max: 100,
@@ -117,7 +110,7 @@ const config = {
 
 const environment = process.env.NODE_ENV || "development";
 
-// PostgreSQL-only configuration - no fallbacks
+// PostgreSQL-only configuration - prioritize DATABASE_URL for production
 const db = knex(config[environment]);
 
 // Add performance monitoring to database queries
@@ -155,25 +148,48 @@ if (dbMonitoring.enabled) {
   });
 }
 
-// Test PostgreSQL connection on startup
-db.raw("SELECT 1")
-  .then(() => {
+// Test PostgreSQL connection on startup with better error handling
+const connectionStatus = {
+  connected: false,
+  error: null,
+  lastChecked: null
+};
+
+async function testConnection() {
+  try {
+    await db.raw("SELECT 1");
+    connectionStatus.connected = true;
+    connectionStatus.error = null;
+    connectionStatus.lastChecked = new Date();
+    
     console.log(`✅ PostgreSQL connected successfully (${environment})`);
     console.log(`📊 Server: ${process.env.SERVER_NAME || 'Zion Grocery Server'}`);
     console.log(`🗄️  Database: ${process.env.DB_NAME || 'zion_grocery_db'}`);
     console.log(`🔍 Monitoring: ${dbMonitoring.enabled ? 'Enabled' : 'Disabled'}`);
-  })
-  .catch((err) => {
-    console.error(
-      `❌ PostgreSQL connection failed (${environment}):`,
-      err.message
-    );
-    console.error(
-      "Please ensure PostgreSQL is running and configured correctly"
-    );
-    process.exit(1); // Exit if PostgreSQL is not available
-  });
+    return true;
+  } catch (err) {
+    connectionStatus.connected = false;
+    connectionStatus.error = err.message;
+    connectionStatus.lastChecked = new Date();
+    
+    console.error(`❌ PostgreSQL connection failed (${environment}):`, err.message);
+    console.error("Please ensure PostgreSQL is running and configured correctly");
+    
+    // Don't exit in production, allow graceful degradation
+    if (environment === 'production') {
+      console.warn("⚠️  Continuing with limited functionality...");
+      return false;
+    } else {
+      process.exit(1);
+    }
+  }
+}
 
-// Export database instance and monitoring stats
+// Test connection on startup
+testConnection();
+
+// Export database instance, monitoring stats, and connection status
 module.exports = db;
 module.exports.monitoring = dbMonitoring;
+module.exports.connectionStatus = connectionStatus;
+module.exports.testConnection = testConnection;
