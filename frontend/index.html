@@ -46,6 +46,7 @@
 <script src="scripts/debts.js"></script>
 
 <script src="scripts/dashboard.js"></script>
+<script src="scripts/reports.js"></script>
 <script src="scripts/reports-enhanced.js"></script>
 <script src="scripts/system-test.js"></script>
 <script src="scripts/system-health-check.js"></script>
@@ -61,14 +62,29 @@ document.addEventListener('DOMContentLoaded', function() {
         return;
     }
 
-    loadPartial('partials/sidebar.html', 'sidebar-container');
-    loadPartial('partials/dashboard.html', 'dashboard-container');
-    loadPartial('partials/sales.html', 'sales-container'); // Corrected
-    loadPartial('partials/products.html', 'products-container');
-    loadPartial('partials/sales-settings.html', 'sales-settings-container');
-    loadPartial('partials/sales-reports.html', 'sales-reports-container');
-    loadPartial('partials/expenses.html', 'expenses-container');
-    loadPartial('partials/debts.html', 'debts-container');
+    let partialsLoaded = 0;
+    const totalPartials = 8;
+
+    function onPartialLoaded() {
+        partialsLoaded++;
+        if (partialsLoaded === totalPartials) {
+            // All partials loaded, now initialize navigation
+            setTimeout(() => {
+                if (typeof initializeNavigation === 'function') {
+                    initializeNavigation();
+                }
+            }, 100);
+        }
+    }
+
+    loadPartial('partials/sidebar.html', 'sidebar-container', onPartialLoaded);
+    loadPartial('partials/dashboard.html', 'dashboard-container', onPartialLoaded);
+    loadPartial('partials/sales.html', 'sales-container', onPartialLoaded);
+    loadPartial('partials/products.html', 'products-container', onPartialLoaded);
+    loadPartial('partials/sales-settings.html', 'sales-settings-container', onPartialLoaded);
+    loadPartial('partials/sales-reports.html', 'sales-reports-container', onPartialLoaded);
+    loadPartial('partials/expenses.html', 'expenses-container', onPartialLoaded);
+    loadPartial('partials/debts.html', 'debts-container', onPartialLoaded);
 
     
     // Load modals
@@ -80,8 +96,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }, 1000);
 });
 
-
-function loadPartial(url, containerId) {
+function loadPartial(url, containerId, callback) {
     fetch(url)
         .then(response => response.text())
         .then(html => {
@@ -90,6 +105,9 @@ function loadPartial(url, containerId) {
                 container.innerHTML = html;
             } else {
                 console.error('Container not found:', containerId);
+            }
+            if (callback) {
+                callback();
             }
         })
         .catch(error => console.error('Error loading partial:', error));

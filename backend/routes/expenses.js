@@ -2,7 +2,6 @@ const express = require('express');
 const router = express.Router();
 const Expense = require('../models/Expense');
 const { catchAsync, AppError } = require('../middleware/errorHandler');
-const { requireRole } = require('../middleware/auth');
 
 // GET /api/expenses - Get all expenses
 router.get('/', catchAsync(async (req, res) => {
@@ -74,7 +73,7 @@ router.get('/:id', catchAsync(async (req, res) => {
 }));
 
 // POST /api/expenses - Create new expense
-router.post('/', requireRole(['admin', 'manager', 'cashier']), catchAsync(async (req, res) => {
+router.post('/', catchAsync(async (req, res) => {
   // Validate input
   const errors = Expense.validate(req.body);
   if (errors.length > 0) {
@@ -96,7 +95,7 @@ router.post('/', requireRole(['admin', 'manager', 'cashier']), catchAsync(async 
 }));
 
 // PUT /api/expenses/:id - Update expense
-router.put('/:id', requireRole(['admin', 'manager']), catchAsync(async (req, res) => {
+router.put('/:id', catchAsync(async (req, res) => {
   const expense = await Expense.findById(req.params.id);
   if (!expense) {
     throw new AppError('Expense not found', 404);
@@ -118,7 +117,7 @@ router.put('/:id', requireRole(['admin', 'manager']), catchAsync(async (req, res
 }));
 
 // PATCH /api/expenses/:id/approve - Approve expense
-router.patch('/:id/approve', requireRole(['admin', 'manager']), catchAsync(async (req, res) => {
+router.patch('/:id/approve', catchAsync(async (req, res) => {
   const expense = await Expense.findById(req.params.id);
   if (!expense) {
     throw new AppError('Expense not found', 404);
@@ -138,7 +137,7 @@ router.patch('/:id/approve', requireRole(['admin', 'manager']), catchAsync(async
 }));
 
 // PATCH /api/expenses/:id/reject - Reject expense
-router.patch('/:id/reject', requireRole(['admin', 'manager']), catchAsync(async (req, res) => {
+router.patch('/:id/reject', catchAsync(async (req, res) => {
   const expense = await Expense.findById(req.params.id);
   if (!expense) {
     throw new AppError('Expense not found', 404);
@@ -158,7 +157,7 @@ router.patch('/:id/reject', requireRole(['admin', 'manager']), catchAsync(async 
 }));
 
 // DELETE /api/expenses/:id - Delete expense
-router.delete('/:id', requireRole(['admin']), catchAsync(async (req, res) => {
+router.delete('/:id', catchAsync(async (req, res) => {
   const expense = await Expense.findById(req.params.id);
   if (!expense) {
     throw new AppError('Expense not found', 404);

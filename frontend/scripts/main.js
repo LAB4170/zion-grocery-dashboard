@@ -20,8 +20,8 @@ function initializeApp() {
     debts = window.debts;
 
 
-    // No setTimeout needed if DOM is already ready (DOMContentLoaded ensures this)
-    showSection('dashboard');
+    // Navigation.js will handle section initialization after partials load
+    // showSection('dashboard'); // Removed - causes timing conflict
 
     // Optional: Log warnings if critical data is missing (no preloading)
     if (products.length === 0) {
@@ -87,7 +87,6 @@ window.deleteDebt = deleteDebt;
 window.generateDailyReport = generateDailyReport;
 window.generateWeeklyReport = generateWeeklyReport;
 window.generateMonthlyReport = generateMonthlyReport;
-window.exportReport = exportReport;
 window.safeUpdateElement = safeUpdateElement;
 window.loadProductsData = loadProductsData;
 window.loadSalesData = loadSalesData;

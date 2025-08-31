@@ -2,7 +2,6 @@ const express = require('express');
 const router = express.Router();
 const Sale = require('../models/Sale');
 const { catchAsync, AppError } = require('../middleware/errorHandler');
-const { requireRole } = require('../middleware/auth');
 
 // GET /api/sales - Get all sales
 router.get('/', catchAsync(async (req, res) => {
@@ -75,7 +74,7 @@ router.get('/:id', catchAsync(async (req, res) => {
 }));
 
 // POST /api/sales - Create new sale
-router.post('/', requireRole(['admin', 'manager', 'cashier']), catchAsync(async (req, res) => {
+router.post('/', catchAsync(async (req, res) => {
   // Validate input
   const errors = Sale.validate(req.body);
   if (errors.length > 0) {
@@ -84,7 +83,6 @@ router.post('/', requireRole(['admin', 'manager', 'cashier']), catchAsync(async 
 
   const saleData = {
     ...req.body,
-    user_id: req.user.id,
     total: parseFloat(req.body.unit_price) * parseInt(req.body.quantity)
   };
 
@@ -98,7 +96,7 @@ router.post('/', requireRole(['admin', 'manager', 'cashier']), catchAsync(async 
 }));
 
 // PUT /api/sales/:id - Update sale
-router.put('/:id', requireRole(['admin', 'manager']), catchAsync(async (req, res) => {
+router.put('/:id', catchAsync(async (req, res) => {
   const sale = await Sale.findById(req.params.id);
   if (!sale) {
     throw new AppError('Sale not found', 404);
@@ -120,7 +118,7 @@ router.put('/:id', requireRole(['admin', 'manager']), catchAsync(async (req, res
 }));
 
 // PATCH /api/sales/:id/status - Update sale status
-router.patch('/:id/status', requireRole(['admin', 'manager']), catchAsync(async (req, res) => {
+router.patch('/:id/status', catchAsync(async (req, res) => {
   const { status } = req.body;
   
   if (!status || !['completed', 'pending', 'cancelled'].includes(status)) {
@@ -137,7 +135,7 @@ router.patch('/:id/status', requireRole(['admin', 'manager']), catchAsync(async 
 }));
 
 // DELETE /api/sales/:id - Delete sale
-router.delete('/:id', requireRole(['admin']), catchAsync(async (req, res) => {
+router.delete('/:id', catchAsync(async (req, res) => {
   const sale = await Sale.findById(req.params.id);
   if (!sale) {
     throw new AppError('Sale not found', 404);

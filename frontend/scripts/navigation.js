@@ -1,13 +1,14 @@
 // Navigation and section management - FIXED VERSION
 let currentSection = null;
 
-// Initialize dashboard on load
-document.addEventListener("DOMContentLoaded", function () {
+// Wait for partials to load before initializing
+function initializeNavigation() {
   // Get all available sections
   const sections = document.querySelectorAll(".section");
 
   if (sections.length === 0) {
-    console.warn("No sections found in DOM");
+    console.warn("No sections found in DOM - retrying in 500ms");
+    setTimeout(initializeNavigation, 500);
     return;
   }
 
@@ -18,7 +19,10 @@ document.addEventListener("DOMContentLoaded", function () {
     currentSection = defaultSection.id || "section-0";
     showSection(currentSection, true);
   }
-});
+}
+
+// Navigation will be initialized manually after partials load
+// No automatic DOMContentLoaded initialization
 
 function showSection(sectionId, isInitialLoad = false) {
   // Validate sectionId
@@ -38,7 +42,7 @@ function showSection(sectionId, isInitialLoad = false) {
   if (!targetSection) {
     console.warn(`Section with ID '${sectionId}' not found in DOM`);
 
-    // Fallback logic - only show error if not initial load
+    // Enhanced fallback logic
     if (!isInitialLoad) {
       if (currentSection && document.getElementById(currentSection)) {
         // Return to previous section if available
@@ -47,6 +51,10 @@ function showSection(sectionId, isInitialLoad = false) {
         // Fallback to first available section
         showSection(sections[0].id);
       }
+    } else {
+      // For initial load, wait and retry
+      console.log("Initial load - retrying in 500ms");
+      setTimeout(() => showSection(sectionId, false), 500);
     }
     return;
   }

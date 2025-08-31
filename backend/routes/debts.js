@@ -2,7 +2,6 @@ const express = require('express');
 const router = express.Router();
 const Debt = require('../models/Debt');
 const { catchAsync, AppError } = require('../middleware/errorHandler');
-const { requireRole } = require('../middleware/auth');
 
 // GET /api/debts - Get all debts
 router.get('/', catchAsync(async (req, res) => {
@@ -90,7 +89,7 @@ router.get('/:id/payments', catchAsync(async (req, res) => {
 }));
 
 // POST /api/debts - Create new debt
-router.post('/', requireRole(['admin', 'manager', 'cashier']), catchAsync(async (req, res) => {
+router.post('/', catchAsync(async (req, res) => {
   // Validate input
   const errors = Debt.validate(req.body);
   if (errors.length > 0) {
@@ -98,8 +97,7 @@ router.post('/', requireRole(['admin', 'manager', 'cashier']), catchAsync(async 
   }
 
   const debtData = {
-    ...req.body,
-    user_id: req.user.id
+    ...req.body
   };
 
   const debt = await Debt.create(debtData);
@@ -112,7 +110,7 @@ router.post('/', requireRole(['admin', 'manager', 'cashier']), catchAsync(async 
 }));
 
 // PUT /api/debts/:id - Update debt
-router.put('/:id', requireRole(['admin', 'manager']), catchAsync(async (req, res) => {
+router.put('/:id', catchAsync(async (req, res) => {
   const debt = await Debt.findById(req.params.id);
   if (!debt) {
     throw new AppError('Debt not found', 404);
@@ -134,7 +132,7 @@ router.put('/:id', requireRole(['admin', 'manager']), catchAsync(async (req, res
 }));
 
 // POST /api/debts/:id/payment - Make payment towards debt
-router.post('/:id/payment', requireRole(['admin', 'manager', 'cashier']), catchAsync(async (req, res) => {
+router.post('/:id/payment', catchAsync(async (req, res) => {
   const { amount, payment_method } = req.body;
   
   if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
@@ -160,7 +158,7 @@ router.post('/:id/payment', requireRole(['admin', 'manager', 'cashier']), catchA
 }));
 
 // DELETE /api/debts/:id - Delete debt
-router.delete('/:id', requireRole(['admin']), catchAsync(async (req, res) => {
+router.delete('/:id', catchAsync(async (req, res) => {
   const debt = await Debt.findById(req.params.id);
   if (!debt) {
     throw new AppError('Debt not found', 404);
