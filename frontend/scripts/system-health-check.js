@@ -63,18 +63,34 @@ class SystemHealthChecker {
             let consistencyIssues = [];
             
             dataArrays.forEach(arrayName => {
-                const windowData = window[arrayName] || [];
-                const storageData = window.utils.getFromStorage(arrayName, []);
-                
-                if (JSON.stringify(windowData) !== JSON.stringify(storageData)) {
-                    consistencyIssues.push(`${arrayName} data mismatch between memory and storage`);
-                }
-                
-                // Check for duplicate IDs
-                const ids = windowData.map(item => item.id).filter(id => id);
-                const uniqueIds = [...new Set(ids)];
-                if (ids.length !== uniqueIds.length) {
-                    consistencyIssues.push(`Duplicate IDs found in ${arrayName}`);
+                try {
+                    const windowData = window[arrayName];
+                    
+                    // Check if data exists and is an array
+                    if (!windowData) {
+                        consistencyIssues.push(`${arrayName} is not defined`);
+                        return;
+                    }
+                    
+                    if (!Array.isArray(windowData)) {
+                        consistencyIssues.push(`${arrayName} is not an array`);
+                        return;
+                    }
+                    
+                    // Check for duplicate IDs
+                    const ids = windowData.map(item => item.id).filter(id => id);
+                    const uniqueIds = [...new Set(ids)];
+                    if (ids.length !== uniqueIds.length) {
+                        consistencyIssues.push(`Duplicate IDs found in ${arrayName}`);
+                    }
+                    
+                    const storageData = window.utils.getFromStorage(arrayName, []);
+                    
+                    if (JSON.stringify(windowData) !== JSON.stringify(storageData)) {
+                        consistencyIssues.push(`${arrayName} data mismatch between memory and storage`);
+                    }
+                } catch (error) {
+                    consistencyIssues.push(`Error checking ${arrayName}: ${error.message}`);
                 }
             });
             

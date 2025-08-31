@@ -5,8 +5,8 @@ const config = {
         FRONTEND_URL: 'http://localhost:5000'
     },
     production: {
-        API_BASE: 'https://your-backend-url.railway.app/api',
-        FRONTEND_URL: 'https://your-app-name.netlify.app'
+        API_BASE: 'https://zion-grocery-dashboard-1.onrender.com/api',
+        FRONTEND_URL: 'https://zion-grocery-dashboard-1.onrender.com'
     }
 };
 
