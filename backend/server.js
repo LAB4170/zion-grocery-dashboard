@@ -121,9 +121,9 @@ process.on('SIGINT', () => {
 
 // Start server
 if (process.env.NODE_ENV !== 'test') {
-  app.listen(PORT, () => {
+  app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Zion Grocery Dashboard running on port ${PORT}`);
-    console.log(`📊 Environment: ${process.env.NODE_ENV}`);
+    console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
     console.log(`🏥 Health check: http://localhost:${PORT}/health`);
     console.log(`🌐 Frontend: http://localhost:${PORT}`);
     console.log(`📱 Login: http://localhost:${PORT}/login.html`);
