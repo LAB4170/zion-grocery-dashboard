@@ -1,7 +1,21 @@
-// Product management functions - FIXED VERSION
+// Product management functions - FIXED VERSION WITH PAGINATION
 
 // Use global products variable for consistency - no redeclaration needed
 // Access window.products directly to avoid conflicts
+
+// Initialize pagination manager for products
+let productsPaginationManager;
+
+function initializeProductsPagination() {
+  if (typeof window.createPaginationManager === 'function') {
+    productsPaginationManager = window.createPaginationManager(
+      'productsSection', // Container ID
+      'products', // Data key
+      renderProductsTable // Render function
+    );
+    productsPaginationManager.init();
+  }
+}
 
 function addProduct(event) {
   event.preventDefault();
@@ -94,17 +108,32 @@ function addProduct(event) {
 }
 
 function loadProductsData(filteredProducts = null) {
+  // Initialize pagination if not already done
+  if (!productsPaginationManager && typeof window.createPaginationManager === 'function') {
+    initializeProductsPagination();
+  }
+
+  // Update pagination data
+  if (productsPaginationManager) {
+    productsPaginationManager.updateData(filteredProducts);
+  } else {
+    // Fallback to original rendering if pagination not available
+    renderProductsTable(filteredProducts || window.products || []);
+  }
+}
+
+function renderProductsTable(productsToShow) {
   const tbody = document.getElementById("productsTableBody");
   if (!tbody) return;
 
   // Sync with global variables - use window.products consistently
   const products = window.products || [];
-  const productsToShow = filteredProducts || products;
+  const dataToRender = productsToShow || products;
 
-  tbody.innerHTML = productsToShow
+  tbody.innerHTML = dataToRender
     .map((product) => {
       const stockClass = (product.stock || 0) <= 5 ? "low-stock" : "";
-      const stockIndicator = (product.stock || 0) <= 5 ? "⚠️" : "";
+      const stockIndicator = (product.stock || 0) <= 5 ? "" : "";
 
       return `
             <tr class="${stockClass}">
@@ -219,3 +248,4 @@ function populateProductSelect() {
 
 // Export for global access
 window.resetProductModal = resetProductModal;
+window.initializeProductsPagination = initializeProductsPagination;

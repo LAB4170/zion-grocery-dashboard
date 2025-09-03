@@ -41,6 +41,9 @@
 <script src="scripts/api-client.js"></script>
 <script src="scripts/data-manager.js"></script>
 
+<!-- Pagination utility -->
+<script src="scripts/pagination-utils.js"></script>
+
 <!-- Socket.IO Client -->
 <script src="https://cdn.socket.io/4.7.0/socket.io.min.js"></script>
 <script src="scripts/socket-io-sync.js"></script>
@@ -75,11 +78,24 @@ document.addEventListener('DOMContentLoaded', function() {
     function onPartialLoaded() {
         partialsLoaded++;
         if (partialsLoaded === totalPartials) {
-            // All partials loaded, now initialize navigation
+            // All partials loaded, now initialize navigation and pagination
             setTimeout(() => {
                 if (typeof initializeNavigation === 'function') {
                     initializeNavigation();
                 }
+                
+                // Initialize pagination managers after partials are loaded
+                setTimeout(() => {
+                    if (typeof window.initializeProductsPagination === 'function') {
+                        window.initializeProductsPagination();
+                    }
+                    if (typeof window.initializeSalesPagination === 'function') {
+                        window.initializeSalesPagination();
+                    }
+                    if (typeof window.initializeDebtsPagination === 'function') {
+                        window.initializeDebtsPagination();
+                    }
+                }, 200);
             }, 100);
         }
     }

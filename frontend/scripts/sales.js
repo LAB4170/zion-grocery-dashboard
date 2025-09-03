@@ -1,7 +1,21 @@
-// Sales management functions - FIXED VERSION
+// Sales management functions - FIXED VERSION WITH PAGINATION
 
 // Use global sales variable for consistency - no redeclaration needed
 // Access window.sales directly to avoid conflicts
+
+// Initialize pagination manager for sales
+let salesPaginationManager;
+
+function initializeSalesPagination() {
+  if (typeof window.createPaginationManager === 'function') {
+    salesPaginationManager = window.createPaginationManager(
+      'salesSection', // Container ID
+      'sales', // Data key
+      renderSalesTable // Render function
+    );
+    salesPaginationManager.init();
+  }
+}
 
 function addSale(event) {
   event.preventDefault();
@@ -112,14 +126,30 @@ function addSale(event) {
   }
 }
 
-function loadSalesData() {
+function loadSalesData(filteredSales = null) {
+  // Initialize pagination if not already done
+  if (!salesPaginationManager && typeof window.createPaginationManager === 'function') {
+    initializeSalesPagination();
+  }
+
+  // Update pagination data
+  if (salesPaginationManager) {
+    salesPaginationManager.updateData(filteredSales);
+  } else {
+    // Fallback to original rendering if pagination not available
+    renderSalesTable(filteredSales || window.sales || []);
+  }
+}
+
+function renderSalesTable(salesToShow) {
   const tbody = document.getElementById("salesTableBody");
   if (!tbody) return;
 
   // Sync with global variables - use window.sales consistently
   const sales = window.sales || [];
+  const dataToRender = salesToShow || sales;
 
-  tbody.innerHTML = sales
+  tbody.innerHTML = dataToRender
     .map((sale) => {
       const paymentBadge = getPaymentBadge(sale.paymentMethod);
       const statusBadge = getStatusBadge(sale.status);
@@ -391,6 +421,7 @@ function editSaleDate(saleId) {
 }
 
 // Export for global access
+window.initializeSalesPagination = initializeSalesPagination;
 window.resetSalesModal = resetSalesModal;
 window.focusDateInput = focusDateInput;
 window.openDatePicker = openDatePicker;

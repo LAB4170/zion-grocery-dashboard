@@ -1,7 +1,17 @@
-// Debt management functions - FIXED VERSION
 
-// Use global debts variable for consistency - no redeclaration needed
-// Access window.debts directly to avoid conflicts
+// Initialize pagination manager for debts
+let debtsPaginationManager;
+
+function initializeDebtsPagination() {
+  if (typeof window.createPaginationManager === 'function') {
+    debtsPaginationManager = window.createPaginationManager(
+      'debtsSection', // Container ID
+      'debts', // Data key
+      renderDebtsTable // Render function
+    );
+    debtsPaginationManager.init();
+  }
+}
 
 async function addDebt(event) {
   event.preventDefault();
@@ -70,14 +80,30 @@ async function addDebtFromSale(sale) {
   await window.dataManager.addData("debts", debt);
 }
 
-function loadDebtsData() {
+function loadDebtsData(filteredDebts = null) {
+  // Initialize pagination if not already done
+  if (!debtsPaginationManager && typeof window.createPaginationManager === 'function') {
+    initializeDebtsPagination();
+  }
+
+  // Update pagination data
+  if (debtsPaginationManager) {
+    debtsPaginationManager.updateData(filteredDebts);
+  } else {
+    // Fallback to original rendering if pagination not available
+    renderDebtsTable(filteredDebts || window.debts || []);
+  }
+}
+
+function renderDebtsTable(debtsToShow) {
   const tbody = document.getElementById("debtsTableBody");
   if (!tbody) return;
 
   // FIX: Use consistent global variable access
   const debts = window.debts || [];
+  const dataToRender = debtsToShow || debts;
 
-  tbody.innerHTML = debts
+  tbody.innerHTML = dataToRender
     .map((debt) => {
       const statusBadge = getDebtStatusBadge(debt);
       const gracePeriodInfo = getGracePeriodInfo(debt);
@@ -336,3 +362,6 @@ function updateDebtStats() {
   if (totalDebtorsEl) totalDebtorsEl.textContent = totalDebtors.toString();
   if (overdueDebtsEl) overdueDebtsEl.textContent = window.utils.formatCurrency(overdueAmount);
 }
+
+// Export for global access
+window.initializeDebtsPagination = initializeDebtsPagination;
