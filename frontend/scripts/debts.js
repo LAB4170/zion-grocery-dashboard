@@ -364,3 +364,4 @@ function updateDebtStats() {
 
 // Export for global access
 window.initializeDebtsPagination = initializeDebtsPagination;
+window.loadDebtsData = loadDebtsData;

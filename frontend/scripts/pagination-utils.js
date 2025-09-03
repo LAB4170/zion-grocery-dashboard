@@ -1,3 +1,13 @@
+// Global pagination managers registry
+window.paginationManagers = window.paginationManagers || {};
+
+// Global function to create pagination manager
+window.createPaginationManager = function(containerId, dataKey, renderFunction) {
+  const manager = new PaginationManager(containerId, dataKey, renderFunction);
+  window.paginationManagers[dataKey] = manager;
+  return manager;
+};
+
 // Pagination utility functions for products, sales, and debts
 // Provides consistent pagination controls across all data tables
 
@@ -248,17 +258,5 @@ class PaginationManager {
   }
 }
 
-// Global pagination managers registry
-window.paginationManagers = window.paginationManagers || {};
-
-// Helper function to create pagination manager
-function createPaginationManager(containerId, dataKey, renderFunction) {
-  const manager = new PaginationManager(containerId, dataKey, renderFunction);
-  manager.loadPreferences();
-  window.paginationManagers[dataKey] = manager;
-  return manager;
-}
-
 // Export for global access
 window.PaginationManager = PaginationManager;
-window.createPaginationManager = createPaginationManager;

@@ -249,3 +249,4 @@ function populateProductSelect() {
 // Export for global access
 window.resetProductModal = resetProductModal;
 window.initializeProductsPagination = initializeProductsPagination;
+window.loadProductsData = loadProductsData;

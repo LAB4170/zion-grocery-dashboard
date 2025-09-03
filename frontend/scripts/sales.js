@@ -416,6 +416,7 @@ function editSaleDate(saleId) {
 
 // Export for global access
 window.initializeSalesPagination = initializeSalesPagination;
+window.loadSalesData = loadSalesData;
 window.resetSalesModal = resetSalesModal;
 window.focusDateInput = focusDateInput;
 window.openDatePicker = openDatePicker;
