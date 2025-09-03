@@ -1,15 +1,9 @@
-// Sales management functions - FIXED VERSION WITH PAGINATION
-
-// Use global sales variable for consistency - no redeclaration needed
-// Access window.sales directly to avoid conflicts
-
-// Initialize pagination manager for sales
 let salesPaginationManager;
 
 function initializeSalesPagination() {
   if (typeof window.createPaginationManager === 'function') {
     salesPaginationManager = window.createPaginationManager(
-      'salesSection', // Container ID
+      'sales', // Container ID - matches HTML
       'sales', // Data key
       renderSalesTable // Render function
     );

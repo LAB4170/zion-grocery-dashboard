@@ -9,7 +9,7 @@ let productsPaginationManager;
 function initializeProductsPagination() {
   if (typeof window.createPaginationManager === 'function') {
     productsPaginationManager = window.createPaginationManager(
-      'productsSection', // Container ID
+      'products', // Container ID - matches HTML
       'products', // Data key
       renderProductsTable // Render function
     );

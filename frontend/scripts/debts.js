@@ -1,11 +1,10 @@
-
 // Initialize pagination manager for debts
 let debtsPaginationManager;
 
 function initializeDebtsPagination() {
   if (typeof window.createPaginationManager === 'function') {
     debtsPaginationManager = window.createPaginationManager(
-      'debtsSection', // Container ID
+      'individual-debts', // Container ID - matches HTML
       'debts', // Data key
       renderDebtsTable // Render function
     );

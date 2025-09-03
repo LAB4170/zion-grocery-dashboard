@@ -37,9 +37,47 @@ function showSection(sectionId, isInitialLoad = false) {
     section.classList.add("hidden");
   });
 
-  // Show selected section with validation
+  // Show the selected section
   const targetSection = document.getElementById(sectionId);
-  if (!targetSection) {
+  if (targetSection) {
+    targetSection.classList.remove("hidden");
+    window.currentSection = sectionId;
+
+    // Initialize pagination for the current section after showing it
+    setTimeout(() => {
+      switch (sectionId) {
+        case "products":
+          if (typeof window.initializeProductsPagination === "function") {
+            window.initializeProductsPagination();
+          }
+          if (typeof loadProductsData === "function") {
+            loadProductsData();
+          }
+          break;
+        case "sales":
+          if (typeof window.initializeSalesPagination === "function") {
+            window.initializeSalesPagination();
+          }
+          if (typeof loadSalesData === "function") {
+            loadSalesData();
+          }
+          break;
+        case "individual-debts":
+          if (typeof window.initializeDebtsPagination === "function") {
+            window.initializeDebtsPagination();
+          }
+          if (typeof loadDebtsData === "function") {
+            loadDebtsData();
+          }
+          break;
+        case "dashboard":
+          if (typeof updateDashboardStats === "function") {
+            updateDashboardStats();
+          }
+          break;
+      }
+    }, 100);
+  } else {
     console.warn(`Section with ID '${sectionId}' not found in DOM`);
 
     // Enhanced fallback logic
@@ -58,10 +96,6 @@ function showSection(sectionId, isInitialLoad = false) {
     }
     return;
   }
-
-  targetSection.classList.remove("hidden");
-  currentSection = sectionId;
-  window.currentSection = sectionId; // FIX: Update global reference
 
   // Update active navigation item
   updateActiveNavItem(sectionId);

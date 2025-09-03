@@ -7,7 +7,7 @@ class PaginationManager {
     this.dataKey = dataKey; // 'products', 'sales', 'debts'
     this.renderFunction = renderFunction;
     this.currentPage = 1;
-    this.itemsPerPage = 25; // Default
+    this.itemsPerPage = 10; // Default
     this.availablePageSizes = [10, 25, 50, 75, 100];
     this.filteredData = [];
     this.originalData = [];
@@ -22,7 +22,10 @@ class PaginationManager {
   // Create pagination control elements
   createPaginationControls() {
     const container = document.getElementById(this.containerId);
-    if (!container) return;
+    if (!container) {
+      console.warn(`Pagination container '${this.containerId}' not found`);
+      return;
+    }
 
     // Find or create pagination container
     let paginationContainer = container.querySelector('.pagination-container');
@@ -30,11 +33,18 @@ class PaginationManager {
       paginationContainer = document.createElement('div');
       paginationContainer.className = 'pagination-container';
       
-      // Insert before the table
+      // Insert after the search box but before the table
+      const searchBox = container.querySelector('.search-box');
       const table = container.querySelector('table');
-      if (table) {
+      
+      if (searchBox && table) {
+        // Insert between search box and table
+        searchBox.parentNode.insertBefore(paginationContainer, table);
+      } else if (table) {
+        // Insert before the table
         container.insertBefore(paginationContainer, table);
       } else {
+        // Append to container
         container.appendChild(paginationContainer);
       }
     }
