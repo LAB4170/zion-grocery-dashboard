@@ -50,25 +50,32 @@ function showSection(sectionId, isInitialLoad = false) {
           if (typeof window.initializeProductsPagination === "function") {
             window.initializeProductsPagination();
           }
-          if (typeof loadProductsData === "function") {
-            loadProductsData();
-          }
+          // Wait for pagination to initialize before loading data
+          setTimeout(() => {
+            if (typeof loadProductsData === "function") {
+              loadProductsData();
+            }
+          }, 200);
           break;
         case "sales":
           if (typeof window.initializeSalesPagination === "function") {
             window.initializeSalesPagination();
           }
-          if (typeof loadSalesData === "function") {
-            loadSalesData();
-          }
+          setTimeout(() => {
+            if (typeof loadSalesData === "function") {
+              loadSalesData();
+            }
+          }, 200);
           break;
         case "individual-debts":
           if (typeof window.initializeDebtsPagination === "function") {
             window.initializeDebtsPagination();
           }
-          if (typeof loadDebtsData === "function") {
-            loadDebtsData();
-          }
+          setTimeout(() => {
+            if (typeof loadDebtsData === "function") {
+              loadDebtsData();
+            }
+          }, 200);
           break;
         case "dashboard":
           if (typeof updateDashboardStats === "function") {
@@ -76,7 +83,7 @@ function showSection(sectionId, isInitialLoad = false) {
           }
           break;
       }
-    }, 100);
+    }, 200);
   } else {
     console.warn(`Section with ID '${sectionId}' not found in DOM`);
 

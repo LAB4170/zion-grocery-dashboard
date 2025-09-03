@@ -8,6 +8,15 @@ let productsPaginationManager;
 
 function initializeProductsPagination() {
   console.log('Initializing products pagination...');
+  
+  // Check if container exists before initializing
+  const container = document.getElementById('products');
+  if (!container) {
+    console.warn('Products container not found, retrying in 100ms');
+    setTimeout(initializeProductsPagination, 100);
+    return;
+  }
+  
   if (typeof window.createPaginationManager === 'function') {
     productsPaginationManager = window.createPaginationManager(
       'products', // Container ID - matches HTML
@@ -17,13 +26,13 @@ function initializeProductsPagination() {
     productsPaginationManager.init();
     console.log('Products pagination manager created and initialized');
     
-    // Force immediate data update
+    // Force immediate data update with current products
     setTimeout(() => {
       if (productsPaginationManager && window.products) {
         productsPaginationManager.updateData(window.products);
         console.log('Products pagination data updated with', window.products.length, 'items');
       }
-    }, 100);
+    }, 50);
   } else {
     console.error('createPaginationManager function not available');
   }
@@ -255,5 +264,4 @@ function populateProductSelect() {
 
 // Export for global access
 window.resetProductModal = resetProductModal;
-window.initializeProductsPagination = initializeProductsPagination;
 window.loadProductsData = loadProductsData;

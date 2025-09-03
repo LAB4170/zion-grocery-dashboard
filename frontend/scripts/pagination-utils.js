@@ -45,20 +45,26 @@ class PaginationManager {
       paginationContainer = document.createElement('div');
       paginationContainer.className = 'pagination-container';
       
-      // Insert after the search box but before the table
+      // Improved insertion logic - find the best place to insert pagination
       const searchBox = container.querySelector('.search-box');
       const table = container.querySelector('table');
+      const sectionHeader = container.querySelector('.section-header');
       
       if (searchBox && table) {
         // Insert between search box and table
-        searchBox.parentNode.insertBefore(paginationContainer, table);
+        container.insertBefore(paginationContainer, table);
       } else if (table) {
         // Insert before the table
         container.insertBefore(paginationContainer, table);
+      } else if (sectionHeader) {
+        // Insert after section header
+        sectionHeader.parentNode.insertBefore(paginationContainer, sectionHeader.nextSibling);
       } else {
-        // Append to container
+        // Append to container as last resort
         container.appendChild(paginationContainer);
       }
+      
+      console.log(`Pagination container created for ${this.dataKey} and inserted into DOM`);
     }
 
     paginationContainer.innerHTML = `
