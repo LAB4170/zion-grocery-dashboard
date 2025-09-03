@@ -4,11 +4,13 @@
   "description": "Zion Grocery Dashboard - Complete POS System with Integrated Frontend/Backend",
   "main": "backend/server.js",
   "scripts": {
-    "start": "cd backend && npm install && npm start",
-    "build": "cd backend && npm install && cd ../frontend && npm install",
+    "start": "cd backend && node server.js",
+    "build": "cd backend && npm install --production",
     "dev": "cd backend && npm run dev",
     "migrate": "cd backend && npm run migrate",
-    "setup": "cd backend && npm install && cd ../frontend && npm install && cd ../backend && npm run migrate"
+    "setup": "cd backend && npm install && cd ../frontend && npm install && cd ../backend && npm run migrate",
+    "render-build": "cd backend && npm install --production && npm run migrate",
+    "render-start": "cd backend && node server.js"
   },
   "repository": {
     "type": "git",
