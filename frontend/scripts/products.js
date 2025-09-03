@@ -38,7 +38,7 @@ function initializeProductsPagination() {
   }
 }
 
-function addProduct(event) {
+async function addProduct(event) {
   event.preventDefault();
 
   const name = document.getElementById("productName").value;

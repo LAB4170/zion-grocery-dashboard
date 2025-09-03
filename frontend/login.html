@@ -28,6 +28,7 @@
             width: 100%;
             max-width: 400px;
             backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
         }
 
         .login-header {
@@ -124,6 +125,10 @@
             animation: spin 1s ease-in-out infinite;
         }
 
+        .hidden {
+            display: none;
+        }
+
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
@@ -186,7 +191,7 @@
 
             <button type="submit" class="login-btn" id="loginBtn">
                 <span id="btnText">Sign In</span>
-                <span id="btnLoading" class="loading" style="display: none;"></span>
+                <span id="btnLoading" class="loading hidden"></span>
             </button>
         </form>
 
@@ -233,10 +238,10 @@
             loginBtn.disabled = isLoading;
             if (isLoading) {
                 btnText.style.display = 'none';
-                btnLoading.style.display = 'inline-block';
+                btnLoading.classList.remove('hidden');
             } else {
                 btnText.style.display = 'inline-block';
-                btnLoading.style.display = 'none';
+                btnLoading.classList.add('hidden');
             }
         }
 

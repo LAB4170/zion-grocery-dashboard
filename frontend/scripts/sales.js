@@ -11,7 +11,7 @@ function initializeSalesPagination() {
   }
 }
 
-function addSale(event) {
+async function addSale(event) {
   event.preventDefault();
 
   const productId = document.getElementById("saleProduct").value;
@@ -207,7 +207,7 @@ function getStatusBadge(status) {
   );
 }
 
-function deleteSale(saleId) {
+async function deleteSale(saleId) {
   if (!confirm("Are you sure you want to delete this sale?")) {
     return;
   }
@@ -358,7 +358,7 @@ function openDatePicker(inputId) {
   }
 }
 
-function editSaleDate(saleId) {
+async function editSaleDate(saleId) {
   const sale = (window.sales || []).find(s => s.id === saleId);
   if (!sale) return;
   
