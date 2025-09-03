@@ -100,25 +100,10 @@ export class AuthManager {
     return session?.isAuthenticated === true && !!sessionStorage.getItem('authToken');
   }
 
-  // Check if user has required role
-  hasRole(requiredRole: string | string[]): boolean {
-    const session = this.getCurrentSession();
-    if (!session || !this.isAuthenticated()) {
-      return false;
-    }
-
-    const roles = Array.isArray(requiredRole) ? requiredRole : [requiredRole];
-    return roles.includes(session.role);
-  }
-
   // Check if user has admin privileges
   isAdmin(): boolean {
-    return this.hasRole('admin');
-  }
-
-  // Check if user has manager or admin privileges
-  isManagerOrAdmin(): boolean {
-    return this.hasRole(['admin', 'manager']);
+    const session = this.getCurrentSession();
+    return session?.isAuthenticated === true && session?.role === 'admin' && !!sessionStorage.getItem('authToken');
   }
 
   // Validate current session with backend

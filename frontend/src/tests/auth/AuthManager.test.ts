@@ -197,63 +197,20 @@ describe('AuthManager', () => {
       isAuthenticated: true
     };
 
-    const managerSession: UserSession = {
-      username: 'manager',
-      role: 'manager',
-      loginTime: '2023-01-01T00:00:00Z',
-      isAuthenticated: true
-    };
-
-    const cashierSession: UserSession = {
-      username: 'cashier',
-      role: 'cashier',
-      loginTime: '2023-01-01T00:00:00Z',
-      isAuthenticated: true
-    };
-
     beforeEach(() => {
       mockSessionStorage.getItem.mockReturnValue(mockToken);
     });
 
-    it('should check single role correctly', () => {
+    it('should check admin privileges correctly', () => {
       (authManager as any).currentSession = adminSession;
 
-      expect(authManager.hasRole('admin')).toBe(true);
-      expect(authManager.hasRole('manager')).toBe(false);
-    });
-
-    it('should check multiple roles correctly', () => {
-      (authManager as any).currentSession = managerSession;
-
-      expect(authManager.hasRole(['admin', 'manager'])).toBe(true);
-      expect(authManager.hasRole(['admin', 'cashier'])).toBe(false);
-    });
-
-    it('should check admin privileges', () => {
-      (authManager as any).currentSession = adminSession;
       expect(authManager.isAdmin()).toBe(true);
-
-      (authManager as any).currentSession = managerSession;
-      expect(authManager.isAdmin()).toBe(false);
     });
 
-    it('should check manager or admin privileges', () => {
-      (authManager as any).currentSession = adminSession;
-      expect(authManager.isManagerOrAdmin()).toBe(true);
-
-      (authManager as any).currentSession = managerSession;
-      expect(authManager.isManagerOrAdmin()).toBe(true);
-
-      (authManager as any).currentSession = cashierSession;
-      expect(authManager.isManagerOrAdmin()).toBe(false);
-    });
-
-    it('should return false for roles when not authenticated', () => {
+    it('should return false for admin check when not authenticated', () => {
       mockSessionStorage.getItem.mockReturnValue(null);
 
-      expect(authManager.hasRole('admin')).toBe(false);
       expect(authManager.isAdmin()).toBe(false);
-      expect(authManager.isManagerOrAdmin()).toBe(false);
     });
   });
 

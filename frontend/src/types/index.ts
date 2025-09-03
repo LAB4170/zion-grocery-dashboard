@@ -72,7 +72,7 @@ export interface ApiResponse<T> {
 
 export interface UserSession {
   username: string;
-  role: 'admin' | 'manager' | 'cashier';
+  role: 'admin';
   loginTime: string;
   isAuthenticated: boolean;
 }

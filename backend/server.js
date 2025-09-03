@@ -5,9 +5,12 @@ const morgan = require('morgan');
 const compression = require('compression');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
+const http = require('http');
+const WebSocket = require('ws');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
 const app = express();
+const server = http.createServer(app);
 const PORT = process.env.PORT || 5000;
 
 // PostgreSQL database connection - required
@@ -83,6 +86,69 @@ app.get('/api/test-db', async (req, res) => {
   }
 });
 
+// WebSocket server for real-time synchronization (future upgrade)
+const wss = new WebSocket.Server({ 
+  server,
+  path: '/ws',
+  clientTracking: true
+});
+
+// WebSocket connection handling
+wss.on('connection', (ws, req) => {
+  console.log('📡 WebSocket client connected');
+  
+  ws.on('message', (data) => {
+    try {
+      const message = JSON.parse(data);
+      
+      // Broadcast data changes to all connected clients
+      if (message.type === 'data_change') {
+        wss.clients.forEach((client) => {
+          if (client !== ws && client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify({
+              type: 'sync_update',
+              data: message.data,
+              timestamp: Date.now()
+            }));
+          }
+        });
+      }
+    } catch (error) {
+      console.error('WebSocket message error:', error);
+    }
+  });
+  
+  ws.on('close', () => {
+    console.log('📡 WebSocket client disconnected');
+  });
+  
+  // Send welcome message
+  ws.send(JSON.stringify({
+    type: 'connection_established',
+    message: 'Real-time sync ready',
+    timestamp: Date.now()
+  }));
+});
+
+// Broadcast function for data changes
+const broadcastDataChange = (type, data) => {
+  const message = JSON.stringify({
+    type: 'data_update',
+    dataType: type,
+    data: data,
+    timestamp: Date.now()
+  });
+  
+  wss.clients.forEach((client) => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(message);
+    }
+  });
+};
+
+// Make broadcast function available to routes
+app.locals.broadcastDataChange = broadcastDataChange;
+
 // API routes
 app.use('/api/products', productRoutes);
 app.use('/api/sales', salesRoutes);
@@ -121,7 +187,7 @@ process.on('SIGINT', () => {
 
 // Start server
 if (process.env.NODE_ENV !== 'test') {
-  app.listen(PORT, '0.0.0.0', () => {
+  server.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Zion Grocery Dashboard running on port ${PORT}`);
     console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
     console.log(`🏥 Health check: http://localhost:${PORT}/health`);
