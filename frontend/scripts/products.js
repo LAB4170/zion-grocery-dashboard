@@ -7,6 +7,7 @@
 let productsPaginationManager;
 
 function initializeProductsPagination() {
+  console.log('Initializing products pagination...');
   if (typeof window.createPaginationManager === 'function') {
     productsPaginationManager = window.createPaginationManager(
       'products', // Container ID - matches HTML
@@ -14,6 +15,17 @@ function initializeProductsPagination() {
       renderProductsTable // Render function
     );
     productsPaginationManager.init();
+    console.log('Products pagination manager created and initialized');
+    
+    // Force immediate data update
+    setTimeout(() => {
+      if (productsPaginationManager && window.products) {
+        productsPaginationManager.updateData(window.products);
+        console.log('Products pagination data updated with', window.products.length, 'items');
+      }
+    }, 100);
+  } else {
+    console.error('createPaginationManager function not available');
   }
 }
 

@@ -62,29 +62,29 @@ class PaginationManager {
     }
 
     paginationContainer.innerHTML = `
-      <div class="pagination-controls">
-        <div class="pagination-info">
+      <div class="pagination-controls" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+        <div class="pagination-info" style="display: flex; align-items: center; gap: 10px; color: white;">
           <span class="items-per-page-label">Items per page:</span>
-          <select class="items-per-page-select" onchange="window.paginationManagers['${this.dataKey}'].changePageSize(this.value)">
+          <select class="items-per-page-select" onchange="window.paginationManagers['${this.dataKey}'].changePageSize(this.value)" style="padding: 5px; border-radius: 4px; background: rgba(255,255,255,0.9); border: 1px solid #ccc;">
             ${this.availablePageSizes.map(size => 
               `<option value="${size}" ${size === this.itemsPerPage ? 'selected' : ''}>${size}</option>`
             ).join('')}
           </select>
-          <span class="pagination-summary"></span>
+          <span class="pagination-summary" style="color: white;"></span>
         </div>
-        <div class="pagination-buttons">
-          <button class="pagination-btn" onclick="window.paginationManagers['${this.dataKey}'].goToPage(1)" title="First Page">
-            <i class="fas fa-angle-double-left"></i>
+        <div class="pagination-buttons" style="display: flex; align-items: center; gap: 5px;">
+          <button class="pagination-btn" onclick="window.paginationManagers['${this.dataKey}'].goToPage(1)" title="First Page" style="padding: 8px 12px; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); border-radius: 4px; color: white; cursor: pointer;">
+            ⟪
           </button>
-          <button class="pagination-btn" onclick="window.paginationManagers['${this.dataKey}'].previousPage()" title="Previous Page">
-            <i class="fas fa-angle-left"></i>
+          <button class="pagination-btn" onclick="window.paginationManagers['${this.dataKey}'].previousPage()" title="Previous Page" style="padding: 8px 12px; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); border-radius: 4px; color: white; cursor: pointer;">
+            ⟨
           </button>
-          <span class="page-numbers"></span>
-          <button class="pagination-btn" onclick="window.paginationManagers['${this.dataKey}'].nextPage()" title="Next Page">
-            <i class="fas fa-angle-right"></i>
+          <span class="page-numbers" style="display: flex; gap: 2px;"></span>
+          <button class="pagination-btn" onclick="window.paginationManagers['${this.dataKey}'].nextPage()" title="Next Page" style="padding: 8px 12px; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); border-radius: 4px; color: white; cursor: pointer;">
+            ⟩
           </button>
-          <button class="pagination-btn" onclick="window.paginationManagers['${this.dataKey}'].goToPage('last')" title="Last Page">
-            <i class="fas fa-angle-double-right"></i>
+          <button class="pagination-btn" onclick="window.paginationManagers['${this.dataKey}'].goToPage('last')" title="Last Page" style="padding: 8px 12px; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); border-radius: 4px; color: white; cursor: pointer;">
+            ⟫
           </button>
         </div>
       </div>

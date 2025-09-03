@@ -150,10 +150,17 @@ function loadSectionData(sectionId) {
     },
     products: () => {
       // Initialize pagination first, then load data
+      console.log('Loading products section - initializing pagination');
       if (typeof window.initializeProductsPagination === "function") {
         window.initializeProductsPagination();
       }
-      if (typeof loadProductsData === "function") loadProductsData();
+      
+      // Load data after a short delay to ensure pagination is ready
+      setTimeout(() => {
+        if (typeof loadProductsData === "function") {
+          loadProductsData();
+        }
+      }, 200);
     },
     "sales-settings": () => {
       if (typeof loadProductsData === "function") loadProductsData();
