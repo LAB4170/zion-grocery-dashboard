@@ -58,18 +58,19 @@ function toggleCustomerInfo() {
   const customerInfoGroup = document.getElementById("customerInfoGroup");
   const customerPhoneGroup = document.getElementById("customerPhoneGroup");
 
-  if (paymentMethod === "debt" || paymentMethod === "mpesa") {
+  // Only show customer info for debt payments, not M-Pesa
+  if (paymentMethod === "debt") {
     customerInfoGroup.style.display = "block";
     customerPhoneGroup.style.display = "block";
 
-    // Make fields required
+    // Make fields required for debt
     document.getElementById("customerName").required = true;
     document.getElementById("customerPhone").required = true;
   } else {
     customerInfoGroup.style.display = "none";
     customerPhoneGroup.style.display = "none";
 
-    // Make fields not required
+    // Make fields not required for cash and M-Pesa
     document.getElementById("customerName").required = false;
     document.getElementById("customerPhone").required = false;
   }
