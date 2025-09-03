@@ -6,12 +6,25 @@ const compression = require('compression');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
 const http = require('http');
-const WebSocket = require('ws');
+const socketIo = require('socket.io');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
 const app = express();
 const server = http.createServer(app);
 const PORT = process.env.PORT || 5000;
+
+// Configure Socket.IO with CORS
+const io = socketIo(server, {
+  cors: {
+    origin: process.env.NODE_ENV === 'production' 
+      ? [process.env.FRONTEND_URL || 'https://zion-grocery-dashboard.onrender.com'] 
+      : ['http://localhost:5000', 'http://127.0.0.1:5000', 'http://localhost:8080', 'http://127.0.0.1:8080'],
+    methods: ["GET", "POST"],
+    credentials: true
+  },
+  transports: ['websocket', 'polling'],
+  allowEIO3: true
+});
 
 // PostgreSQL database connection - required
 const db = require('./config/database');
@@ -53,12 +66,66 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Logging middleware
-if (process.env.NODE_ENV !== 'test') {
+if (process.env.NODE_ENV !== 'production') {
+  app.use(morgan('dev'));
+} else {
   app.use(morgan('combined'));
 }
 
-// Serve static frontend files
-app.use(express.static(path.join(__dirname, '../frontend')));
+// Serve static files from frontend directory
+const frontendPath = path.join(__dirname, '../frontend');
+app.use(express.static(frontendPath, {
+  maxAge: process.env.NODE_ENV === 'production' ? '1d' : 0,
+  etag: true,
+  lastModified: true
+}));
+
+// Optimized static file serving for specific directories
+app.use('/scripts', express.static(path.join(frontendPath, 'scripts'), { maxAge: '1h' }));
+app.use('/styles', express.static(path.join(frontendPath, 'styles'), { maxAge: '1h' }));
+app.use('/modals', express.static(path.join(frontendPath, 'modals'), { maxAge: '1h' }));
+app.use('/partials', express.static(path.join(frontendPath, 'partials'), { maxAge: '1h' }));
+
+// Socket.IO connection handling
+io.on('connection', (socket) => {
+  console.log('📡 Socket.IO client connected:', socket.id);
+  
+  // Join a room for grocery dashboard updates
+  socket.join('grocery-dashboard');
+  
+  // Handle client disconnection
+  socket.on('disconnect', () => {
+    console.log('📡 Socket.IO client disconnected:', socket.id);
+  });
+  
+  // Handle manual refresh requests
+  socket.on('request-refresh', (data) => {
+    socket.to('grocery-dashboard').emit('data-refresh', {
+      type: data.type || 'all',
+      timestamp: Date.now()
+    });
+  });
+  
+  // Send welcome message
+  socket.emit('connection-established', {
+    message: 'Real-time sync ready with Socket.IO',
+    timestamp: Date.now()
+  });
+});
+
+// Broadcast function for data changes
+const broadcastDataChange = (type, data) => {
+  io.to('grocery-dashboard').emit('data-update', {
+    type: type,
+    data: data,
+    timestamp: Date.now()
+  });
+  console.log(`📡 Broadcasting ${type} update to all clients`);
+};
+
+// Make broadcast function available to routes
+app.locals.broadcastDataChange = broadcastDataChange;
+app.locals.io = io;
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -85,69 +152,6 @@ app.get('/api/test-db', async (req, res) => {
     res.status(500).json({ error: 'PostgreSQL connection failed', details: error.message });
   }
 });
-
-// WebSocket server for real-time synchronization (future upgrade)
-const wss = new WebSocket.Server({ 
-  server,
-  path: '/ws',
-  clientTracking: true
-});
-
-// WebSocket connection handling
-wss.on('connection', (ws, req) => {
-  console.log('📡 WebSocket client connected');
-  
-  ws.on('message', (data) => {
-    try {
-      const message = JSON.parse(data);
-      
-      // Broadcast data changes to all connected clients
-      if (message.type === 'data_change') {
-        wss.clients.forEach((client) => {
-          if (client !== ws && client.readyState === WebSocket.OPEN) {
-            client.send(JSON.stringify({
-              type: 'sync_update',
-              data: message.data,
-              timestamp: Date.now()
-            }));
-          }
-        });
-      }
-    } catch (error) {
-      console.error('WebSocket message error:', error);
-    }
-  });
-  
-  ws.on('close', () => {
-    console.log('📡 WebSocket client disconnected');
-  });
-  
-  // Send welcome message
-  ws.send(JSON.stringify({
-    type: 'connection_established',
-    message: 'Real-time sync ready',
-    timestamp: Date.now()
-  }));
-});
-
-// Broadcast function for data changes
-const broadcastDataChange = (type, data) => {
-  const message = JSON.stringify({
-    type: 'data_update',
-    dataType: type,
-    data: data,
-    timestamp: Date.now()
-  });
-  
-  wss.clients.forEach((client) => {
-    if (client.readyState === WebSocket.OPEN) {
-      client.send(message);
-    }
-  });
-};
-
-// Make broadcast function available to routes
-app.locals.broadcastDataChange = broadcastDataChange;
 
 // API routes
 app.use('/api/products', productRoutes);

@@ -1,24 +1,22 @@
 {
   "name": "zion-grocery-frontend",
   "version": "1.0.0",
-  "description": "Frontend for Zion Grocery Dashboard - HTML, CSS, JavaScript",
+  "description": "Frontend for Zion Grocery Dashboard",
   "main": "index.html",
   "scripts": {
-    "start": "http-server . -p 8080 -o",
-    "dev": "http-server . -p 8080 -o -c-1"
+    "start": "http-server -p 8080 -c-1",
+    "scss": "sass styles/scss/main.scss styles/css/main.css --watch"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/LAB4170/zion-grocery-dashboard.git"
-  },
-  "keywords": ["grocery", "dashboard", "pos", "frontend"],
-  "author": "Zion Groceries",
-  "license": "MIT",
   "dependencies": {
-    "http-server": "^14.1.1"
+    "http-server": "^14.1.1",
+    "sass": "^1.62.1",
+    "socket.io-client": "^4.8.1"
   },
-  "engines": {
-    "node": ">=16.0.0",
-    "npm": ">=8.0.0"
-  }
+  "keywords": [
+    "grocery",
+    "dashboard",
+    "frontend"
+  ],
+  "author": "Zion Groceries",
+  "license": "MIT"
 }
