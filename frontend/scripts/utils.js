@@ -91,24 +91,17 @@ window.utils = {
         }, 3000);
     },
 
+    // Database-only mode - localStorage functions removed
+    // All data operations should use window.dataManager instead
+    
     saveToStorage: function(key, data) {
-        try {
-            localStorage.setItem(key, JSON.stringify(data));
-            return true;
-        } catch (error) {
-            console.error('Storage error:', error);
-            return false;
-        }
+        console.warn('⚠️ saveToStorage is deprecated. Use window.dataManager instead.');
+        throw new Error('localStorage operations disabled. Use window.dataManager for database operations.');
     },
 
     getFromStorage: function(key, defaultValue = []) {
-        try {
-            const item = localStorage.getItem(key);
-            return item ? JSON.parse(item) : defaultValue;
-        } catch (error) {
-            console.error('Storage read error:', error);
-            return defaultValue;
-        }
+        console.warn('⚠️ getFromStorage is deprecated. Use window.dataManager instead.');
+        throw new Error('localStorage operations disabled. Use window.dataManager for database operations.');
     },
 
     openModal: function(modalId) {

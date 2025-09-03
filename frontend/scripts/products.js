@@ -48,7 +48,7 @@ function addProduct(event) {
       };
 
       window.products = products;
-      window.utils.saveToStorage("products", window.products);
+      await window.dataManager.updateData("products", products[productIndex]);
       window.utils.showNotification("Product updated successfully!");
     }
 
@@ -68,12 +68,13 @@ function addProduct(event) {
     // Update global products array
     window.products = window.products || [];
     window.products.push(product);
-    window.utils.saveToStorage("products", window.products);
+    await window.dataManager.addData("products", product);
+
+    loadProductsData();
+    document.getElementById("productForm").reset();
+    window.utils.closeModal("productModal");
     window.utils.showNotification("Product added successfully!");
   }
-
-  window.utils.closeModal("productModal");
-  resetProductModal(); // FIX: Reset modal state
 
   if (window.currentSection === "sales-settings") {
     loadProductsData();
@@ -127,14 +128,14 @@ function loadProductsData(filteredProducts = null) {
     .join("");
 }
 
-function deleteProduct(productId) {
+async function deleteProduct(productId) {
   if (!confirm("Are you sure you want to delete this product?")) {
     return;
   }
 
   const products = window.products || [];
   window.products = products.filter((p) => p.id !== productId);
-  window.utils.saveToStorage("products", window.products);
+  await window.dataManager.deleteData("products", productId);
 
   window.utils.showNotification("Product deleted successfully!");
   loadProductsData();

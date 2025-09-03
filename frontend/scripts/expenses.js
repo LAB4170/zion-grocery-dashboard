@@ -3,7 +3,7 @@
 // Use global expenses variable for consistency - no redeclaration needed
 // Access window.expenses directly to avoid conflicts
 
-function addExpense(event) {
+async function addExpense(event) {
   event.preventDefault();
 
   const description = document.getElementById("expenseDescription").value;
@@ -31,8 +31,10 @@ function addExpense(event) {
   // FIX: Use consistent global variable access
   window.expenses = window.expenses || [];
   window.expenses.push(expense);
-  window.utils.saveToStorage("expenses", window.expenses);
+  await window.dataManager.addData("expenses", expense);
 
+  loadExpensesData();
+  document.getElementById("expenseForm").reset();
   window.utils.closeModal("expenseModal");
   window.utils.showNotification("Expense added successfully!");
 
@@ -74,11 +76,11 @@ function loadExpensesData() {
     .join("");
 }
 
-function deleteExpense(expenseId) {
+async function deleteExpense(expenseId) {
   if (confirm("Are you sure you want to delete this expense?")) {
     // FIX: Use consistent global variable access
     window.expenses = (window.expenses || []).filter((e) => e.id !== expenseId);
-    window.utils.saveToStorage("expenses", window.expenses);
+    await window.dataManager.removeData("expenses", expenseId);
     loadExpensesData();
     window.utils.showNotification("Expense deleted successfully!");
 

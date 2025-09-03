@@ -19,7 +19,7 @@ class AuthManager {
 
     isAuthenticated() {
         try {
-            const session = localStorage.getItem(this.sessionKey);
+            const session = sessionStorage.getItem(this.sessionKey);
             if (!session) return false;
 
             const userData = JSON.parse(session);
@@ -33,7 +33,7 @@ class AuthManager {
 
     getUserData() {
         try {
-            const session = localStorage.getItem(this.sessionKey);
+            const session = sessionStorage.getItem(this.sessionKey);
             if (!session) return null;
 
             const userData = JSON.parse(session);
@@ -51,7 +51,7 @@ class AuthManager {
             loginTime: new Date().toISOString(),
             isAuthenticated: true
         };
-        localStorage.setItem(this.sessionKey, JSON.stringify(sessionData));
+        sessionStorage.setItem(this.sessionKey, JSON.stringify(sessionData));
     }
 
     logout() {
@@ -60,7 +60,7 @@ class AuthManager {
     }
 
     clearSession() {
-        localStorage.removeItem(this.sessionKey);
+        sessionStorage.removeItem(this.sessionKey);
     }
 
     redirectToLogin() {

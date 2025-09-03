@@ -3,7 +3,7 @@
 // Use global debts variable for consistency - no redeclaration needed
 // Access window.debts directly to avoid conflicts
 
-function addDebt(event) {
+async function addDebt(event) {
   event.preventDefault();
 
   const customerName = document.getElementById("debtCustomerName").value;
@@ -32,10 +32,12 @@ function addDebt(event) {
   // FIX: Use consistent global variable access
   window.debts = window.debts || [];
   window.debts.push(debt);
-  window.utils.saveToStorage("debts", window.debts);
+  await window.dataManager.addData("debts", debt);
 
+  loadDebtsData();
+  document.getElementById("debtForm").reset();
   window.utils.closeModal("debtModal");
-  window.utils.showNotification("Debt recorded successfully!");
+  window.utils.showNotification("Debt added successfully!");
 
   if (window.currentSection === "individual-debts") {
     loadDebtsData();
@@ -47,7 +49,7 @@ function addDebt(event) {
   }
 }
 
-function addDebtFromSale(sale) {
+async function addDebtFromSale(sale) {
   const debt = {
     id: window.utils.generateId(),
     customerName: sale.customerName,
@@ -65,7 +67,7 @@ function addDebtFromSale(sale) {
   // FIX: Use consistent global variable access
   window.debts = window.debts || [];
   window.debts.push(debt);
-  window.utils.saveToStorage("debts", window.debts);
+  await window.dataManager.addData("debts", debt);
 }
 
 function loadDebtsData() {
@@ -182,14 +184,14 @@ function loadGroupedDebtsData() {
     .join("");
 }
 
-function markDebtPaid(debtId) {
+async function markDebtPaid(debtId) {
   // FIX: Use consistent global variable access
   const debts = window.debts || [];
   const debt = debts.find((d) => d.id === debtId);
   if (debt) {
     debt.status = "paid";
     debt.paidAt = new Date().toISOString();
-    window.utils.saveToStorage("debts", window.debts);
+    await window.dataManager.updateData("debts", debtId, debt);
 
     // Update corresponding sale record if it exists
     if (debt.saleId) {
@@ -198,7 +200,7 @@ function markDebtPaid(debtId) {
       if (sale) {
         sale.status = "completed";
         sale.paidAt = debt.paidAt;
-        window.utils.saveToStorage("sales", window.sales);
+        await window.dataManager.updateData("sales", debt.saleId, sale);
       }
     }
 
@@ -215,11 +217,11 @@ function markDebtPaid(debtId) {
   }
 }
 
-function deleteDebt(debtId) {
+async function deleteDebt(debtId) {
   if (confirm("Are you sure you want to delete this debt record?")) {
     // FIX: Use consistent global variable access
     window.debts = (window.debts || []).filter((d) => d.id !== debtId);
-    window.utils.saveToStorage("debts", window.debts);
+    await window.dataManager.deleteData("debts", debtId);
     loadDebtsData();
     window.utils.showNotification("Debt record deleted!");
 
@@ -292,7 +294,7 @@ function editDebtDate(debtId, dateField) {
       debt.dueDate = newDate;
     }
     
-    window.utils.saveToStorage("debts", window.debts);
+    window.dataManager.updateData("debts", debtId, debt);
     loadDebtsData();
     window.utils.showNotification(`${dateField === 'createdAt' ? 'Created date' : 'Due date'} updated successfully!`);
   }

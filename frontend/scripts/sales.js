@@ -39,7 +39,7 @@ function addSale(event) {
 
     // Update product stock
     product.stock -= quantityDifference;
-    window.utils.saveToStorage("products", window.products);
+    await window.dataManager.updateData("products", product.id, product);
 
     // Update sale record
     existingSale.productId = productId;
@@ -54,7 +54,7 @@ function addSale(event) {
     existingSale.date = saleDate;
     existingSale.createdAt = new Date(saleDate + 'T' + new Date().toTimeString().split(' ')[0]).toISOString();
 
-    window.utils.saveToStorage("sales", window.sales);
+    await window.dataManager.updateData("sales", saleId, existingSale);
     window.utils.showNotification("Sale updated successfully!");
   } else {
     // Adding a new sale
@@ -83,11 +83,11 @@ function addSale(event) {
     // Use window.sales consistently
     window.sales = window.sales || [];
     window.sales.push(sale);
-    window.utils.saveToStorage("sales", window.sales);
+    await window.dataManager.addData("sales", sale);
 
     // Update product stock
     product.stock -= quantity;
-    window.utils.saveToStorage("products", window.products);
+    await window.dataManager.updateData("products", product.id, product);
 
     // Add debt if payment method is debt
     if (paymentMethod === "debt") {
@@ -197,12 +197,12 @@ function deleteSale(saleId) {
     );
     if (product) {
       product.stock += sale.quantity;
-      window.utils.saveToStorage("products", window.products);
+      await window.dataManager.updateData("products", product.id, product);
     }
   }
 
   window.sales = sales.filter((s) => s.id !== saleId);
-  window.utils.saveToStorage("sales", window.sales);
+  await window.dataManager.deleteData("sales", saleId);
 
   loadSalesData();
   window.utils.showNotification("Sale deleted successfully!");
@@ -376,10 +376,10 @@ function editSaleDate(saleId) {
       linkedDebt.dueDate = new Date(Date.parse(newDate) + 7 * 24 * 60 * 60 * 1000)
         .toISOString()
         .split("T")[0];
-      window.utils.saveToStorage("debts", window.debts);
+      await window.dataManager.updateData("debts", linkedDebt.id, linkedDebt);
     }
     
-    window.utils.saveToStorage("sales", window.sales);
+    await window.dataManager.updateData("sales", saleId, sale);
     loadSalesData();
     window.utils.showNotification("Sale date updated successfully!");
     
