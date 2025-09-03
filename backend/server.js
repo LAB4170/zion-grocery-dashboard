@@ -16,9 +16,7 @@ const PORT = process.env.PORT || 5000;
 // Configure Socket.IO with CORS
 const io = socketIo(server, {
   cors: {
-    origin: process.env.NODE_ENV === 'production' 
-      ? [process.env.FRONTEND_URL || 'https://zion-grocery-dashboard.onrender.com'] 
-      : ['http://localhost:5000', 'http://127.0.0.1:5000', 'http://localhost:8080', 'http://127.0.0.1:8080'],
+    origin: process.env.FRONTEND_URL || 'https://zion-grocery-dashboard-1.onrender.com',
     methods: ["GET", "POST"],
     credentials: true
   },
@@ -55,9 +53,7 @@ app.use('/api/', limiter);
 
 // CORS configuration
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production' 
-    ? [process.env.FRONTEND_URL || 'https://your-netlify-app.netlify.app'] 
-    : ['http://localhost:5000', 'http://127.0.0.1:5000', 'http://localhost:8080', 'http://127.0.0.1:8080'],
+  origin: process.env.FRONTEND_URL || 'https://zion-grocery-dashboard-1.onrender.com',
   credentials: true
 }));
 
@@ -194,9 +190,9 @@ if (process.env.NODE_ENV !== 'test') {
   server.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Zion Grocery Dashboard running on port ${PORT}`);
     console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
-    console.log(`🏥 Health check: http://localhost:${PORT}/health`);
-    console.log(`🌐 Frontend: http://localhost:${PORT}`);
-    console.log(`📱 Login: http://localhost:${PORT}/login.html`);
+    console.log(`🏥 Health check: ${process.env.FRONTEND_URL}/health`);
+    console.log(`🌐 Frontend: ${process.env.FRONTEND_URL}`);
+    console.log(`📱 Login: ${process.env.FRONTEND_URL}/login.html`);
   });
 }
 

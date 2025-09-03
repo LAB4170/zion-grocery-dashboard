@@ -161,9 +161,9 @@ module.exports = {
     historyApiFallback: true,
     proxy: {
       '/api': {
-        target: 'http://localhost:5000',
+        target: 'https://zion-grocery-dashboard-1.onrender.com',
         changeOrigin: true,
-        secure: false
+        secure: true
       }
     }
   },

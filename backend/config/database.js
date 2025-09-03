@@ -15,18 +15,11 @@ const dbMonitoring = {
   }
 };
 
-// PostgreSQL configuration for Zion Grocery Management System
+// PostgreSQL configuration for Zion Grocery Management System - Render Cloud Only
 const config = {
   development: {
     client: "postgresql",
-    connection: process.env.DATABASE_URL || {
-      host: process.env.DB_HOST || "localhost",
-      port: parseInt(process.env.DB_PORT) || 5432,
-      database: process.env.DB_NAME || "zion_grocery_db",
-      user: process.env.DB_USER || "postgres",
-      password: process.env.DB_PASSWORD || "ZionGrocery2024!",
-      ssl: process.env.DB_SSL === "true" ? { rejectUnauthorized: false } : false,
-    },
+    connection: process.env.DATABASE_URL,
     pool: {
       min: 5,
       max: 50,
@@ -56,14 +49,7 @@ const config = {
 
   test: {
     client: "postgresql",
-    connection: process.env.DATABASE_URL || {
-      host: process.env.DB_HOST || "localhost",
-      port: parseInt(process.env.DB_PORT) || 5432,
-      database: process.env.DB_NAME_TEST || "zion_grocery_db_test",
-      user: process.env.DB_USER || "postgres",
-      password: process.env.DB_PASSWORD || "ZionGrocery2024!",
-      ssl: process.env.DB_SSL === "true" ? { rejectUnauthorized: false } : false,
-    },
+    connection: process.env.DATABASE_URL,
     pool: {
       min: 2,
       max: 10,

@@ -1,9 +1,7 @@
 // Configuration for Zion Grocery Dashboard
 window.CONFIG = {
-    // API Configuration - Auto-detect based on current host
-    API_BASE: window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-        ? 'http://localhost:5000/api'  // Local development
-        : `${window.location.protocol}//${window.location.host}/api`, // Production (same host)
+    // API Configuration - Production Render URL
+    API_BASE: 'https://zion-grocery-dashboard-1.onrender.com/api',
     
     // Database Configuration
     DATABASE_ONLY: true, // Force database-only mode
@@ -17,7 +15,7 @@ window.CONFIG = {
     VERSION: '1.0.0',
     
     // Debug Settings
-    DEBUG: window.location.hostname === 'localhost',
+    DEBUG: false,
     VERBOSE_LOGGING: true
 };
 
