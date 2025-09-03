@@ -86,16 +86,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 // Initialize pagination managers after partials are loaded
                 setTimeout(() => {
-                    if (typeof window.initializeProductsPagination === 'function') {
-                        window.initializeProductsPagination();
+                    console.log('Initializing pagination managers...');
+                    // Remove individual pagination initialization since it's now handled in navigation.js
+                    
+                    // Show dashboard by default
+                    if (typeof showSection === 'function') {
+                        showSection('dashboard');
                     }
-                    if (typeof window.initializeSalesPagination === 'function') {
-                        window.initializeSalesPagination();
-                    }
-                    if (typeof window.initializeDebtsPagination === 'function') {
-                        window.initializeDebtsPagination();
-                    }
-                }, 200);
+                }, 500); // Increased delay to ensure DOM is ready
             }, 100);
         }
     }

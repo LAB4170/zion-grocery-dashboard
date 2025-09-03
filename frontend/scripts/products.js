@@ -108,12 +108,7 @@ function addProduct(event) {
 }
 
 function loadProductsData(filteredProducts = null) {
-  // Initialize pagination if not already done
-  if (!productsPaginationManager && typeof window.createPaginationManager === 'function') {
-    initializeProductsPagination();
-  }
 
-  // Update pagination data
   if (productsPaginationManager) {
     productsPaginationManager.updateData(filteredProducts);
   } else {

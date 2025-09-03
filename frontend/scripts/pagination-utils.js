@@ -25,7 +25,9 @@ class PaginationManager {
 
   // Initialize pagination controls
   init() {
+    console.log(`Initializing pagination for ${this.dataKey} in container ${this.containerId}`);
     this.createPaginationControls();
+    this.loadPreferences();
     this.updateData();
   }
 

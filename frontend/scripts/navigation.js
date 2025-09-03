@@ -141,10 +141,18 @@ function loadSectionData(sectionId) {
       }
     },
     sales: () => {
+      // Initialize pagination first, then load data
+      if (typeof window.initializeSalesPagination === "function") {
+        window.initializeSalesPagination();
+      }
       if (typeof loadSalesData === "function") loadSalesData();
       if (typeof populateProductSelect === "function") populateProductSelect();
     },
     products: () => {
+      // Initialize pagination first, then load data
+      if (typeof window.initializeProductsPagination === "function") {
+        window.initializeProductsPagination();
+      }
       if (typeof loadProductsData === "function") loadProductsData();
     },
     "sales-settings": () => {
