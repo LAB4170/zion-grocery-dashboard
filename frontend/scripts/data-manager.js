@@ -178,16 +178,29 @@ class DataManager {
             data.createdAt = new Date().toISOString();
         }
         
+        // Add user_id for backend compatibility
+        if (!data.user_id) {
+            data.user_id = 'system'; // Default user for database operations
+        }
+        
         try {
+            console.log(`📤 Creating ${type} in PostgreSQL database:`, data);
+            
             const response = await window.apiClient.request(`/${type}`, {
                 method: 'POST',
                 body: JSON.stringify(data)
             });
             
-            console.log(`✅ Created ${type} in database:`, data.id);
+            console.log(`✅ Successfully created ${type} in database:`, response);
+            
+            // Broadcast change to other clients
+            if (window.socketIOSync) {
+                window.socketIOSync.broadcastDataChange(type, { action: 'create', data: response });
+            }
+            
             return response.data || response;
         } catch (error) {
-            console.error(`Failed to create ${type} in database:`, error);
+            console.error(`❌ Failed to create ${type} in database:`, error);
             throw new Error(`Database create operation failed: ${error.message}`);
         }
     }

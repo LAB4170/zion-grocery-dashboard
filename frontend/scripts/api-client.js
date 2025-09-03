@@ -37,56 +37,24 @@ class ApiClient {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
             
-            return await response.json();
+            const data = await response.json();
+            console.log(`✅ API Request successful: ${endpoint}`, data);
+            return data;
         } catch (error) {
-            console.error(`API Request failed: ${endpoint}`, error);
+            console.error(`❌ API Request failed: ${endpoint}`, error);
             
-            // Fallback to localStorage if backend is unavailable
-            if (!this.isOnline || error.message.includes('fetch')) {
-                return this.handleOfflineRequest(endpoint, options);
-            }
-            
-            throw error;
+            // For database-only mode, don't fallback to localStorage
+            // Instead, throw the error to be handled by the calling code
+            throw new Error(`Database connection required. Backend API unavailable: ${error.message}`);
         }
     }
 
     handleOfflineRequest(endpoint, options) {
-        const method = options.method || 'GET';
-        const storageKey = endpoint.split('/')[1] || 'data';
-        
-        switch (method) {
-            case 'GET':
-                return { data: window.utils.getFromStorage(storageKey, []) };
-            case 'POST':
-                const newData = JSON.parse(options.body);
-                const existing = window.utils.getFromStorage(storageKey, []);
-                existing.push({ ...newData, id: window.utils.generateId(), offline: true });
-                window.utils.saveToStorage(storageKey, existing);
-                return { data: newData };
-            default:
-                throw new Error('Offline operation not supported');
-        }
+        // Removed this method as it's no longer needed
     }
 
     async syncOfflineData() {
-        const offlineKeys = ['products', 'sales', 'expenses', 'debts'];
-        
-        for (const key of offlineKeys) {
-            const data = window.utils.getFromStorage(key, []);
-            const offlineItems = data.filter(item => item.offline);
-            
-            for (const item of offlineItems) {
-                try {
-                    delete item.offline;
-                    await this.request(`/${key}`, {
-                        method: 'POST',
-                        body: JSON.stringify(item)
-                    });
-                } catch (error) {
-                    console.error(`Failed to sync ${key}:`, error);
-                }
-            }
-        }
+        // Removed this method as it's no longer needed
     }
 
     // Products API
