@@ -27,20 +27,24 @@ class SocketIOSyncManager {
 
             const serverUrl = window.CONFIG?.API_BASE?.replace('/api', '') || 'http://localhost:5000';
             
+            // Mobile-optimized Socket.IO configuration
             this.socket = io(serverUrl, {
-                transports: ['websocket', 'polling'],
+                transports: ['polling', 'websocket'], // Try polling first on mobile
                 upgrade: true,
-                rememberUpgrade: true,
-                timeout: 20000,
-                forceNew: false,
+                rememberUpgrade: false, // Don't remember upgrade on mobile
+                timeout: 10000, // Reduced timeout for mobile
+                forceNew: true, // Force new connection for better mobile reliability
                 reconnection: true,
-                reconnectionDelay: 1000,
-                reconnectionDelayMax: 5000,
-                maxReconnectionAttempts: this.maxReconnectAttempts
+                reconnectionDelay: 2000, // Increased delay for mobile networks
+                reconnectionDelayMax: 10000, // Increased max delay
+                maxReconnectionAttempts: this.maxReconnectAttempts,
+                // Mobile-specific options
+                pingTimeout: 60000,
+                pingInterval: 25000
             });
 
             this.setupSocketEventHandlers();
-            console.log('🔌 Socket.IO client initialized');
+            console.log('🔌 Socket.IO client initialized with mobile optimization');
             
         } catch (error) {
             console.error('Socket.IO initialization failed:', error);

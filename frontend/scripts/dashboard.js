@@ -11,29 +11,48 @@ function formatCurrency(amount) {
 
 async function fetchDashboardData() {
   try {
-    // Try API first, fallback to localStorage
-    const responses = await Promise.all([
-      fetch("/api/sales"),
-      fetch("/api/debts"),
-      fetch("/api/expenses"),
-      fetch("/api/products"),
-    ]);
-
-    window.sales = await responses[0].json();
-    window.debts = await responses[1].json();
-    window.expenses = await responses[2].json();
-    window.products = await responses[3].json();
+    // Show loading indicator while fetching data
+    if (window.socketIOSync) {
+      window.socketIOSync.showLoadingIndicator(true);
+    }
+    
+    // Use data manager for database-only operations
+    if (window.dataManager && window.dataManager.isBackendAvailable) {
+      console.log('📊 Loading dashboard data from database...');
+      
+      // Load all data from database
+      window.sales = await window.dataManager.getSales();
+      window.debts = await window.dataManager.getDebts();
+      window.expenses = await window.dataManager.getExpenses();
+      window.products = await window.dataManager.getProducts();
+      
+      console.log('✅ Dashboard data loaded from database');
+    } else {
+      console.warn('⚠️ Database not available, dashboard may show empty data');
+      // Initialize empty arrays if database not available
+      window.sales = [];
+      window.debts = [];
+      window.expenses = [];
+      window.products = [];
+    }
 
     loadDashboardData();
+    
   } catch (error) {
-    console.warn("API not available, using localStorage:", error);
-    // Fallback to localStorage - FIX: Use consistent access
-    window.sales = window.utils.getFromStorage("sales", []);
-    window.debts = window.utils.getFromStorage("debts", []);
-    window.expenses = window.utils.getFromStorage("expenses", []);
-    window.products = window.utils.getFromStorage("products", []);
-
+    console.error('❌ Dashboard data fetch failed:', error);
+    
+    // Initialize empty arrays on error
+    window.sales = [];
+    window.debts = [];
+    window.expenses = [];
+    window.products = [];
+    
     loadDashboardData();
+  } finally {
+    // Hide loading indicator
+    if (window.socketIOSync) {
+      window.socketIOSync.showLoadingIndicator(false);
+    }
   }
 }
 
@@ -44,10 +63,10 @@ function loadDashboardData() {
   }
 
   // Ensure all global variables are synchronized
-  window.sales = window.utils.getFromStorage("sales", []);
-  window.debts = window.utils.getFromStorage("debts", []);
-  window.expenses = window.utils.getFromStorage("expenses", []);
-  window.products = window.utils.getFromStorage("products", []);
+  window.sales = window.sales || [];
+  window.debts = window.debts || [];
+  window.expenses = window.expenses || [];
+  window.products = window.products || [];
 
   updateDashboardStats();
   updateInventoryOverview();
