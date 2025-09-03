@@ -28,15 +28,21 @@ async function addExpense(event) {
     date: new Date().toISOString().split("T")[0],
   };
 
-  // FIX: Use consistent global variable access
-  window.expenses = window.expenses || [];
-  window.expenses.push(expense);
-  await window.dataManager.addData("expenses", expense);
+  // DATABASE-FIRST OPERATION: Send to database first, then update cache
+  try {
+    const savedExpense = await window.dataManager.createData("expenses", expense);
+    
+    // Update global variable only after successful database save
+    window.expenses = window.expenses || [];
+    window.expenses.push(savedExpense);
 
-  loadExpensesData();
-  document.getElementById("expenseForm").reset();
-  window.utils.closeModal("expenseModal");
-  window.utils.showNotification("Expense added successfully!");
+    loadExpensesData();
+    document.getElementById("expenseForm").reset();
+    window.utils.showNotification("Expense added successfully!");
+  } catch (error) {
+    console.error("Failed to save expense to database:", error);
+    window.utils.showNotification("Failed to save expense. Please try again.", "error");
+  }
 
   if (window.currentSection === "expenses") {
     loadExpensesData();

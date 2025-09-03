@@ -95,20 +95,26 @@ async function addProduct(event) {
       id: window.utils.generateId(),
       name,
       category,
-      price,
-      stock,
+      price: parseFloat(price),
+      stock: parseInt(stock),
       createdAt: new Date().toISOString(),
     };
 
-    // Update global products array
-    window.products = window.products || [];
-    window.products.push(product);
-    await window.dataManager.addData("products", product);
+    // DATABASE-FIRST OPERATION: Send to database first, then update cache
+    try {
+      const savedProduct = await window.dataManager.createData("products", product);
+      
+      // Update global variable only after successful database save
+      window.products = window.products || [];
+      window.products.push(savedProduct);
 
-    loadProductsData();
-    document.getElementById("productForm").reset();
-    window.utils.closeModal("productModal");
-    window.utils.showNotification("Product added successfully!");
+      loadProductsData();
+      document.getElementById("productForm").reset();
+      window.utils.showNotification("Product added successfully!");
+    } catch (error) {
+      console.error("Failed to save product to database:", error);
+      window.utils.showNotification("Failed to save product. Please try again.", "error");
+    }
   }
 
   if (window.currentSection === "sales-settings") {

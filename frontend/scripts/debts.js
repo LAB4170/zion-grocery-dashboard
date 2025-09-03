@@ -38,15 +38,21 @@ async function addDebt(event) {
     date: new Date().toISOString().split("T")[0],
   };
 
-  // FIX: Use consistent global variable access
-  window.debts = window.debts || [];
-  window.debts.push(debt);
-  await window.dataManager.addData("debts", debt);
+  // DATABASE-FIRST OPERATION: Send to database first, then update cache
+  try {
+    const savedDebt = await window.dataManager.createData("debts", debt);
+    
+    // Update global variable only after successful database save
+    window.debts = window.debts || [];
+    window.debts.push(savedDebt);
 
-  loadDebtsData();
-  document.getElementById("debtForm").reset();
-  window.utils.closeModal("debtModal");
-  window.utils.showNotification("Debt added successfully!");
+    loadDebtsData();
+    document.getElementById("debtForm").reset();
+    window.utils.showNotification("Debt added successfully!");
+  } catch (error) {
+    console.error("Failed to save debt to database:", error);
+    window.utils.showNotification("Failed to save debt. Please try again.", "error");
+  }
 
   if (window.currentSection === "individual-debts") {
     loadDebtsData();
@@ -73,10 +79,17 @@ async function addDebtFromSale(sale) {
     saleId: sale.id,
   };
 
-  // FIX: Use consistent global variable access
-  window.debts = window.debts || [];
-  window.debts.push(debt);
-  await window.dataManager.addData("debts", debt);
+  // DATABASE-FIRST OPERATION: Send to database first, then update cache
+  try {
+    const savedDebt = await window.dataManager.createData("debts", debt);
+    
+    // Update global variable only after successful database save
+    window.debts = window.debts || [];
+    window.debts.push(savedDebt);
+  } catch (error) {
+    console.error("Failed to save debt to database:", error);
+    window.utils.showNotification("Failed to save debt. Please try again.", "error");
+  }
 }
 
 function loadDebtsData(filteredDebts = null) {

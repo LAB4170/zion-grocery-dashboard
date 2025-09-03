@@ -88,23 +88,35 @@ async function addSale(event) {
       date: saleDate,
     };
 
-    // Use window.sales consistently
-    window.sales = window.sales || [];
-    window.sales.push(sale);
-    await window.dataManager.addData("sales", sale);
+    // DATABASE-FIRST OPERATION: Send to database first, then update cache
+    try {
+      const savedSale = await window.dataManager.createData("sales", sale);
+      
+      // Update global variable only after successful database save
+      window.sales = window.sales || [];
+      window.sales.push(savedSale);
+      
+      // Update product stock in database
+      product.stock -= quantity;
+      const updatedProduct = await window.dataManager.updateData("products", product.id, product);
+      
+      // Update global products array
+      const productIndex = window.products.findIndex(p => p.id === product.id);
+      if (productIndex !== -1) {
+        window.products[productIndex] = updatedProduct;
+      }
 
-    // Update product stock
-    product.stock -= quantity;
-    await window.dataManager.updateData("products", product.id, product);
+      // Add debt if payment method is debt
+      if (paymentMethod === "debt") {
+        addDebtFromSale(savedSale);
+      }
 
-    // Add debt if payment method is debt
-    if (paymentMethod === "debt") {
-      addDebtFromSale(sale);
+      window.utils.showNotification("Sale recorded successfully!");
+    } catch (error) {
+      console.error("Failed to save sale to database:", error);
+      window.utils.showNotification("Failed to save sale. Please try again.", "error");
+      return; // Don't proceed if database save failed
     }
-
-    // M-Pesa transactions are handled as regular sales
-
-    window.utils.showNotification("Sale recorded successfully!");
   }
 
   window.utils.closeModal("salesModal");
