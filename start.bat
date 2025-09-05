@@ -1,10 +1,13 @@
 @echo off
 echo ========================================
-echo Zion Grocery Dashboard - Startup
+echo Zion Grocery Dashboard - Integrated Server
 echo ========================================
 echo.
 
 cd /d "%~dp0"
+
+REM Set environment to development for local
+set NODE_ENV=development
 
 REM Check and start PostgreSQL service
 echo [1/4] Starting PostgreSQL service...
@@ -55,20 +58,22 @@ npm run migrate --silent >nul 2>&1
 echo Database ready
 
 REM Start integrated server
-echo [4/4] Starting server...
+echo [4/4] Starting integrated server...
 echo.
 echo ========================================
-echo Zion Grocery Dashboard Starting...
+echo Zion Grocery Dashboard - Integrated Server
 echo ========================================
-echo Frontend: http://localhost:5000
-echo Login: http://localhost:5000/login.html
+echo Environment: Local Development
+echo Database: Local PostgreSQL
+echo Frontend + Backend: http://localhost:5000
+echo Login: http://localhost:5000/login
 echo API: http://localhost:5000/api
 echo Health: http://localhost:5000/health
 echo ========================================
 echo.
 
 REM Open browser after 3 seconds
-start "" cmd /c "timeout /t 3 /nobreak >nul && start http://localhost:5000/login.html"
+start "" cmd /c "timeout /t 3 /nobreak >nul && start http://localhost:5000/login"
 
-REM Start the server
+REM Start the integrated server
 node server.js

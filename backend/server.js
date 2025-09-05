@@ -53,7 +53,21 @@ app.use('/api/', limiter);
 
 // CORS configuration
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'https://zion-grocery-dashboard-1.onrender.com',
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    const isDevelopment = process.env.NODE_ENV === 'development';
+    const allowedOrigins = isDevelopment ? 
+      ['http://localhost:5000', 'http://127.0.0.1:5000', 'http://localhost:8080'] :
+      ['https://zion-grocery-dashboard-1.onrender.com'];
+    
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true
 }));
 
@@ -203,16 +217,21 @@ process.on('SIGINT', () => {
 // Start server
 if (process.env.NODE_ENV !== 'test') {
   const isDevelopment = process.env.NODE_ENV === 'development';
+  const environment = process.env.NODE_ENV || 'development';
   const frontendUrl = isDevelopment ? 
-    (process.env.FRONTEND_URL_LOCAL || 'http://localhost:5000') : 
-    (process.env.FRONTEND_URL_RENDER || process.env.FRONTEND_URL);
+    'http://localhost:5000' : 
+    'https://zion-grocery-dashboard-1.onrender.com';
     
   server.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 Zion Grocery Dashboard running on port ${PORT}`);
-    console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`🚀 Zion Grocery Dashboard (Integrated Server) running on port ${PORT}`);
+    console.log(`📊 Environment: ${environment}`);
+    console.log(`🗄️  Database: ${isDevelopment ? 'Local PostgreSQL' : 'Render PostgreSQL'}`);
     console.log(`🏥 Health check: ${frontendUrl}/health`);
     console.log(`🌐 Frontend: ${frontendUrl}`);
-    console.log(`📱 Login: ${frontendUrl}/login.html`);
+    console.log(`📱 Login: ${frontendUrl}/login`);
+    console.log(`🔧 API Base: ${frontendUrl}/api`);
+    console.log(`📡 Socket.IO: ${isDevelopment ? 'Development Mode' : 'Production Mode'}`);
+    console.log(`========================================`);
   });
 }
 
