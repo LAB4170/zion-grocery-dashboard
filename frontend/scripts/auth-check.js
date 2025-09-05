@@ -14,7 +14,8 @@ class AuthManager {
 
     isLoginPage() {
         return window.location.pathname.includes('login.html') || 
-               window.location.pathname.endsWith('/login');
+               window.location.pathname.endsWith('/login') ||
+               window.location.pathname === '/login.html';
     }
 
     isAuthenticated() {
@@ -64,11 +65,19 @@ class AuthManager {
     }
 
     redirectToLogin() {
-        window.location.href = '/login';
+        // Prevent redirect loops - only redirect if not already on login page
+        if (!this.isLoginPage()) {
+            console.log('🔄 Redirecting to login page');
+            window.location.href = 'login.html';
+        }
     }
 
     redirectToDashboard() {
-        window.location.href = '/dashboard';
+        // Prevent redirect loops - only redirect if not already on dashboard
+        if (this.isLoginPage()) {
+            console.log('🔄 Redirecting to dashboard');
+            window.location.href = 'index.html';
+        }
     }
 
     // Add logout functionality to the dashboard

@@ -305,7 +305,10 @@
                     
                     // Redirect to dashboard after successful login
                     setTimeout(() => {
-                        window.location.href = '/dashboard';
+                        // Only redirect if we're still on login page
+                        if (window.location.pathname.includes('login.html')) {
+                            window.location.href = 'index.html';
+                        }
                     }, 1500);
                 }
             } catch (error) {

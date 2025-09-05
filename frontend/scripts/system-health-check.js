@@ -20,11 +20,11 @@ class SystemHealthChecker {
         console.log('🏥 Starting Comprehensive System Health Check...');
         
         this.checkCoreUtilities();
-        this.checkDataConsistency();
+        await this.checkDataConsistency();
         this.checkButtonFunctionality();
         this.checkModalSystem();
         this.checkNavigationSystem();
-        this.checkStorageSystem();
+        await this.checkDatabaseSystem();
         this.checkIDGeneration();
         this.checkErrorHandling();
         this.checkResponsiveDesign();
@@ -38,11 +38,11 @@ class SystemHealthChecker {
         try {
             const requiredFunctions = [
                 'formatCurrency', 'formatDate', 'generateId', 'showNotification',
-                'saveToStorage', 'getFromStorage', 'openModal', 'closeModal', 'searchTable'
+                'openModal', 'closeModal', 'searchTable'
             ];
             
             const missingFunctions = requiredFunctions.filter(fn => 
-                typeof window.utils[fn] !== 'function'
+                typeof window.utils?.[fn] !== 'function'
             );
             
             if (missingFunctions.length === 0) {
@@ -55,8 +55,8 @@ class SystemHealthChecker {
         }
     }
 
-    // Test 2: Data Consistency
-    checkDataConsistency() {
+    // Test 2: Data Consistency (Updated for Database-Only Architecture)
+    async checkDataConsistency() {
         try {
             // Check if all global variables are properly initialized
             const dataArrays = ['products', 'sales', 'expenses', 'debts'];
@@ -83,19 +83,25 @@ class SystemHealthChecker {
                     if (ids.length !== uniqueIds.length) {
                         consistencyIssues.push(`Duplicate IDs found in ${arrayName}`);
                     }
-                    
-                    const storageData = window.utils.getFromStorage(arrayName, []);
-                    
-                    if (JSON.stringify(windowData) !== JSON.stringify(storageData)) {
-                        consistencyIssues.push(`${arrayName} data mismatch between memory and storage`);
-                    }
                 } catch (error) {
                     consistencyIssues.push(`Error checking ${arrayName}: ${error.message}`);
                 }
             });
+
+            // Test database connection if dataManager is available
+            if (window.dataManager && typeof window.dataManager.testConnection === 'function') {
+                try {
+                    const connectionTest = await window.dataManager.testConnection();
+                    if (!connectionTest) {
+                        consistencyIssues.push('Database connection test failed');
+                    }
+                } catch (error) {
+                    consistencyIssues.push(`Database connection error: ${error.message}`);
+                }
+            }
             
             if (consistencyIssues.length === 0) {
-                this.logPass('Data consistency verified');
+                this.logPass('Data consistency verified (database-only mode)');
             } else {
                 this.results.dataConsistency = false;
                 consistencyIssues.forEach(issue => this.logFail(issue));
@@ -189,30 +195,40 @@ class SystemHealthChecker {
         }
     }
 
-    // Test 6: Storage System
-    checkStorageSystem() {
+    // Test 6: Database System (Replaced Storage System)
+    async checkDatabaseSystem() {
         try {
-            const testData = { id: 'test-' + Date.now(), value: 'test' };
-            
-            // Test save
-            const saveResult = window.utils.saveToStorage('healthCheck', testData);
-            if (!saveResult) {
-                this.logFail('Storage save failed');
+            if (!window.dataManager) {
+                this.logFail('Data manager not available');
                 return;
             }
-            
-            // Test retrieve
-            const retrievedData = window.utils.getFromStorage('healthCheck');
-            if (JSON.stringify(retrievedData) !== JSON.stringify(testData)) {
-                this.logFail('Storage retrieve failed - data mismatch');
-                return;
+
+            // Test database connectivity
+            if (typeof window.dataManager.testConnection === 'function') {
+                const connectionResult = await window.dataManager.testConnection();
+                if (connectionResult) {
+                    this.logPass('Database connection functional');
+                } else {
+                    this.logFail('Database connection failed');
+                }
+            } else {
+                this.logWarn('Database connection test not available');
             }
-            
-            // Cleanup
-            localStorage.removeItem('healthCheck');
-            this.logPass('Storage system functional');
+
+            // Test API client if available
+            if (window.apiClient && typeof window.apiClient.get === 'function') {
+                try {
+                    // Test a simple API call
+                    await window.apiClient.get('/health');
+                    this.logPass('API client functional');
+                } catch (error) {
+                    this.logFail(`API client error: ${error.message}`);
+                }
+            } else {
+                this.logWarn('API client not available for testing');
+            }
         } catch (error) {
-            this.logFail(`Storage system check failed: ${error.message}`);
+            this.logFail(`Database system check failed: ${error.message}`);
         }
     }
 
@@ -338,11 +354,13 @@ class SystemHealthChecker {
 // Initialize and export
 const systemHealthChecker = new SystemHealthChecker();
 
-// Auto-run comprehensive health check
+// Auto-run comprehensive health check (DISABLED to prevent reload issues)
 document.addEventListener('DOMContentLoaded', function() {
-    setTimeout(() => {
-        systemHealthChecker.runCompleteHealthCheck();
-    }, 3000); // Wait for all systems to initialize
+    // TEMPORARILY DISABLED - Auto health check was contributing to frequent requests
+    // setTimeout(() => {
+    //     systemHealthChecker.runCompleteHealthCheck();
+    // }, 3000);
+    console.log('🏥 System health checker loaded - auto-run disabled to prevent frequent requests');
 });
 
 // Export for manual testing

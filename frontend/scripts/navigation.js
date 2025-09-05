@@ -4,7 +4,7 @@ let currentSection = null;
 // Wait for partials to load before initializing
 function initializeNavigation() {
   // Get all available sections
-  const sections = document.querySelectorAll(".section");
+  const sections = document.querySelectorAll(".content-section");
 
   if (sections.length === 0) {
     console.warn("No sections found in DOM - retrying in 500ms");
@@ -50,40 +50,35 @@ function showSection(sectionId, isInitialLoad = false) {
           if (typeof window.initializeProductsPagination === "function") {
             window.initializeProductsPagination();
           }
-          // Wait for pagination to initialize before loading data
-          setTimeout(() => {
-            if (typeof loadProductsData === "function") {
-              loadProductsData();
-            }
-          }, 200);
+          if (typeof loadProductsData === "function") {
+            loadProductsData();
+          }
           break;
         case "sales":
           if (typeof window.initializeSalesPagination === "function") {
             window.initializeSalesPagination();
           }
-          setTimeout(() => {
-            if (typeof loadSalesData === "function") {
-              loadSalesData();
-            }
-          }, 200);
+          if (typeof loadSalesData === "function") {
+            loadSalesData();
+          }
           break;
         case "individual-debts":
           if (typeof window.initializeDebtsPagination === "function") {
             window.initializeDebtsPagination();
           }
-          setTimeout(() => {
-            if (typeof loadDebtsData === "function") {
-              loadDebtsData();
-            }
-          }, 200);
+          if (typeof loadDebtsData === "function") {
+            loadDebtsData();
+          }
           break;
         case "dashboard":
           if (typeof updateDashboardStats === "function") {
             updateDashboardStats();
           }
           break;
+        default:
+          console.log(`No pagination setup for section: ${sectionId}`);
       }
-    }, 200);
+    }, 100);
   } else {
     console.warn(`Section with ID '${sectionId}' not found in DOM`);
 
@@ -163,11 +158,9 @@ function loadSectionData(sectionId) {
       }
       
       // Load data after a short delay to ensure pagination is ready
-      setTimeout(() => {
-        if (typeof loadProductsData === "function") {
-          loadProductsData();
-        }
-      }, 200);
+      if (typeof loadProductsData === "function") {
+        loadProductsData();
+      }
     },
     "sales-settings": () => {
       if (typeof loadProductsData === "function") loadProductsData();
