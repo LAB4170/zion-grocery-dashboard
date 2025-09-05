@@ -125,12 +125,13 @@ function loadSectionData(sectionId) {
   // Validate sectionId
   if (!sectionId) return;
 
-  // FIX: Only sync global variables once, not every time
+  // FIX: Use database-only architecture - no localStorage dependencies
   if (!window.dataInitialized) {
-    window.products = window.utils.getFromStorage("products", []);
-    window.sales = window.utils.getFromStorage("sales", []);
-    window.expenses = window.utils.getFromStorage("expenses", []);
-    window.debts = window.utils.getFromStorage("debts", []);
+    // Initialize empty arrays - data will be loaded from database by individual sections
+    window.products = [];
+    window.sales = [];
+    window.expenses = [];
+    window.debts = [];
     window.dataInitialized = true;
   }
 
@@ -218,14 +219,15 @@ function switchToSection(sectionId) {
   }
 }
 
-// FIX: Force data refresh function for critical operations
+// FIX: Database-only data refresh function (no localStorage)
 function forceDataRefresh() {
-  window.products = window.utils.getFromStorage("products", []);
-  window.sales = window.utils.getFromStorage("sales", []);
-  window.expenses = window.utils.getFromStorage("expenses", []);
-  window.debts = window.utils.getFromStorage("debts", []);
+  // Reset data arrays - let individual sections load from database
+  window.products = [];
+  window.sales = [];
+  window.expenses = [];
+  window.debts = [];
 
-  // Reload current section
+  // Reload current section data from database
   if (currentSection) {
     loadSectionData(currentSection);
   }

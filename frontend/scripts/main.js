@@ -6,12 +6,11 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function initializeApp() {
-    // Load ONLY from storage (default to empty arrays)
-    window.products = window.utils.getFromStorage('products', []);
-    window.sales = window.utils.getFromStorage('sales', []);
-    window.expenses = window.utils.getFromStorage('expenses', []);
-    window.debts = window.utils.getFromStorage('debts', []);
-
+    // Initialize empty arrays - data will be loaded from database by individual sections
+    window.products = [];
+    window.sales = [];
+    window.expenses = [];
+    window.debts = [];
 
     // Assign to local variables for backward compatibility
     products = window.products;
@@ -19,15 +18,10 @@ function initializeApp() {
     expenses = window.expenses;
     debts = window.debts;
 
-
     // Navigation.js will handle section initialization after partials load
     // showSection('dashboard'); // Removed - causes timing conflict
 
-    // Optional: Log warnings if critical data is missing (no preloading)
-    if (products.length === 0) {
-        console.warn('Product list is empty. Add products to begin.');
-    }
-    console.log('App initialized with user data only.');
+    console.log('App initialized with database-only architecture - no localStorage dependencies');
 }
 
 // Function to search through tables - aligned with HTML calls

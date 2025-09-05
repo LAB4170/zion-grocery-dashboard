@@ -238,11 +238,13 @@ class DataIntegrityValidator {
 // Initialize validator
 const dataIntegrityValidator = new DataIntegrityValidator();
 
-// Auto-run validation
+// Auto-run validation (DISABLED to prevent reload issues)
 document.addEventListener('DOMContentLoaded', function() {
-    setTimeout(() => {
-        dataIntegrityValidator.validateAndFix();
-    }, 1000);
+    // TEMPORARILY DISABLED - Auto validation was contributing to frequent requests and localStorage errors
+    // setTimeout(() => {
+    //     dataIntegrityValidator.validateAndFix();
+    // }, 1000);
+    console.log('🔍 Data integrity validator loaded - auto-run disabled to prevent frequent requests');
 });
 
 // Export for manual use

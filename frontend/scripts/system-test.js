@@ -165,10 +165,11 @@ function runSystemTest() {
     return testResults;
 }
 
-// Auto-run test when DOM is ready
+// Auto-run test when DOM is ready (DISABLED to prevent reload issues)
 document.addEventListener('DOMContentLoaded', function() {
-    // Wait a bit for all scripts to load
-    setTimeout(runSystemTest, 2000);
+    // TEMPORARILY DISABLED - Auto system test was contributing to frequent requests and localStorage errors
+    // setTimeout(runSystemTest, 2000);
+    console.log('🧪 System test loaded - auto-run disabled to prevent frequent requests');
 });
 
 // Export for manual testing
