@@ -15,14 +15,28 @@ const dbMonitoring = {
   }
 };
 
-// PostgreSQL configuration for Zion Grocery Management System - Render Cloud Only
+// Environment detection
+const environment = process.env.NODE_ENV || "development";
+const isDevelopment = environment === 'development';
+const isProduction = environment === 'production';
+
+// Database URL selection based on environment
+const getDatabaseUrl = () => {
+  if (isDevelopment) {
+    return process.env.LOCAL_DATABASE_URL || 'postgresql://postgres:ZionGrocery2024!@localhost:5432/zion_grocery_db';
+  } else {
+    return process.env.DATABASE_URL;
+  }
+};
+
+// PostgreSQL configuration for Zion Grocery Management System - Dual Environment
 const config = {
   development: {
     client: "postgresql",
-    connection: process.env.DATABASE_URL,
+    connection: getDatabaseUrl(),
     pool: {
-      min: 5,
-      max: 50,
+      min: 2,
+      max: 10,
       acquireTimeoutMillis: parseInt(process.env.DB_CONNECTION_TIMEOUT) || 60000,
       createTimeoutMillis: 30000,
       destroyTimeoutMillis: 5000,
@@ -49,10 +63,10 @@ const config = {
 
   test: {
     client: "postgresql",
-    connection: process.env.DATABASE_URL,
+    connection: getDatabaseUrl(),
     pool: {
-      min: 2,
-      max: 10,
+      min: 1,
+      max: 5,
     },
     migrations: {
       tableName: "knex_migrations",
@@ -94,9 +108,7 @@ const config = {
   },
 };
 
-const environment = process.env.NODE_ENV || "development";
-
-// PostgreSQL-only configuration - prioritize DATABASE_URL for production
+// Create database instance with environment-specific configuration
 const db = knex(config[environment]);
 
 // Add performance monitoring to database queries
@@ -138,7 +150,9 @@ if (dbMonitoring.enabled) {
 const connectionStatus = {
   connected: false,
   error: null,
-  lastChecked: null
+  lastChecked: null,
+  environment: environment,
+  databaseUrl: isDevelopment ? 'Local PostgreSQL' : 'Render PostgreSQL'
 };
 
 async function testConnection() {
@@ -150,7 +164,7 @@ async function testConnection() {
     
     console.log(`✅ PostgreSQL connected successfully (${environment})`);
     console.log(`📊 Server: ${process.env.SERVER_NAME || 'Zion Grocery Server'}`);
-    console.log(`🗄️  Database: ${process.env.DB_NAME || 'zion_grocery_db'}`);
+    console.log(`🗄️  Database: ${isDevelopment ? 'Local PostgreSQL' : 'Render PostgreSQL'}`);
     console.log(`🔍 Monitoring: ${dbMonitoring.enabled ? 'Enabled' : 'Disabled'}`);
     return true;
   } catch (err) {
@@ -159,14 +173,27 @@ async function testConnection() {
     connectionStatus.lastChecked = new Date();
     
     console.error(`❌ PostgreSQL connection failed (${environment}):`, err.message);
-    console.error("Please ensure PostgreSQL is running and configured correctly");
+    
+    if (isDevelopment) {
+      console.error("💡 Local development tips:");
+      console.error("   1. Ensure PostgreSQL is installed and running");
+      console.error("   2. Create database: createdb zion_grocery_db");
+      console.error("   3. Check credentials in .env file");
+      console.error("   4. Run: npm run migrate to setup tables");
+    } else {
+      console.error("💡 Production tips:");
+      console.error("   1. Check Render database status");
+      console.error("   2. Verify DATABASE_URL environment variable");
+      console.error("   3. Ensure SSL connection is properly configured");
+    }
     
     // Don't exit in production, allow graceful degradation
     if (environment === 'production') {
       console.warn("⚠️  Continuing with limited functionality...");
       return false;
     } else {
-      process.exit(1);
+      console.warn("⚠️  Local development requires database connection");
+      return false;
     }
   }
 }
