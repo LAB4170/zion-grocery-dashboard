@@ -2,6 +2,26 @@
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
+// Environment detection
+const environment = process.env.NODE_ENV || 'development';
+const isDevelopment = environment === 'development';
+
+// Database URL selection based on environment
+const getDatabaseUrl = () => {
+  if (isDevelopment) {
+    return process.env.LOCAL_DATABASE_URL || {
+      host: 'localhost',
+      port: 5432,
+      database: 'zion_grocery_db',
+      user: 'postgres',
+      password: 'ZionGrocery2024!',
+      ssl: false
+    };
+  } else {
+    return process.env.DATABASE_URL;
+  }
+};
+
 /**
  * @type { Object.<string, import("knex").Knex.Config> }
  */
@@ -9,14 +29,7 @@ module.exports = {
 
   development: {
     client: 'postgresql',
-    connection: process.env.DATABASE_URL || {
-      host: process.env.DB_HOST || 'localhost',
-      port: process.env.DB_PORT || 5432,
-      database: process.env.DB_NAME || 'zion_grocery_db',
-      user: process.env.DB_USER || 'postgres',
-      password: process.env.DB_PASSWORD || 'ZionGrocery2024!',
-      ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false
-    },
+    connection: getDatabaseUrl(),
     pool: {
       min: 2,
       max: 10
@@ -33,11 +46,11 @@ module.exports = {
   test: {
     client: 'postgresql',
     connection: {
-      host: process.env.DB_HOST || 'localhost',
-      port: process.env.DB_PORT || 5432,
-      database: process.env.DB_TEST_NAME || 'zion_grocery_test',
-      user: process.env.DB_USER || 'postgres',
-      password: process.env.DB_PASSWORD || 'password'
+      host: 'localhost',
+      port: 5432,
+      database: 'zion_grocery_test',
+      user: 'postgres',
+      password: 'ZionGrocery2024!'
     },
     pool: {
       min: 1,
@@ -56,8 +69,8 @@ module.exports = {
     client: 'postgresql',
     connection: process.env.DATABASE_URL,
     pool: {
-      min: 2,
-      max: 20
+      min: 10,
+      max: 100
     },
     migrations: {
       directory: './migrations',
