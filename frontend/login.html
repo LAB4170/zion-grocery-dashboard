@@ -274,7 +274,7 @@
                 loginTime: new Date().toISOString(),
                 isAuthenticated: true
             };
-            localStorage.setItem('userSession', JSON.stringify(sessionData));
+            sessionStorage.setItem('userSession', JSON.stringify(sessionData));
         }
 
         // Handle form submission
@@ -305,7 +305,7 @@
                     
                     // Redirect to dashboard after successful login
                     setTimeout(() => {
-                        window.location.href = 'index.html';
+                        window.location.href = '/dashboard';
                     }, 1500);
                 }
             } catch (error) {
@@ -327,18 +327,18 @@
 
         // Check if user is already logged in
         window.addEventListener('load', function() {
-            const session = localStorage.getItem('userSession');
+            const session = sessionStorage.getItem('userSession');
             if (session) {
                 try {
                     const userData = JSON.parse(session);
                     if (userData.isAuthenticated) {
                         // User is already logged in, redirect to dashboard
-                        window.location.href = 'index.html';
+                        window.location.href = '/dashboard';
                         return;
                     }
                 } catch (error) {
                     // Invalid session data, clear it
-                    localStorage.removeItem('userSession');
+                    sessionStorage.removeItem('userSession');
                 }
             }
 

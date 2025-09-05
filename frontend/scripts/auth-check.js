@@ -64,11 +64,11 @@ class AuthManager {
     }
 
     redirectToLogin() {
-        window.location.href = 'login.html';
+        window.location.href = '/login';
     }
 
     redirectToDashboard() {
-        window.location.href = 'index.html';
+        window.location.href = '/dashboard';
     }
 
     // Add logout functionality to the dashboard

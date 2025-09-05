@@ -156,7 +156,22 @@ app.use('/api/expenses', expenseRoutes);
 app.use('/api/debts', debtRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 
-// Handle frontend routing - serve index.html for non-API routes
+// Handle frontend routing - serve login.html by default, index.html for authenticated routes
+app.get('/', (req, res) => {
+  // Serve login.html for root path by default
+  res.sendFile(path.join(__dirname, '../frontend/login.html'));
+});
+
+app.get('/dashboard', (req, res) => {
+  // Serve dashboard for /dashboard route
+  res.sendFile(path.join(__dirname, '../frontend/index.html'));
+});
+
+app.get('/login', (req, res) => {
+  // Serve login page for /login route
+  res.sendFile(path.join(__dirname, '../frontend/login.html'));
+});
+
 app.get('*', (req, res) => {
   // Don't serve index.html for API routes
   if (req.path.startsWith('/api/')) {
@@ -167,8 +182,8 @@ app.get('*', (req, res) => {
     });
   }
   
-  // Serve index.html for all other routes (SPA routing)
-  res.sendFile(path.join(__dirname, '../frontend/index.html'));
+  // For all other routes, serve login.html to avoid authentication conflicts
+  res.sendFile(path.join(__dirname, '../frontend/login.html'));
 });
 
 // Global error handler
