@@ -202,12 +202,17 @@ process.on('SIGINT', () => {
 
 // Start server
 if (process.env.NODE_ENV !== 'test') {
+  const isDevelopment = process.env.NODE_ENV === 'development';
+  const frontendUrl = isDevelopment ? 
+    (process.env.FRONTEND_URL_LOCAL || 'http://localhost:5000') : 
+    (process.env.FRONTEND_URL_RENDER || process.env.FRONTEND_URL);
+    
   server.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Zion Grocery Dashboard running on port ${PORT}`);
     console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
-    console.log(`🏥 Health check: ${process.env.FRONTEND_URL}/health`);
-    console.log(`🌐 Frontend: ${process.env.FRONTEND_URL}`);
-    console.log(`📱 Login: ${process.env.FRONTEND_URL}/login.html`);
+    console.log(`🏥 Health check: ${frontendUrl}/health`);
+    console.log(`🌐 Frontend: ${frontendUrl}`);
+    console.log(`📱 Login: ${frontendUrl}/login.html`);
   });
 }
 
