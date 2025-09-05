@@ -390,6 +390,8 @@ window.loadDashboardData = loadDashboardData;
 // Initialize dashboard when DOM is ready
 document.addEventListener("DOMContentLoaded", function () {
   fetchDashboardData();
+  // TEMPORARILY DISABLED - Contributing to frequent requests
   // Set up periodic refresh (every 5 minutes)
-  setInterval(fetchDashboardData, 300000);
+  // setInterval(fetchDashboardData, 300000);
+  console.log('📊 Dashboard loaded - auto-refresh disabled to prevent frequent requests');
 });

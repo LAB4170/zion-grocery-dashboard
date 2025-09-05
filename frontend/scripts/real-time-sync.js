@@ -281,10 +281,12 @@ if (window.apiClient) {
 
 // Auto-start sync when page loads
 document.addEventListener('DOMContentLoaded', () => {
+    // TEMPORARILY DISABLED - Causing frequent page reloads
     // Wait for other systems to initialize
-    setTimeout(() => {
-        window.realTimeSync.start();
-    }, 2000);
+    // setTimeout(() => {
+    //     window.realTimeSync.start();
+    // }, 2000);
+    console.log('📡 Real-time sync system loaded but NOT auto-started (disabled to prevent frequent reloads)');
 });
 
 // Global functions for manual control
