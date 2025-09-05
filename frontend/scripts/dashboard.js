@@ -10,48 +10,163 @@ function formatCurrency(amount) {
 }
 
 async function fetchDashboardData() {
+  console.log('📊 Initializing dashboard...');
+  
+  // Show loading indicator if available
+  if (window.socketIOSync) {
+    window.socketIOSync.showLoadingIndicator(true);
+  }
+  
   try {
-    // Show loading indicator while fetching data
-    if (window.socketIOSync) {
-      window.socketIOSync.showLoadingIndicator(true);
-    }
-    
-    // Use data manager for database-only operations
-    if (window.dataManager && window.dataManager.isBackendAvailable) {
-      console.log('📊 Loading dashboard data from database...');
+    // Wait for DataManager initialization to complete
+    if (window.dataManager) {
+      console.log('⏳ Waiting for database connection...');
+      await window.dataManager.initializationPromise;
       
-      // Load all data from database
-      window.sales = await window.dataManager.getSales();
-      window.debts = await window.dataManager.getDebts();
-      window.expenses = await window.dataManager.getExpenses();
-      window.products = await window.dataManager.getProducts();
-      
-      console.log('✅ Dashboard data loaded from database');
+      // Check if backend is available after initialization
+      if (window.dataManager.isBackendAvailable) {
+        console.log('📊 Loading dashboard data from database...');
+        
+        // Load all data from database with proper error handling
+        const [sales, debts, expenses, products] = await Promise.allSettled([
+          window.dataManager.getSales(),
+          window.dataManager.getDebts(),
+          window.dataManager.getExpenses(),
+          window.dataManager.getProducts()
+        ]);
+        
+        // Process results and handle any individual failures
+        window.sales = sales.status === 'fulfilled' ? sales.value : [];
+        window.debts = debts.status === 'fulfilled' ? debts.value : [];
+        window.expenses = expenses.status === 'fulfilled' ? expenses.value : [];
+        window.products = products.status === 'fulfilled' ? products.value : [];
+        
+        // Log any individual failures
+        if (sales.status === 'rejected') console.warn('⚠️ Failed to load sales:', sales.reason);
+        if (debts.status === 'rejected') console.warn('⚠️ Failed to load debts:', debts.reason);
+        if (expenses.status === 'rejected') console.warn('⚠️ Failed to load expenses:', expenses.reason);
+        if (products.status === 'rejected') console.warn('⚠️ Failed to load products:', products.reason);
+        
+        console.log('✅ Dashboard data loaded from database');
+      } else {
+        throw new Error('Database connection not available after initialization');
+      }
     } else {
-      console.warn('⚠️ Database not available, dashboard may show empty data');
-      // Initialize empty arrays if database not available
-      window.sales = [];
-      window.debts = [];
-      window.expenses = [];
-      window.products = [];
+      throw new Error('DataManager not initialized');
     }
-
-    loadDashboardData();
-    
   } catch (error) {
-    console.error('❌ Dashboard data fetch failed:', error);
+    console.error('❌ Database initialization failed:', error.message);
     
-    // Initialize empty arrays on error
+    // Show user-friendly error message
+    showDatabaseConnectionError(error.message);
+    
+    // Initialize empty arrays as fallback
     window.sales = [];
     window.debts = [];
     window.expenses = [];
     window.products = [];
+  }
+
+  // Load dashboard UI regardless of data source
+  loadDashboardData();
+  
+  // Hide loading indicator
+  if (window.socketIOSync) {
+    window.socketIOSync.showLoadingIndicator(false);
+  }
+}
+
+// Enhanced error display function
+function showDatabaseConnectionError(errorMessage) {
+  const dashboardContainer = document.querySelector('.dashboard-content') || document.querySelector('#dashboard') || document.body;
+  
+  // Remove any existing error messages
+  const existingError = dashboardContainer.querySelector('.database-error-alert');
+  if (existingError) {
+    existingError.remove();
+  }
+  
+  const errorDiv = document.createElement('div');
+  errorDiv.className = 'alert alert-warning database-error-alert';
+  errorDiv.style.cssText = `
+    margin: 20px;
+    padding: 15px;
+    border: 1px solid #ffeaa7;
+    background-color: #fff3cd;
+    border-radius: 5px;
+    color: #856404;
+  `;
+  
+  errorDiv.innerHTML = `
+    <div style="display: flex; align-items: center; margin-bottom: 10px;">
+      <span style="font-size: 24px; margin-right: 10px;">⚠️</span>
+      <h4 style="margin: 0; color: #856404;">Database Connection Issue</h4>
+    </div>
+    <p style="margin: 10px 0;"><strong>Error:</strong> ${errorMessage}</p>
+    <p style="margin: 10px 0;">The dashboard is running with limited functionality. Please verify:</p>
+    <ul style="margin: 10px 0; padding-left: 20px;">
+      <li>PostgreSQL server is running (check services)</li>
+      <li>Database 'zion_grocery_db' exists</li>
+      <li>Connection credentials are correct in .env file</li>
+      <li>Backend server is running on port 5000</li>
+    </ul>
+    <div style="margin-top: 15px;">
+      <button onclick="retryDatabaseConnection()" style="
+        background-color: #007bff;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 4px;
+        cursor: pointer;
+        margin-right: 10px;
+      ">🔄 Retry Connection</button>
+      <button onclick="this.parentElement.parentElement.style.display='none'" style="
+        background-color: #6c757d;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 4px;
+        cursor: pointer;
+      ">✕ Dismiss</button>
+    </div>
+  `;
+  
+  dashboardContainer.insertBefore(errorDiv, dashboardContainer.firstChild);
+}
+
+// Retry connection function
+async function retryDatabaseConnection() {
+  console.log('🔄 Retrying database connection...');
+  
+  // Show loading state
+  const retryButton = document.querySelector('button[onclick="retryDatabaseConnection()"]');
+  if (retryButton) {
+    retryButton.innerHTML = '⏳ Connecting...';
+    retryButton.disabled = true;
+  }
+  
+  try {
+    // Reinitialize DataManager
+    if (window.dataManager) {
+      window.dataManager.isBackendAvailable = false;
+      window.dataManager.initializationPromise = window.dataManager.initialize();
+    }
     
-    loadDashboardData();
+    // Retry dashboard data fetch
+    await fetchDashboardData();
+    
+    // Remove error message if successful
+    const errorAlert = document.querySelector('.database-error-alert');
+    if (errorAlert && window.dataManager && window.dataManager.isBackendAvailable) {
+      errorAlert.remove();
+    }
+  } catch (error) {
+    console.error('❌ Retry failed:', error.message);
   } finally {
-    // Hide loading indicator
-    if (window.socketIOSync) {
-      window.socketIOSync.showLoadingIndicator(false);
+    // Reset button state
+    if (retryButton) {
+      retryButton.innerHTML = '🔄 Retry Connection';
+      retryButton.disabled = false;
     }
   }
 }
