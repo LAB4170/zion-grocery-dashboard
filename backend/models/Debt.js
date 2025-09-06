@@ -23,24 +23,29 @@ class Debt {
     const debt = new Debt(debtData);
     debt.remaining_amount = debt.amount - debt.paid_amount;
     
+    const dbData = {
+      id: debtData.id || uuidv4(),
+      customer_name: debt.customer_name,
+      customer_phone: debt.customer_phone,
+      amount: debt.amount,
+      description: debt.description,
+      status: debt.status,
+      paid_amount: debt.paid_amount,
+      remaining_amount: debt.remaining_amount,
+      due_date: debt.due_date,
+      sale_id: debt.sale_id,
+      user_id: debt.user_id,
+      created_at: debt.created_at,
+      updated_at: debt.updated_at
+    };
+
+    console.log('Creating debt with data:', dbData);
+    
     const [newDebt] = await db('debts')
-      .insert({
-        id: debt.id,
-        customer_name: debt.customer_name,
-        customer_phone: debt.customer_phone,
-        amount: debt.amount,
-        description: debt.description,
-        status: debt.status,
-        paid_amount: debt.paid_amount,
-        remaining_amount: debt.remaining_amount,
-        due_date: debt.due_date,
-        sale_id: debt.sale_id,
-        user_id: debt.user_id,
-        created_at: debt.created_at,
-        updated_at: debt.updated_at
-      })
+      .insert(dbData)
       .returning('*');
     
+    console.log('Debt created successfully:', newDebt);
     return newDebt;
   }
 

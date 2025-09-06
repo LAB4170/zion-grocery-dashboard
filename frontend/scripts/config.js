@@ -1,49 +1,54 @@
-// Configuration for Zion Grocery Dashboard - Dual Environment Support
-// Automatically detects local vs production environment
+// Configuration for Zion Grocery Dashboard
+// Auto-detects environment and sets appropriate API base URL
 
-// Environment detection
-const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-const isRenderProduction = window.location.hostname.includes('onrender.com');
-
-// API Base URL selection
-const getApiBase = () => {
-    if (isLocalhost) {
-        return 'http://localhost:5000/api';
-    } else if (isRenderProduction) {
-        return 'https://zion-grocery-dashboard-1.onrender.com/api';
-    } else {
-        // Fallback for other environments
-        return `${window.location.protocol}//${window.location.host}/api`;
+window.CONFIG = {
+    // Auto-detect environment based on hostname
+    isLocalhost: window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1',
+    isOnRender: window.location.hostname.includes('onrender.com'),
+    
+    // API Base URL - Auto-detection with fallback
+    API_BASE: (() => {
+        const hostname = window.location.hostname;
+        const protocol = window.location.protocol;
+        const port = window.location.port;
+        
+        if (hostname === 'localhost' || hostname === '127.0.0.1') {
+            // Local development - integrated server on port 5000
+            return 'http://localhost:5000/api';
+        } else if (hostname.includes('onrender.com')) {
+            // Render production
+            return 'https://zion-grocery-dashboard-1.onrender.com/api';
+        } else {
+            // Generic fallback - same origin
+            return `${protocol}//${hostname}${port ? ':' + port : ''}/api`;
+        }
+    })(),
+    
+    // Debug mode - enabled for localhost
+    DEBUG: window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1',
+    
+    // Real-time sync settings
+    SYNC: {
+        enabled: true,
+        interval: window.location.hostname === 'localhost' ? 10000 : 30000, // 10s local, 30s production
+        retryAttempts: 3,
+        retryDelay: 2000
+    },
+    
+    // UI Settings
+    UI: {
+        itemsPerPage: 25,
+        maxSearchResults: 100,
+        autoSaveDelay: 1000
     }
 };
 
-window.CONFIG = {
-    // API Configuration - Environment Auto-Detection
-    API_BASE: getApiBase(),
-    
-    // Environment Info
-    ENVIRONMENT: isLocalhost ? 'development' : 'production',
-    IS_LOCAL: isLocalhost,
-    IS_PRODUCTION: isRenderProduction,
-    
-    // Database Configuration
-    DATABASE_ONLY: true, // Force database-only mode
-    
-    // Real-time Sync Configuration
-    SOCKET_IO_ENABLED: true,
-    SYNC_INTERVAL: isLocalhost ? 10000 : 30000, // Faster sync in development
-    
-    // Application Settings
-    APP_NAME: 'Zion Grocery Dashboard',
-    VERSION: '1.0.0',
-    
-    // Debug Settings
-    DEBUG: isLocalhost, // Enable debug in local development
-    VERBOSE_LOGGING: isLocalhost
-};
-
-console.log(`🔧 Configuration loaded for ${window.CONFIG.ENVIRONMENT}:`, {
-    API_BASE: window.CONFIG.API_BASE,
-    ENVIRONMENT: window.CONFIG.ENVIRONMENT,
-    DEBUG: window.CONFIG.DEBUG
-});
+// Log configuration for debugging
+if (window.CONFIG.DEBUG) {
+    console.log('🔧 Configuration loaded:', {
+        environment: window.CONFIG.isLocalhost ? 'Local Development' : 'Production',
+        apiBase: window.CONFIG.API_BASE,
+        debug: window.CONFIG.DEBUG,
+        syncInterval: window.CONFIG.SYNC.interval + 'ms'
+    });
+}

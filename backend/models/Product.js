@@ -1,4 +1,5 @@
 const db = require('../config/database');
+const { v4: uuidv4 } = require('uuid');
 
 class Product {
   constructor(data) {
@@ -22,7 +23,7 @@ class Product {
   static async create(productData) {
     // Transform camelCase to snake_case for database
     const dbData = {
-      id: productData.id,
+      id: productData.id || uuidv4(),
       name: productData.name,
       category: productData.category,
       price: parseFloat(productData.price),

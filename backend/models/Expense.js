@@ -7,11 +7,11 @@ class Expense {
     this.description = data.description;
     this.amount = parseFloat(data.amount);
     this.category = data.category;
-    this.payment_method = data.payment_method || 'cash';
-    this.receipt_number = data.receipt_number || '';
-    this.vendor = data.vendor || '';
-    this.status = data.status || 'pending'; // 'pending', 'approved', 'rejected'
-    this.user_id = data.user_id;
+    this.status = data.status || 'pending';
+    this.expense_date = data.expense_date || data.date;
+    this.receipt_number = data.receipt_number || null;
+    this.notes = data.notes || '';
+    this.created_by = data.created_by || data.user_id || 'system';
     this.approved_by = data.approved_by || null;
     this.approved_at = data.approved_at || null;
     this.created_at = data.created_at || new Date();
@@ -20,24 +20,29 @@ class Expense {
 
   // Create new expense
   static async create(expenseData) {
-    const expense = new Expense(expenseData);
+    const dbData = {
+      id: expenseData.id || uuidv4(),
+      description: expenseData.description,
+      amount: parseFloat(expenseData.amount),
+      category: expenseData.category,
+      status: expenseData.status || 'pending',
+      expense_date: expenseData.expense_date || expenseData.date || new Date(),
+      receipt_number: expenseData.receipt_number || null,
+      notes: expenseData.notes || '',
+      created_by: expenseData.created_by || expenseData.user_id || 'system',
+      approved_by: expenseData.approved_by || null,
+      approved_at: expenseData.approved_at || null,
+      created_at: expenseData.createdAt || expenseData.created_at || new Date(),
+      updated_at: expenseData.updatedAt || expenseData.updated_at || new Date()
+    };
+
+    console.log('Creating expense with data:', dbData);
     
     const [newExpense] = await db('expenses')
-      .insert({
-        id: expense.id,
-        description: expense.description,
-        amount: expense.amount,
-        category: expense.category,
-        payment_method: expense.payment_method,
-        receipt_number: expense.receipt_number,
-        vendor: expense.vendor,
-        status: expense.status,
-        user_id: expense.user_id,
-        created_at: expense.created_at,
-        updated_at: expense.updated_at
-      })
+      .insert(dbData)
       .returning('*');
     
+    console.log('Expense created successfully:', newExpense);
     return newExpense;
   }
 
@@ -64,7 +69,7 @@ class Expense {
     if (filters.search) {
       query = query.where(function() {
         this.where('description', 'ilike', `%${filters.search}%`)
-            .orWhere('vendor', 'ilike', `%${filters.search}%`)
+            .orWhere('notes', 'ilike', `%${filters.search}%`)
             .orWhere('receipt_number', 'ilike', `%${filters.search}%`);
       });
     }
@@ -206,10 +211,6 @@ class Expense {
     
     if (!data.category || data.category.trim().length === 0) {
       errors.push('Expense category is required');
-    }
-    
-    if (data.payment_method && !['cash', 'mpesa', 'bank', 'cheque'].includes(data.payment_method)) {
-      errors.push('Valid payment method is required (cash, mpesa, bank, or cheque)');
     }
     
     return errors;
