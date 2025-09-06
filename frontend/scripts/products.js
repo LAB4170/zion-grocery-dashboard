@@ -97,12 +97,22 @@ async function addProduct(event) {
       category,
       price: parseFloat(price),
       stock: parseInt(stock),
+      // Add missing fields for database compatibility
+      description: '',
+      barcode: null,
+      supplier: '',
+      min_stock: 5, // Default reorder level
+      cost_price: null,
+      is_active: true,
       createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     };
 
     // DATABASE-FIRST OPERATION: Send to database first, then update cache
     try {
+      console.log('Sending product to database:', product);
       const savedProduct = await window.dataManager.createData("products", product);
+      console.log('Product saved successfully:', savedProduct);
       
       // Update global variable only after successful database save
       window.products = window.products || [];
@@ -113,7 +123,7 @@ async function addProduct(event) {
       window.utils.showNotification("Product added successfully!");
     } catch (error) {
       console.error("Failed to save product to database:", error);
-      window.utils.showNotification("Failed to save product. Please try again.", "error");
+      window.utils.showNotification(`Failed to save product: ${error.message}`, "error");
     }
   }
 

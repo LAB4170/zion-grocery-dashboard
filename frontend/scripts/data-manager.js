@@ -205,9 +205,17 @@ class DataManager {
                 window.socketIOSync.broadcastDataChange(type, { action: 'create', data: response });
             }
             
+            // Return the data from response, handling both formats
             return response.data || response;
         } catch (error) {
             console.error(`❌ Failed to create ${type} in database:`, error);
+            
+            // Enhanced error logging for debugging
+            if (error.message.includes('400')) {
+                console.error('Validation error - check field names and data types');
+                console.error('Sent data:', JSON.stringify(data, null, 2));
+            }
+            
             throw new Error(`Database create operation failed: ${error.message}`);
         }
     }

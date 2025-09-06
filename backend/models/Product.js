@@ -10,30 +10,40 @@ class Product {
     this.description = data.description || '';
     this.barcode = data.barcode || null;
     this.supplier = data.supplier || '';
-    this.reorder_level = parseInt(data.reorder_level) || 5;
+    // FIX: Use min_stock to match database schema
+    this.min_stock = parseInt(data.min_stock || data.reorder_level) || 5;
+    this.cost_price = parseFloat(data.cost_price) || null;
+    this.is_active = data.is_active !== undefined ? data.is_active : true;
     this.created_at = data.created_at || new Date();
     this.updated_at = data.updated_at || new Date();
   }
 
-  // Create new product
+  // Create new product with proper field mapping
   static async create(productData) {
-    const product = new Product(productData);
+    // Transform camelCase to snake_case for database
+    const dbData = {
+      id: productData.id,
+      name: productData.name,
+      category: productData.category,
+      price: parseFloat(productData.price),
+      stock: parseInt(productData.stock),
+      description: productData.description || '',
+      barcode: productData.barcode || null,
+      supplier: productData.supplier || '',
+      min_stock: parseInt(productData.min_stock || productData.reorder_level) || 5,
+      cost_price: parseFloat(productData.cost_price) || null,
+      is_active: productData.is_active !== undefined ? productData.is_active : true,
+      created_at: productData.createdAt || productData.created_at || new Date(),
+      updated_at: productData.updatedAt || productData.updated_at || new Date()
+    };
+
+    console.log('Creating product with data:', dbData);
     
     const [newProduct] = await db('products')
-      .insert({
-        name: product.name,
-        category: product.category,
-        price: product.price,
-        stock: product.stock,
-        description: product.description,
-        barcode: product.barcode,
-        supplier: product.supplier,
-        reorder_level: product.reorder_level,
-        created_at: product.created_at,
-        updated_at: product.updated_at
-      })
+      .insert(dbData)
       .returning('*');
     
+    console.log('Product created successfully:', newProduct);
     return newProduct;
   }
 
@@ -46,7 +56,7 @@ class Product {
     }
     
     if (filters.low_stock) {
-      query = query.whereRaw('stock <= reorder_level');
+      query = query.whereRaw('stock <= min_stock');
     }
     
     if (filters.search) {
@@ -115,7 +125,7 @@ class Product {
   // Get low stock products
   static async getLowStock() {
     return await db('products')
-      .whereRaw('stock <= reorder_level')
+      .whereRaw('stock <= min_stock')
       .orderBy('stock', 'asc');
   }
 
