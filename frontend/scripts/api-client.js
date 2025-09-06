@@ -3,9 +3,28 @@
 
 class ApiClient {
     constructor() {
-        this.baseURL = window.CONFIG?.API_BASE || 'http://localhost:5000/api';
+        // Add fallback URL to prevent undefined baseURL
+        this.baseURL = this.getApiBaseUrl();
         this.isOnline = navigator.onLine;
         this.setupConnectionMonitoring();
+        console.log(`🔧 API Client initialized with baseURL: ${this.baseURL}`);
+    }
+
+    getApiBaseUrl() {
+        // Try to get from config first, with fallback
+        if (window.CONFIG?.API_BASE) {
+            return window.CONFIG.API_BASE;
+        }
+        
+        // Fallback based on current location
+        const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        if (isLocalhost) {
+            return 'http://localhost:5000/api';
+        } else if (window.location.hostname.includes('onrender.com')) {
+            return 'https://zion-grocery-dashboard-1.onrender.com/api';
+        } else {
+            return `${window.location.protocol}//${window.location.host}/api`;
+        }
     }
 
     setupConnectionMonitoring() {
@@ -162,12 +181,35 @@ class ApiClient {
         return this.request('/dashboard/stats');
     }
 
-    // Health check
+    // Health check with improved error handling
     async checkHealth() {
         try {
-            const response = await fetch(`${this.baseURL.replace('/api', '')}/health`);
-            return response.ok;
-        } catch {
+            // Ensure we have the correct baseURL
+            this.baseURL = this.getApiBaseUrl();
+            
+            // Construct health check URL properly
+            const healthUrl = this.baseURL.replace('/api', '') + '/health';
+            console.log(`🏥 Checking health at: ${healthUrl}`);
+            
+            const response = await fetch(healthUrl, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                // Add timeout to prevent hanging
+                signal: AbortSignal.timeout(5000)
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                console.log('✅ Health check successful:', data);
+                return true;
+            } else {
+                console.warn(`⚠️ Health check failed with status: ${response.status}`);
+                return false;
+            }
+        } catch (error) {
+            console.error('❌ Health check error:', error.message);
             return false;
         }
     }

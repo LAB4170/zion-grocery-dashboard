@@ -137,16 +137,48 @@ const broadcastDataChange = (type, data) => {
 app.locals.broadcastDataChange = broadcastDataChange;
 app.locals.io = io;
 
-// Health check endpoint
-app.get('/health', (req, res) => {
-  res.status(200).json({
-    status: 'OK',
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
-    environment: process.env.NODE_ENV,
-    version: require('./package.json').version,
-    database: 'PostgreSQL Connected'
-  });
+// Health check endpoint with comprehensive database status
+app.get('/health', async (req, res) => {
+  try {
+    // Test database connection
+    const dbVersion = await db.raw('SELECT version() as version');
+    const dbName = await db.raw('SELECT current_database() as database');
+    const dbConnections = await db.raw('SELECT count(*) as active_connections FROM pg_stat_activity WHERE state = \'active\'');
+    
+    res.status(200).json({
+      status: 'OK',
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      environment: process.env.NODE_ENV,
+      version: require('./package.json').version,
+      database: {
+        status: 'Connected',
+        type: 'PostgreSQL',
+        name: dbName.rows[0].database,
+        version: dbVersion.rows[0].version.split(' ')[1], // Extract version number
+        activeConnections: parseInt(dbConnections.rows[0].active_connections),
+        lastChecked: new Date().toISOString()
+      },
+      api: {
+        baseUrl: process.env.NODE_ENV === 'development' ? 'http://localhost:5000/api' : 'https://zion-grocery-dashboard-1.onrender.com/api',
+        endpoints: ['/products', '/sales', '/expenses', '/debts', '/dashboard']
+      }
+    });
+  } catch (error) {
+    console.error('Health check database error:', error);
+    res.status(503).json({
+      status: 'ERROR',
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      environment: process.env.NODE_ENV,
+      database: {
+        status: 'Disconnected',
+        error: error.message,
+        lastChecked: new Date().toISOString()
+      },
+      message: 'Database connection failed'
+    });
+  }
 });
 
 // Test PostgreSQL database route

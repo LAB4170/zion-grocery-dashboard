@@ -12,8 +12,12 @@ class DataManager {
     async initialize() {
         console.log('🔄 Initializing database-only data manager...');
         
+        // Add small delay to ensure API client is properly configured
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
         for (let attempt = 1; attempt <= this.retryAttempts; attempt++) {
             try {
+                console.log(`🔍 Database connection attempt ${attempt}/${this.retryAttempts}...`);
                 this.isBackendAvailable = await window.apiClient.checkHealth();
                 
                 if (this.isBackendAvailable) {
@@ -21,19 +25,22 @@ class DataManager {
                     await this.performOneTimeMigration();
                     return;
                 } else {
-                    throw new Error('Backend health check failed');
+                    throw new Error('Backend health check returned false');
                 }
             } catch (error) {
                 console.warn(`❌ Database connection attempt ${attempt}/${this.retryAttempts} failed:`, error.message);
                 
                 if (attempt === this.retryAttempts) {
-                    console.error('🚨 CRITICAL: Database unavailable. Application requires PostgreSQL to function.');
+                    console.error('🚨 CRITICAL: Database unavailable after all retry attempts.');
+                    console.error('Backend is running but health check fails. Check API endpoint configuration.');
                     this.showDatabaseError();
                     throw new Error('Database connection failed after all retry attempts');
                 }
                 
-                // Wait before retry
-                await new Promise(resolve => setTimeout(resolve, this.retryDelay));
+                // Exponential backoff: wait longer between retries
+                const waitTime = this.retryDelay * attempt;
+                console.log(`⏳ Waiting ${waitTime}ms before retry...`);
+                await new Promise(resolve => setTimeout(resolve, waitTime));
             }
         }
     }
