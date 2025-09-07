@@ -7,11 +7,11 @@ class Expense {
     this.description = data.description;
     this.amount = parseFloat(data.amount);
     this.category = data.category;
-    this.payment_method = data.payment_method || 'cash';
-    this.receipt_number = data.receipt_number || '';
-    this.vendor = data.vendor || '';
     this.status = data.status || 'pending'; // 'pending', 'approved', 'rejected'
-    this.user_id = data.user_id;
+    this.expense_date = data.expense_date || data.date || new Date().toISOString().split('T')[0];
+    this.receipt_number = data.receipt_number || '';
+    this.notes = data.notes || '';
+    this.created_by = data.created_by || data.user_id || 'system';
     this.approved_by = data.approved_by || null;
     this.approved_at = data.approved_at || null;
     this.created_at = data.created_at || new Date();
@@ -28,11 +28,11 @@ class Expense {
         description: expense.description,
         amount: expense.amount,
         category: expense.category,
-        payment_method: expense.payment_method,
-        receipt_number: expense.receipt_number,
-        vendor: expense.vendor,
         status: expense.status,
-        user_id: expense.user_id,
+        expense_date: expense.expense_date,
+        receipt_number: expense.receipt_number,
+        notes: expense.notes,
+        created_by: expense.created_by,
         created_at: expense.created_at,
         updated_at: expense.updated_at
       })
@@ -54,22 +54,22 @@ class Expense {
     }
     
     if (filters.date_from) {
-      query = query.where('created_at', '>=', filters.date_from);
+      query = query.where('expense_date', '>=', filters.date_from);
     }
     
     if (filters.date_to) {
-      query = query.where('created_at', '<=', filters.date_to);
+      query = query.where('expense_date', '<=', filters.date_to);
     }
     
     if (filters.search) {
       query = query.where(function() {
         this.where('description', 'ilike', `%${filters.search}%`)
-            .orWhere('vendor', 'ilike', `%${filters.search}%`)
+            .orWhere('notes', 'ilike', `%${filters.search}%`)
             .orWhere('receipt_number', 'ilike', `%${filters.search}%`);
       });
     }
     
-    return await query.orderBy('created_at', 'desc');
+    return await query.orderBy('expense_date', 'desc');
   }
 
   // Get expense by ID
@@ -130,11 +130,11 @@ class Expense {
     let query = db('expenses');
     
     if (filters.date_from) {
-      query = query.where('created_at', '>=', filters.date_from);
+      query = query.where('expense_date', '>=', filters.date_from);
     }
     
     if (filters.date_to) {
-      query = query.where('created_at', '<=', filters.date_to);
+      query = query.where('expense_date', '<=', filters.date_to);
     }
     
     const summary = await query
@@ -172,12 +172,12 @@ class Expense {
   static async getMonthlyExpenses(months = 12) {
     const expenses = await db('expenses')
       .select(
-        db.raw('DATE_TRUNC(\'month\', created_at) as month'),
+        db.raw('DATE_TRUNC(\'month\', expense_date) as month'),
         db.raw('SUM(amount) as total_amount'),
         db.raw('COUNT(*) as count')
       )
-      .where('created_at', '>=', db.raw(`NOW() - INTERVAL '${months} months'`))
-      .groupBy(db.raw('DATE_TRUNC(\'month\', created_at)'))
+      .where('expense_date', '>=', db.raw(`NOW() - INTERVAL '${months} months'`))
+      .groupBy(db.raw('DATE_TRUNC(\'month\', expense_date)'))
       .orderBy('month', 'desc');
     
     return expenses;
@@ -206,10 +206,6 @@ class Expense {
     
     if (!data.category || data.category.trim().length === 0) {
       errors.push('Expense category is required');
-    }
-    
-    if (data.payment_method && !['cash', 'mpesa', 'bank', 'cheque'].includes(data.payment_method)) {
-      errors.push('Valid payment method is required (cash, mpesa, bank, or cheque)');
     }
     
     return errors;

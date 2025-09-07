@@ -7,13 +7,13 @@ class Debt {
     this.customer_name = data.customer_name;
     this.customer_phone = data.customer_phone;
     this.amount = parseFloat(data.amount);
-    this.description = data.description || '';
-    this.status = data.status || 'pending'; // 'pending', 'paid', 'partially_paid'
-    this.paid_amount = parseFloat(data.paid_amount) || 0;
-    this.remaining_amount = parseFloat(data.remaining_amount) || parseFloat(data.amount);
+    this.amount_paid = parseFloat(data.amount_paid || data.paid_amount) || 0;
+    this.balance = parseFloat(data.balance || data.remaining_amount) || parseFloat(data.amount);
+    this.status = data.status || 'pending'; // 'pending', 'partial', 'paid', 'overdue'
     this.due_date = data.due_date || null;
+    this.notes = data.notes || data.description || '';
     this.sale_id = data.sale_id || null;
-    this.user_id = data.user_id;
+    this.created_by = data.created_by || data.user_id || 'system';
     this.created_at = data.created_at || new Date();
     this.updated_at = data.updated_at || new Date();
   }
@@ -21,7 +21,7 @@ class Debt {
   // Create new debt
   static async create(debtData) {
     const debt = new Debt(debtData);
-    debt.remaining_amount = debt.amount - debt.paid_amount;
+    debt.balance = debt.amount - debt.amount_paid;
     
     const [newDebt] = await db('debts')
       .insert({
@@ -29,13 +29,13 @@ class Debt {
         customer_name: debt.customer_name,
         customer_phone: debt.customer_phone,
         amount: debt.amount,
-        description: debt.description,
+        amount_paid: debt.amount_paid,
+        balance: debt.balance,
         status: debt.status,
-        paid_amount: debt.paid_amount,
-        remaining_amount: debt.remaining_amount,
         due_date: debt.due_date,
+        notes: debt.notes,
         sale_id: debt.sale_id,
-        user_id: debt.user_id,
+        created_by: debt.created_by,
         created_at: debt.created_at,
         updated_at: debt.updated_at
       })
@@ -85,17 +85,17 @@ class Debt {
   static async update(id, updateData) {
     updateData.updated_at = new Date();
     
-    // Recalculate remaining amount if paid_amount is updated
-    if (updateData.paid_amount !== undefined) {
+    // Recalculate balance if amount_paid is updated
+    if (updateData.amount_paid !== undefined) {
       const debt = await Debt.findById(id);
-      updateData.remaining_amount = debt.amount - parseFloat(updateData.paid_amount);
+      updateData.balance = debt.amount - parseFloat(updateData.amount_paid);
       
       // Update status based on payment
-      if (updateData.remaining_amount <= 0) {
+      if (updateData.balance <= 0) {
         updateData.status = 'paid';
-        updateData.remaining_amount = 0;
-      } else if (updateData.paid_amount > 0) {
-        updateData.status = 'partially_paid';
+        updateData.balance = 0;
+      } else if (updateData.amount_paid > 0) {
+        updateData.status = 'partial';
       }
     }
     
@@ -126,15 +126,15 @@ class Debt {
         throw new Error('Debt is already fully paid');
       }
       
-      const newPaidAmount = parseFloat(debt.paid_amount) + parseFloat(paymentAmount);
-      const newRemainingAmount = parseFloat(debt.amount) - newPaidAmount;
+      const newAmountPaid = parseFloat(debt.amount_paid) + parseFloat(paymentAmount);
+      const newBalance = parseFloat(debt.amount) - newAmountPaid;
       
-      if (newPaidAmount > parseFloat(debt.amount)) {
+      if (newAmountPaid > parseFloat(debt.amount)) {
         throw new Error('Payment amount exceeds debt amount');
       }
       
-      let newStatus = 'partially_paid';
-      if (newRemainingAmount <= 0) {
+      let newStatus = 'partial';
+      if (newBalance <= 0) {
         newStatus = 'paid';
       }
       
@@ -142,8 +142,8 @@ class Debt {
       const [updatedDebt] = await trx('debts')
         .where('id', id)
         .update({
-          paid_amount: newPaidAmount,
-          remaining_amount: Math.max(0, newRemainingAmount),
+          amount_paid: newAmountPaid,
+          balance: Math.max(0, newBalance),
           status: newStatus,
           updated_at: new Date()
         })
@@ -182,11 +182,11 @@ class Debt {
       .select(
         db.raw('COUNT(*) as total_debts'),
         db.raw('SUM(amount) as total_amount'),
-        db.raw('SUM(paid_amount) as total_paid'),
-        db.raw('SUM(remaining_amount) as total_outstanding'),
+        db.raw('SUM(amount_paid) as total_paid'),
+        db.raw('SUM(balance) as total_outstanding'),
         db.raw('COUNT(CASE WHEN status = ? THEN 1 END) as pending_count', ['pending']),
         db.raw('COUNT(CASE WHEN status = ? THEN 1 END) as paid_count', ['paid']),
-        db.raw('COUNT(CASE WHEN status = ? THEN 1 END) as partially_paid_count', ['partially_paid'])
+        db.raw('COUNT(CASE WHEN status = ? THEN 1 END) as partial_count', ['partial'])
       )
       .first();
     
@@ -197,7 +197,7 @@ class Debt {
       total_outstanding: parseFloat(summary.total_outstanding) || 0,
       pending_count: parseInt(summary.pending_count) || 0,
       paid_count: parseInt(summary.paid_count) || 0,
-      partially_paid_count: parseInt(summary.partially_paid_count) || 0
+      partial_count: parseInt(summary.partial_count) || 0
     };
   }
 
@@ -206,8 +206,8 @@ class Debt {
     const groupedDebts = await db('debts')
       .select('customer_name', 'customer_phone')
       .sum('amount as total_amount')
-      .sum('paid_amount as total_paid')
-      .sum('remaining_amount as total_outstanding')
+      .sum('amount_paid as total_paid')
+      .sum('balance as total_outstanding')
       .count('* as debt_count')
       .groupBy('customer_name', 'customer_phone')
       .having('total_outstanding', '>', 0)
@@ -251,12 +251,12 @@ class Debt {
       errors.push('Valid debt amount is required');
     }
     
-    if (data.paid_amount && (isNaN(parseFloat(data.paid_amount)) || parseFloat(data.paid_amount) < 0)) {
-      errors.push('Paid amount must be a valid positive number');
+    if (data.amount_paid && (isNaN(parseFloat(data.amount_paid)) || parseFloat(data.amount_paid) < 0)) {
+      errors.push('Amount paid must be a valid positive number');
     }
     
-    if (data.paid_amount && parseFloat(data.paid_amount) > parseFloat(data.amount)) {
-      errors.push('Paid amount cannot exceed total debt amount');
+    if (data.amount_paid && parseFloat(data.amount_paid) > parseFloat(data.amount)) {
+      errors.push('Amount paid cannot exceed total debt amount');
     }
     
     return errors;
