@@ -39,9 +39,10 @@ class ApiClient {
         });
     }
 
-    async request(endpoint, options = {}) {
+    async makeRequest(endpoint, options = {}) {
         const url = `${this.baseURL}${endpoint}`;
         const config = {
+            method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
                 ...options.headers
@@ -50,10 +51,61 @@ class ApiClient {
         };
 
         try {
+            console.log(`🔄 API Request: ${config.method} ${endpoint}`);
+            
             const response = await fetch(url, config);
             
             if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+                let errorDetails = null;
+                
+                // Try to get more specific error info from response
+                try {
+                    const errorData = await response.json();
+                    if (errorData.message) {
+                        errorDetails = errorData.message;
+                        errorMessage += ` - ${errorData.message}`;
+                    }
+                    if (errorData.error) {
+                        errorMessage += ` (${errorData.error})`;
+                    }
+                } catch (parseError) {
+                    // Response body isn't JSON, use status text
+                    console.warn('Could not parse error response as JSON');
+                }
+                
+                // Provide specific guidance based on error type
+                if (response.status === 500) {
+                    console.error('❌ Server Error Details:', {
+                        endpoint,
+                        status: response.status,
+                        statusText: response.statusText,
+                        errorDetails,
+                        timestamp: new Date().toISOString()
+                    });
+                    
+                    // Check if it's a database connection issue
+                    if (errorDetails && (
+                        errorDetails.includes('database') || 
+                        errorDetails.includes('connection') ||
+                        errorDetails.includes('ECONNREFUSED') ||
+                        errorDetails.includes('timeout')
+                    )) {
+                        throw new Error(`Database connection error: ${errorDetails}. Please run 'check-database-status.bat' to diagnose the issue.`);
+                    } else {
+                        throw new Error(`Server error occurred. Please check if the database is running and try again. Run 'check-database-status.bat' for diagnostics. Details: ${errorMessage}`);
+                    }
+                } else if (response.status === 404) {
+                    throw new Error(`API endpoint not found: ${endpoint}. Please check if the backend server is running.`);
+                } else if (response.status === 400) {
+                    throw new Error(`Bad request: ${errorDetails || 'Invalid data sent to server'}. Please check your input and try again.`);
+                } else if (response.status === 401) {
+                    throw new Error(`Unauthorized access. Please check your login credentials.`);
+                } else if (response.status === 403) {
+                    throw new Error(`Access forbidden. You don't have permission to perform this action.`);
+                } else {
+                    throw new Error(errorMessage);
+                }
             }
             
             const data = await response.json();
@@ -62,123 +114,131 @@ class ApiClient {
         } catch (error) {
             console.error(`❌ API Request failed: ${endpoint}`, error);
             
-            // For database-only mode, don't fallback to localStorage
-            // Instead, throw the error to be handled by the calling code
-            throw new Error(`Database connection required. Backend API unavailable: ${error.message}`);
+            // Handle network errors (server not running)
+            if (error.message.includes('Failed to fetch') || error.message.includes('fetch')) {
+                throw new Error(`Cannot connect to server at ${this.baseURL}. Please ensure the backend server is running on the correct port.`);
+            }
+            
+            // Handle timeout errors
+            if (error.message.includes('timeout') || error.message.includes('AbortError')) {
+                throw new Error(`Request timeout. The server may be overloaded or the database connection is slow. Please try again.`);
+            }
+            
+            // Re-throw enhanced errors or create generic database error
+            if (error.message.includes('Database connection error') || 
+                error.message.includes('Server error occurred') ||
+                error.message.includes('Cannot connect to server')) {
+                throw error;
+            }
+            
+            // Generic fallback with database guidance
+            throw new Error(`Database connection required. Backend API unavailable: ${error.message || error}. Run 'check-database-status.bat' to diagnose database issues.`);
         }
-    }
-
-    handleOfflineRequest(endpoint, options) {
-        // Removed this method as it's no longer needed
-    }
-
-    async syncOfflineData() {
-        // Removed this method as it's no longer needed
     }
 
     // Products API
     async getProducts() {
-        return this.request('/products');
+        return this.makeRequest('/products');
     }
 
     async createProduct(product) {
-        return this.request('/products', {
+        return this.makeRequest('/products', {
             method: 'POST',
             body: JSON.stringify(product)
         });
     }
 
     async updateProduct(id, product) {
-        return this.request(`/products/${id}`, {
+        return this.makeRequest(`/products/${id}`, {
             method: 'PUT',
             body: JSON.stringify(product)
         });
     }
 
     async deleteProduct(id) {
-        return this.request(`/products/${id}`, {
+        return this.makeRequest(`/products/${id}`, {
             method: 'DELETE'
         });
     }
 
     // Sales API
     async getSales() {
-        return this.request('/sales');
+        return this.makeRequest('/sales');
     }
 
     async createSale(sale) {
-        return this.request('/sales', {
+        return this.makeRequest('/sales', {
             method: 'POST',
             body: JSON.stringify(sale)
         });
     }
 
     async updateSale(id, sale) {
-        return this.request(`/sales/${id}`, {
+        return this.makeRequest(`/sales/${id}`, {
             method: 'PUT',
             body: JSON.stringify(sale)
         });
     }
 
     async deleteSale(id) {
-        return this.request(`/sales/${id}`, {
+        return this.makeRequest(`/sales/${id}`, {
             method: 'DELETE'
         });
     }
 
     // Expenses API
     async getExpenses() {
-        return this.request('/expenses');
+        return this.makeRequest('/expenses');
     }
 
     async createExpense(expense) {
-        return this.request('/expenses', {
+        return this.makeRequest('/expenses', {
             method: 'POST',
             body: JSON.stringify(expense)
         });
     }
 
     async updateExpense(id, expense) {
-        return this.request(`/expenses/${id}`, {
+        return this.makeRequest(`/expenses/${id}`, {
             method: 'PUT',
             body: JSON.stringify(expense)
         });
     }
 
     async deleteExpense(id) {
-        return this.request(`/expenses/${id}`, {
+        return this.makeRequest(`/expenses/${id}`, {
             method: 'DELETE'
         });
     }
 
     // Debts API
     async getDebts() {
-        return this.request('/debts');
+        return this.makeRequest('/debts');
     }
 
     async createDebt(debt) {
-        return this.request('/debts', {
+        return this.makeRequest('/debts', {
             method: 'POST',
             body: JSON.stringify(debt)
         });
     }
 
     async updateDebt(id, debt) {
-        return this.request(`/debts/${id}`, {
+        return this.makeRequest(`/debts/${id}`, {
             method: 'PUT',
             body: JSON.stringify(debt)
         });
     }
 
     async deleteDebt(id) {
-        return this.request(`/debts/${id}`, {
+        return this.makeRequest(`/debts/${id}`, {
             method: 'DELETE'
         });
     }
 
     // Dashboard API
     async getDashboardStats() {
-        return this.request('/dashboard/stats');
+        return this.makeRequest('/dashboard/stats');
     }
 
     // Health check with improved error handling
