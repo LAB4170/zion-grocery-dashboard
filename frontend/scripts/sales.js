@@ -75,20 +75,19 @@ async function addSale(event) {
 
     const sale = {
       id: window.utils.generateId(),
-      product_id: product.id,
+      product_id: productId,
       product_name: product.name,
-      quantity,
-      unit_price: product.price,       // Backend expects snake_case
-      total,
-      payment_method: paymentMethod,   // Backend expects snake_case
-      customer_name: paymentMethod === "cash" ? "" : customerName,  // Backend expects snake_case
-      customer_phone: paymentMethod === "cash" ? "" : customerPhone, // Backend expects snake_case
+      quantity: parseInt(quantity),
+      unit_price: parseFloat(product.price),  // Convert to number, not string
+      total: parseFloat(total),
+      payment_method: paymentMethod,
+      customer_name: (paymentMethod === "debt") ? customerName : null,  // Use null instead of empty string
+      customer_phone: (paymentMethod === "debt") ? customerPhone : null, // Use null instead of empty string
       status: paymentMethod === "debt" ? "pending" : "completed",
       mpesa_code: paymentMethod === "mpesa" ? (document.getElementById('mpesaCode')?.value || null) : null,
       notes: document.getElementById('saleNotes')?.value || null,
-      created_by: 'system',  // Backend expects created_by, not user_id
-      created_at: new Date(saleDate + 'T' + new Date().toTimeString().split(' ')[0]).toISOString(), // Backend expects snake_case
-      date: saleDate
+      created_by: 'system',
+      created_at: new Date().toISOString()  // Single timestamp field only
     };
 
     // DATABASE-FIRST OPERATION: Send to database first, then update cache

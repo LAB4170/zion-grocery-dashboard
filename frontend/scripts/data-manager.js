@@ -196,14 +196,25 @@ class DataManager {
             data.id = window.utils.generateId();
         }
         
-        // Add timestamp
-        if (!data.createdAt) {
-            data.createdAt = new Date().toISOString();
+        // Add timestamps if not present (database-only mode)
+        if (!data.created_at && !data.createdAt) {
+            data.created_at = new Date().toISOString();
         }
         
-        // Add user_id for backend compatibility
-        if (!data.user_id) {
-            data.user_id = 'system'; // Default user for database operations
+        // Don't add duplicate timestamp fields - use created_at only
+        if (data.createdAt && !data.created_at) {
+            data.created_at = data.createdAt;
+            delete data.createdAt;
+        }
+        
+        // Use created_by field (not user_id) for backend compatibility
+        if (!data.created_by && !data.user_id) {
+            data.created_by = 'system';
+        }
+        
+        // Remove user_id if created_by exists (avoid duplicate fields)
+        if (data.created_by && data.user_id) {
+            delete data.user_id;
         }
         
         try {
@@ -240,7 +251,7 @@ class DataManager {
         await this.ensureConnection();
         
         // Add update timestamp
-        data.updatedAt = new Date().toISOString();
+        data.updated_at = new Date().toISOString();
         
         try {
             const response = await window.apiClient.request(`/${type}/${id}`, {
