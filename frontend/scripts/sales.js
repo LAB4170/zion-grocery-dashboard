@@ -74,12 +74,12 @@ async function addSale(event) {
     const total = product.price * quantity;
 
     const sale = {
-      id: window.utils.generateId(),
-      product_id: productId,
+      id: window.utils.generateId(), // Generate UUID for primary key
+      product_id: product.id,
       product_name: product.name,
-      quantity: parseInt(quantity),
+      quantity: quantity,
       unit_price: parseFloat(product.price),  // Convert to number, not string
-      total: parseFloat(total),
+      total: parseFloat(product.price) * quantity,
       payment_method: paymentMethod,
       customer_name: (paymentMethod === "debt") ? customerName : null,  // Use null instead of empty string
       customer_phone: (paymentMethod === "debt") ? customerPhone : null, // Use null instead of empty string

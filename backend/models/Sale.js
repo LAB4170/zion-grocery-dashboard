@@ -1,4 +1,5 @@
 const db = require('../config/database');
+const { v4: uuidv4 } = require('uuid');
 
 class Sale {
   constructor(data) {
@@ -23,6 +24,11 @@ class Sale {
   static async create(saleData) {
     const sale = new Sale(saleData);
     
+    // Generate UUID if not provided
+    if (!sale.id) {
+      sale.id = uuidv4();
+    }
+    
     // Start transaction
     const trx = await db.transaction();
     
@@ -37,9 +43,10 @@ class Sale {
         throw new Error('Insufficient stock');
       }
       
-      // Create sale record (let PostgreSQL generate ID)
+      // Create sale record with UUID
       const [newSale] = await trx('sales')
         .insert({
+          id: sale.id, // Include UUID primary key
           product_id: sale.product_id,
           product_name: sale.product_name,
           quantity: sale.quantity,
