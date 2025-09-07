@@ -75,8 +75,8 @@ async function addSale(event) {
 
     const sale = {
       id: window.utils.generateId(),
-      product_id: productId,           // Backend expects snake_case
-      product_name: product.name,      // Backend expects snake_case
+      product_id: product.id,
+      product_name: product.name,
       quantity,
       unit_price: product.price,       // Backend expects snake_case
       total,
@@ -84,9 +84,11 @@ async function addSale(event) {
       customer_name: paymentMethod === "cash" ? "" : customerName,  // Backend expects snake_case
       customer_phone: paymentMethod === "cash" ? "" : customerPhone, // Backend expects snake_case
       status: paymentMethod === "debt" ? "pending" : "completed",
+      mpesa_code: paymentMethod === "mpesa" ? (document.getElementById('mpesaCode')?.value || null) : null,
+      notes: document.getElementById('saleNotes')?.value || null,
+      created_by: 'system',  // Backend expects created_by, not user_id
       created_at: new Date(saleDate + 'T' + new Date().toTimeString().split(' ')[0]).toISOString(), // Backend expects snake_case
-      date: saleDate,
-      user_id: 'system'  // Add required user_id field
+      date: saleDate
     };
 
     // DATABASE-FIRST OPERATION: Send to database first, then update cache

@@ -12,7 +12,9 @@ class Sale {
     this.customer_name = data.customer_name || '';
     this.customer_phone = data.customer_phone || '';
     this.status = data.status || 'completed'; // 'completed', 'pending', 'cancelled'
-    this.user_id = data.user_id;
+    this.mpesa_code = data.mpesa_code || null; // M-Pesa transaction code
+    this.notes = data.notes || null; // Additional notes
+    this.created_by = data.created_by || data.user_id || 'system'; // Handle both field names
     this.created_at = data.created_at || new Date();
     this.updated_at = data.updated_at || new Date();
   }
@@ -47,7 +49,9 @@ class Sale {
           customer_name: sale.customer_name,
           customer_phone: sale.customer_phone,
           status: sale.status,
-          user_id: sale.user_id,
+          mpesa_code: sale.mpesa_code,
+          notes: sale.notes,
+          created_by: sale.created_by,
           created_at: sale.created_at,
           updated_at: sale.updated_at
         })
@@ -59,15 +63,18 @@ class Sale {
         .decrement('stock', sale.quantity)
         .update('updated_at', new Date());
       
-      // If payment method is debt, create debt record
+      // If payment method is debt, create debt record with correct schema
       if (sale.payment_method === 'debt') {
         await trx('debts').insert({
+          sale_id: newSale.id,
           customer_name: sale.customer_name,
           customer_phone: sale.customer_phone,
           amount: sale.total,
-          description: `Sale: ${sale.product_name} (${sale.quantity} units)`,
+          amount_paid: 0, // New schema field
+          balance: sale.total, // New schema field
           status: 'pending',
-          sale_id: newSale.id,
+          notes: `Sale: ${sale.product_name} (${sale.quantity} units)`,
+          created_by: sale.created_by,
           created_at: new Date(),
           updated_at: new Date()
         });
@@ -246,15 +253,18 @@ class Sale {
       errors.push('Valid payment method is required (cash, mpesa, or debt)');
     }
     
-    if (data.payment_method === 'debt' || data.payment_method === 'mpesa') {
+    if (data.payment_method === 'debt') {
       if (!data.customer_name || data.customer_name.trim().length === 0) {
-        errors.push('Customer name is required for debt and M-Pesa payments');
+        errors.push('Customer name is required for debt payments');
       }
       
       if (!data.customer_phone || data.customer_phone.trim().length === 0) {
-        errors.push('Customer phone is required for debt and M-Pesa payments');
+        errors.push('Customer phone is required for debt payments');
       }
     }
+    
+    // M-Pesa code is optional for M-Pesa payments (for record keeping only)
+    // No customer details required for M-Pesa payments (same as cash)
     
     return errors;
   }

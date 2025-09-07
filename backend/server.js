@@ -139,45 +139,90 @@ app.locals.io = io;
 
 // Health check endpoint with comprehensive database status
 app.get('/health', async (req, res) => {
+  const healthCheck = {
+    status: 'OK',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    environment: process.env.NODE_ENV,
+    version: require('./package.json').version,
+    database: {
+      status: 'Unknown',
+      type: 'PostgreSQL',
+      environment: process.env.NODE_ENV === 'development' ? 'Local' : 'Render Cloud',
+      lastChecked: new Date().toISOString()
+    },
+    api: {
+      baseUrl: process.env.NODE_ENV === 'development' ? 'http://localhost:5000/api' : 'https://zion-grocery-dashboard-1.onrender.com/api',
+      endpoints: ['/products', '/sales', '/expenses', '/debts', '/dashboard']
+    }
+  };
+
   try {
-    // Test database connection
+    // Test basic database connection
+    const connectionTest = await db.raw('SELECT 1 as test');
+    
+    // Test database version and info
     const dbVersion = await db.raw('SELECT version() as version');
     const dbName = await db.raw('SELECT current_database() as database');
-    const dbConnections = await db.raw('SELECT count(*) as active_connections FROM pg_stat_activity WHERE state = \'active\'');
     
-    res.status(200).json({
-      status: 'OK',
-      timestamp: new Date().toISOString(),
-      uptime: process.uptime(),
-      environment: process.env.NODE_ENV,
-      version: require('./package.json').version,
-      database: {
-        status: 'Connected',
-        type: 'PostgreSQL',
-        name: dbName.rows[0].database,
-        version: dbVersion.rows[0].version.split(' ')[1], // Extract version number
-        activeConnections: parseInt(dbConnections.rows[0].active_connections),
-        lastChecked: new Date().toISOString()
-      },
-      api: {
-        baseUrl: process.env.NODE_ENV === 'development' ? 'http://localhost:5000/api' : 'https://zion-grocery-dashboard-1.onrender.com/api',
-        endpoints: ['/products', '/sales', '/expenses', '/debts', '/dashboard']
-      }
-    });
+    // Test active connections (may fail on some PostgreSQL configurations)
+    let activeConnections = 0;
+    try {
+      const dbConnections = await db.raw('SELECT count(*) as active_connections FROM pg_stat_activity WHERE state = \'active\'');
+      activeConnections = parseInt(dbConnections.rows[0].active_connections);
+    } catch (connError) {
+      console.warn('Could not get connection count:', connError.message);
+    }
+    
+    // Test table existence
+    const tables = await db.raw(`
+      SELECT table_name 
+      FROM information_schema.tables 
+      WHERE table_schema = 'public' 
+      ORDER BY table_name
+    `);
+    
+    healthCheck.database = {
+      status: 'Connected',
+      type: 'PostgreSQL',
+      environment: process.env.NODE_ENV === 'development' ? 'Local' : 'Render Cloud',
+      name: dbName.rows[0].database,
+      version: dbVersion.rows[0].version.split(' ')[1], // Extract version number
+      activeConnections: activeConnections,
+      tables: tables.rows.map(row => row.table_name),
+      tableCount: tables.rows.length,
+      lastChecked: new Date().toISOString()
+    };
+    
+    console.log(`✅ Health check passed - Database: ${healthCheck.database.name} (${healthCheck.database.environment})`);
+    res.status(200).json(healthCheck);
+    
   } catch (error) {
-    console.error('Health check database error:', error);
-    res.status(503).json({
-      status: 'ERROR',
-      timestamp: new Date().toISOString(),
-      uptime: process.uptime(),
-      environment: process.env.NODE_ENV,
-      database: {
-        status: 'Disconnected',
-        error: error.message,
-        lastChecked: new Date().toISOString()
-      },
-      message: 'Database connection failed'
-    });
+    console.error('❌ Health check database error:', error.message);
+    
+    healthCheck.status = 'ERROR';
+    healthCheck.database = {
+      status: 'Disconnected',
+      type: 'PostgreSQL',
+      environment: process.env.NODE_ENV === 'development' ? 'Local' : 'Render Cloud',
+      error: error.message,
+      errorCode: error.code,
+      lastChecked: new Date().toISOString(),
+      troubleshooting: process.env.NODE_ENV === 'development' ? [
+        'Check if PostgreSQL service is running',
+        'Verify database "zion_grocery_db" exists',
+        'Check credentials: postgres/ZionGrocery2024!',
+        'Run: createdb zion_grocery_db',
+        'Run: npm run migrate'
+      ] : [
+        'Check Render database status',
+        'Verify DATABASE_URL environment variable',
+        'Check SSL connection configuration',
+        'Review Render dashboard for database issues'
+      ]
+    };
+    
+    res.status(503).json(healthCheck);
   }
 });
 

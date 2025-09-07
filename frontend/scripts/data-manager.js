@@ -28,18 +28,34 @@ class DataManager {
                     throw new Error('Backend health check returned false');
                 }
             } catch (error) {
-                console.warn(`❌ Database connection attempt ${attempt}/${this.retryAttempts} failed:`, error.message);
+                const errorMessage = error.message || 'Unknown error';
+                console.warn(`❌ Database connection attempt ${attempt}/${this.retryAttempts} failed: ${errorMessage}`);
+                
+                // Provide specific guidance based on error type
+                if (errorMessage.includes('health check returned false')) {
+                    console.warn('🔍 Backend is running but database health check failed');
+                    console.warn('💡 Check: Database server status, connection string, credentials');
+                } else if (errorMessage.includes('Failed to fetch') || errorMessage.includes('Network')) {
+                    console.warn('🌐 Network connectivity issue detected');
+                    console.warn('💡 Check: Server is running, firewall settings, URL configuration');
+                } else if (errorMessage.includes('timeout')) {
+                    console.warn('⏱️ Request timeout - server may be slow or overloaded');
+                }
                 
                 if (attempt === this.retryAttempts) {
                     console.error('🚨 CRITICAL: Database unavailable after all retry attempts.');
-                    console.error('Backend is running but health check fails. Check API endpoint configuration.');
+                    console.error('📋 Troubleshooting steps:');
+                    console.error('   1. Verify backend server is running');
+                    console.error('   2. Check database server status');
+                    console.error('   3. Verify network connectivity');
+                    console.error('   4. Check environment configuration');
                     this.showDatabaseError();
-                    throw new Error('Database connection failed after all retry attempts');
+                    throw new Error(`Database connection failed after ${this.retryAttempts} attempts: ${errorMessage}`);
                 }
                 
                 // Exponential backoff: wait longer between retries
-                const waitTime = this.retryDelay * attempt;
-                console.log(`⏳ Waiting ${waitTime}ms before retry...`);
+                const waitTime = Math.min(this.retryDelay * Math.pow(2, attempt - 1), 10000); // Cap at 10 seconds
+                console.log(`⏳ Waiting ${waitTime}ms before retry ${attempt + 1}/${this.retryAttempts}...`);
                 await new Promise(resolve => setTimeout(resolve, waitTime));
             }
         }

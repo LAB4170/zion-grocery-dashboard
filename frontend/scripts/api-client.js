@@ -191,14 +191,18 @@ class ApiClient {
             const healthUrl = this.baseURL.replace('/api', '') + '/health';
             console.log(`🏥 Checking health at: ${healthUrl}`);
             
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+            
             const response = await fetch(healthUrl, {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                // Add timeout to prevent hanging
-                signal: AbortSignal.timeout(5000)
+                signal: controller.signal
             });
+            
+            clearTimeout(timeoutId);
             
             if (response.ok) {
                 const data = await response.json();
@@ -209,8 +213,16 @@ class ApiClient {
                 return false;
             }
         } catch (error) {
-            console.error('❌ Health check error:', error.message);
-            return false;
+            if (error.name === 'AbortError') {
+                console.log('⏱️ Health check timeout - this is normal for slow connections');
+                return false;
+            } else if (error.message.includes('Failed to fetch')) {
+                console.warn('🌐 Network error - server may be unreachable');
+                return false;
+            } else {
+                console.error('❌ Health check error:', error.message);
+                return false;
+            }
         }
     }
 }
