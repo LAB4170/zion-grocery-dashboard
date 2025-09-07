@@ -14,7 +14,7 @@ class Sale {
     this.status = data.status || 'completed'; // 'completed', 'pending', 'cancelled'
     this.mpesa_code = data.mpesa_code || null; // M-Pesa transaction code
     this.notes = data.notes || null; // Additional notes
-    this.created_by = data.created_by || data.user_id || 'system'; // Handle both field names
+    this.created_by = data.created_by || data.user_id || null; // Handle both field names
     this.created_at = data.created_at || new Date();
     this.updated_at = data.updated_at || new Date();
   }
