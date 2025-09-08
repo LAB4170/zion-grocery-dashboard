@@ -6,7 +6,7 @@ class Product {
     this.name = data.name;
     this.category = data.category;
     this.price = parseFloat(data.price);
-    this.stock = parseInt(data.stock);
+    this.stock_quantity = parseInt(data.stock_quantity || data.stock);
     this.description = data.description || '';
     this.barcode = data.barcode || null;
     this.supplier = data.supplier || '';
@@ -26,7 +26,7 @@ class Product {
       name: productData.name,
       category: productData.category,
       price: parseFloat(productData.price),
-      stock: parseInt(productData.stock),
+      stock_quantity: parseInt(productData.stock_quantity || productData.stock),
       description: productData.description || '',
       barcode: productData.barcode || null,
       supplier: productData.supplier || '',
@@ -56,7 +56,7 @@ class Product {
     }
     
     if (filters.low_stock) {
-      query = query.whereRaw('stock <= min_stock');
+      query = query.whereRaw('stock_quantity <= min_stock');
     }
     
     if (filters.search) {
@@ -109,24 +109,24 @@ class Product {
     
     let newStock;
     if (operation === 'subtract') {
-      newStock = product.stock - quantity;
+      newStock = product.stock_quantity - quantity;
       if (newStock < 0) {
         throw new Error('Insufficient stock');
       }
     } else if (operation === 'add') {
-      newStock = product.stock + quantity;
+      newStock = product.stock_quantity + quantity;
     } else {
       throw new Error('Invalid operation. Use "add" or "subtract"');
     }
     
-    return await Product.update(id, { stock: newStock });
+    return await Product.update(id, { stock_quantity: newStock });
   }
 
   // Get low stock products
   static async getLowStock() {
     return await db('products')
-      .whereRaw('stock <= min_stock')
-      .orderBy('stock', 'asc');
+      .whereRaw('stock_quantity <= min_stock')
+      .orderBy('stock_quantity', 'asc');
   }
 
   // Get products by category
@@ -161,7 +161,7 @@ class Product {
       errors.push('Valid price is required');
     }
     
-    if (data.stock === undefined || isNaN(parseInt(data.stock)) || parseInt(data.stock) < 0) {
+    if (data.stock_quantity === undefined || isNaN(parseInt(data.stock_quantity)) || parseInt(data.stock_quantity) < 0) {
       errors.push('Valid stock quantity is required');
     }
     

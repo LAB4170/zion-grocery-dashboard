@@ -44,10 +44,10 @@ async function addProduct(event) {
   const name = document.getElementById("productName").value;
   const category = document.getElementById("productCategory").value;
   const price = parseFloat(document.getElementById("productPrice").value);
-  const stock = parseInt(document.getElementById("productStock").value);
+  const stock_quantity = parseInt(document.getElementById("productStock").value);
 
   // Validation
-  if (!name || !category || isNaN(price) || isNaN(stock)) {
+  if (!name || !category || isNaN(price) || isNaN(stock_quantity)) {
     window.utils.showNotification("Please fill all fields correctly", "error");
     return;
   }
@@ -57,7 +57,7 @@ async function addProduct(event) {
     return;
   }
 
-  if (stock < 0) {
+  if (stock_quantity < 0) {
     window.utils.showNotification("Stock cannot be negative", "error");
     return;
   }
@@ -78,7 +78,7 @@ async function addProduct(event) {
         name,
         category,
         price,
-        stock,
+        stock_quantity,
         updatedAt: new Date().toISOString(),
       };
 
@@ -96,7 +96,7 @@ async function addProduct(event) {
       name,
       category,
       price: parseFloat(price),
-      stock: parseInt(stock),
+      stock_quantity: parseInt(stock_quantity),
       // Add missing fields for database compatibility
       description: '',
       barcode: null,
@@ -164,8 +164,8 @@ function renderProductsTable(productsToShow) {
 
   tbody.innerHTML = dataToRender
     .map((product) => {
-      const stockClass = (product.stock || 0) <= 5 ? "low-stock" : "";
-      const stockIndicator = (product.stock || 0) <= 5 ? "" : "";
+      const stockClass = (product.stock_quantity || 0) <= 5 ? "low-stock" : "";
+      const stockIndicator = (product.stock_quantity || 0) <= 5 ? "" : "";
 
       return `
             <tr class="${stockClass}">
@@ -174,7 +174,7 @@ function renderProductsTable(productsToShow) {
                   product.category || "Uncategorized"
                 }</span></td>
                 <td>${window.utils.formatCurrency(product.price || 0)}</td>
-                <td>${stockIndicator} ${product.stock || 0}</td>
+                <td>${stockIndicator} ${product.stock_quantity || 0}</td>
                 <td class="action-buttons">
                     <button class="btn-small" onclick="editProduct('${
                       product.id
@@ -226,7 +226,7 @@ function editProduct(productId) {
   document.getElementById("productName").value = product.name || "";
   document.getElementById("productCategory").value = product.category || "";
   document.getElementById("productPrice").value = product.price || 0;
-  document.getElementById("productStock").value = product.stock || 0;
+  document.getElementById("productStock").value = product.stock_quantity || 0;
 
   // FIX: Update modal state for editing
   const modal = document.getElementById("productModal");
@@ -266,9 +266,9 @@ function populateProductSelect() {
     products
       .map((product) => {
         const stockInfo =
-          (product.stock || 0) <= 5
-            ? ` (Low Stock: ${product.stock || 0})`
-            : ` (Stock: ${product.stock || 0})`;
+          (product.stock_quantity || 0) <= 5
+            ? ` (Low Stock: ${product.stock_quantity || 0})`
+            : ` (Stock: ${product.stock_quantity || 0})`;
         return `<option value="${product.id}">${
           product.name || "Unknown Product"
         } - ${window.utils.formatCurrency(

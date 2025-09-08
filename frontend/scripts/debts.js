@@ -27,14 +27,20 @@ async function addDebt(event) {
 
   const dueDate = document.getElementById("debtDueDate").value;
 
+  // Create debt object with proper field mapping for backend
   const debt = {
     id: window.utils.generateId(),
+    customer_name: customerName,
+    customer_phone: customerPhone,
+    amount,
+    due_date: dueDate,
+    status: "pending",
+    created_by: 'system',
+    created_at: new Date().toISOString(),
+    // Keep frontend-compatible fields for local cache
     customerName,
     customerPhone,
-    amount,
     dueDate,
-    status: "pending",
-    createdAt: new Date().toISOString(),
     date: new Date().toISOString().split("T")[0],
   };
 
@@ -65,16 +71,21 @@ async function addDebt(event) {
 }
 
 async function addDebtFromSale(sale) {
+  // Create debt object with proper field mapping for backend
   const debt = {
     id: window.utils.generateId(),
-    customerName: sale.customerName,
-    customerPhone: sale.customerPhone,
+    customer_name: sale.customerName || sale.customer_name,
+    customer_phone: sale.customerPhone || sale.customer_phone,
     amount: sale.total,
-    dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
-      .toISOString()
-      .split("T")[0], // 7 days from now
+    due_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0], // 7 days from now
     status: "pending",
-    createdAt: sale.createdAt,
+    sale_id: sale.id,
+    created_by: 'system',
+    created_at: sale.createdAt || sale.created_at,
+    // Keep frontend-compatible fields for local cache
+    customerName: sale.customerName || sale.customer_name,
+    customerPhone: sale.customerPhone || sale.customer_phone,
+    dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
     date: sale.date,
     saleId: sale.id,
   };
