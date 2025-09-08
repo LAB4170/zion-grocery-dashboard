@@ -180,7 +180,7 @@ class DataManager {
         await this.ensureConnection();
         
         try {
-            const response = await window.apiClient.request(`/${type}`);
+            const response = await window.apiClient.makeRequest(`/${type}`);
             return response.data || response;
         } catch (error) {
             console.error(`Failed to fetch ${type} from database:`, error);
@@ -220,7 +220,7 @@ class DataManager {
         try {
             console.log(`📤 Creating ${type} in PostgreSQL database:`, data);
             
-            const response = await window.apiClient.request(`/${type}`, {
+            const response = await window.apiClient.makeRequest(`/${type}`, {
                 method: 'POST',
                 body: JSON.stringify(data)
             });
@@ -254,7 +254,7 @@ class DataManager {
         data.updated_at = new Date().toISOString();
         
         try {
-            const response = await window.apiClient.request(`/${type}/${id}`, {
+            const response = await window.apiClient.makeRequest(`/${type}/${id}`, {
                 method: 'PUT',
                 body: JSON.stringify(data)
             });
@@ -271,7 +271,7 @@ class DataManager {
         await this.ensureConnection();
         
         try {
-            await window.apiClient.request(`/${type}/${id}`, {
+            await window.apiClient.makeRequest(`/${type}/${id}`, {
                 method: 'DELETE'
             });
             
