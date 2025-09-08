@@ -246,7 +246,7 @@ class RealTimeSyncManager {
 
 // Cache-busting API client enhancement
 class CacheBustingApiClient extends ApiClient {
-    async request(endpoint, options = {}) {
+    async makeRequest(endpoint, options = {}) {
         // Add cache-busting timestamp
         const separator = endpoint.includes('?') ? '&' : '?';
         const cacheBustedEndpoint = `${endpoint}${separator}t=${Date.now()}`;
@@ -262,7 +262,7 @@ class CacheBustingApiClient extends ApiClient {
             }
         };
         
-        return super.request(cacheBustedEndpoint, enhancedOptions);
+        return super.makeRequest(cacheBustedEndpoint, enhancedOptions);
     }
 }
 

@@ -216,10 +216,10 @@ class SystemHealthChecker {
             }
 
             // Test API client if available
-            if (window.apiClient && typeof window.apiClient.get === 'function') {
+            if (window.apiClient && typeof window.apiClient.checkHealth === 'function') {
                 try {
                     // Test a simple API call
-                    await window.apiClient.get('/health');
+                    await window.apiClient.checkHealth();
                     this.logPass('API client functional');
                 } catch (error) {
                     this.logFail(`API client error: ${error.message}`);
