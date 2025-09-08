@@ -81,9 +81,11 @@ router.post('/', catchAsync(async (req, res) => {
     throw new AppError(`Validation failed: ${errors.join(', ')}`, 400);
   }
 
+  // FIX: Pass complete sale data without modifying it
   const saleData = {
     ...req.body,
-    total: parseFloat(req.body.unit_price) * parseInt(req.body.quantity)
+    // Don't override total if already calculated correctly in frontend
+    total: req.body.total || (parseFloat(req.body.unit_price) * parseInt(req.body.quantity))
   };
 
   const sale = await Sale.create(saleData);

@@ -37,7 +37,7 @@ async function addSale(event) {
     // Calculate stock difference
     const quantityDifference = quantity - existingSale.quantity;
 
-    if (quantityDifference > product.stock) {
+    if (quantityDifference > product.stock_quantity) {
       window.utils.showNotification(
         "Insufficient stock available for this update",
         "error"
@@ -46,7 +46,7 @@ async function addSale(event) {
     }
 
     // Update product stock
-    product.stock -= quantityDifference;
+    product.stock_quantity -= quantityDifference;
     await window.dataManager.updateData("products", product.id, product);
 
     // Update sale record
@@ -66,7 +66,7 @@ async function addSale(event) {
     window.utils.showNotification("Sale updated successfully!");
   } else {
     // Adding a new sale
-    if (quantity > product.stock) {
+    if (quantity > product.stock_quantity) {
       window.utils.showNotification("Insufficient stock available", "error");
       return;
     }
@@ -86,7 +86,7 @@ async function addSale(event) {
       status: paymentMethod === "debt" ? "pending" : "completed",
       mpesa_code: paymentMethod === "mpesa" ? (document.getElementById('mpesaCode')?.value || null) : null,
       notes: document.getElementById('saleNotes')?.value || null,
-      created_by: null, // Use null instead of 'system' to match UUID schema
+      created_by: 'system', // FIX: Use 'system' instead of null
       created_at: new Date().toISOString()  // Single timestamp field only
     };
 
@@ -99,7 +99,7 @@ async function addSale(event) {
       window.sales.push(savedSale);
       
       // Update product stock in database
-      product.stock -= quantity;
+      product.stock_quantity -= quantity;
       const updatedProduct = await window.dataManager.updateData("products", product.id, product);
       
       // Update global products array
@@ -234,7 +234,7 @@ async function deleteSale(saleId) {
       (p) => p.id === sale.productId
     );
     if (product) {
-      product.stock += sale.quantity;
+      product.stock_quantity += sale.quantity;
       await window.dataManager.updateData("products", product.id, product);
     }
   }

@@ -33,13 +33,13 @@ class Sale {
     const trx = await db.transaction();
     
     try {
-      // Check product stock
+      // Check product stock - FIX: Use correct field name 'stock_quantity'
       const product = await trx('products').where('id', sale.product_id).first();
       if (!product) {
         throw new Error('Product not found');
       }
       
-      if (product.stock < sale.quantity) {
+      if (product.stock_quantity < sale.quantity) {
         throw new Error('Insufficient stock');
       }
       
@@ -64,10 +64,10 @@ class Sale {
         })
         .returning('*');
       
-      // Update product stock
+      // Update product stock - FIX: Use correct field name 'stock_quantity'
       await trx('products')
         .where('id', sale.product_id)
-        .decrement('stock', sale.quantity)
+        .decrement('stock_quantity', sale.quantity)
         .update('updated_at', new Date());
       
       // If payment method is debt, create debt record with correct schema
@@ -161,7 +161,7 @@ class Sale {
       // Restore product stock
       await trx('products')
         .where('id', sale.product_id)
-        .increment('stock', sale.quantity)
+        .increment('stock_quantity', sale.quantity)
         .update('updated_at', new Date());
       
       // Delete associated debt if exists
