@@ -41,75 +41,78 @@ function initializeProductsPagination() {
 async function addProduct(event) {
   event.preventDefault();
 
-  const name = document.getElementById("productName").value;
-  const category = document.getElementById("productCategory").value;
-  const price = parseFloat(document.getElementById("productPrice").value);
-  const stock_quantity = parseInt(document.getElementById("productStock").value);
+  try {
+    const name = document.getElementById("productName").value;
+    const category = document.getElementById("productCategory").value;
+    const price = parseFloat(document.getElementById("productPrice").value);
+    const stock = parseInt(document.getElementById("productStock").value);
 
-  // Validation
-  if (!name || !category || isNaN(price) || isNaN(stock_quantity)) {
-    window.utils.showNotification("Please fill all fields correctly", "error");
-    return;
-  }
-
-  if (price <= 0) {
-    window.utils.showNotification("Price must be greater than zero", "error");
-    return;
-  }
-
-  if (stock_quantity < 0) {
-    window.utils.showNotification("Stock cannot be negative", "error");
-    return;
-  }
-
-  // FIX: Check if we're editing an existing product
-  const modal = document.getElementById("productModal");
-  const editingProductId = modal ? modal.getAttribute("data-editing") : null;
-
-  if (editingProductId) {
-    // EDITING MODE - Update existing product
-    const products = window.products || [];
-    const productIndex = products.findIndex((p) => p.id === editingProductId);
-
-    if (productIndex !== -1) {
-      // Update existing product
-      products[productIndex] = {
-        ...products[productIndex], // Keep original id and createdAt
-        name,
-        category,
-        price,
-        stock_quantity,
-        updatedAt: new Date().toISOString(),
-      };
-
-      window.products = products;
-      await window.dataManager.updateData("products", products[productIndex]);
-      window.utils.showNotification("Product updated successfully!");
+    // Validation checks with user feedback
+    if (!name || name.trim() === "") {
+      window.utils.showNotification("Please enter a product name", "error");
+      return;
     }
 
-    // Clear editing mode
-    modal.removeAttribute("data-editing");
-  } else {
-    // ADDING MODE - Create new product
-    const product = {
-      id: window.utils.generateId(),
-      name,
-      category,
-      price: parseFloat(price),
-      stock_quantity: parseInt(stock_quantity),
-      // Add missing fields for database compatibility
-      description: '',
-      barcode: null,
-      supplier: '',
-      min_stock: 5, // Default reorder level
-      cost_price: null,
-      is_active: true,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
+    if (!category) {
+      window.utils.showNotification("Please select a category", "error");
+      return;
+    }
 
-    // DATABASE-FIRST OPERATION: Send to database first, then update cache
-    try {
+    if (!price || price <= 0) {
+      window.utils.showNotification("Please enter a valid price", "error");
+      return;
+    }
+
+    if (isNaN(stock) || stock < 0) {
+      window.utils.showNotification("Please enter a valid stock quantity", "error");
+      return;
+    }
+
+    const modal = document.getElementById("productModal");
+    const isEditing = modal && modal.hasAttribute("data-editing");
+
+    if (isEditing) {
+      // Update existing product
+      const productId = modal.getAttribute("data-editing");
+      const productIndex = (window.products || []).findIndex((p) => p.id === productId);
+      
+      if (productIndex === -1) {
+        window.utils.showNotification("Product not found for editing", "error");
+        return;
+      }
+
+      const updatedProduct = {
+        ...window.products[productIndex],
+        name: name.trim(),
+        category: category,
+        price: price,
+        stock_quantity: stock,
+        updated_at: new Date().toISOString()
+      };
+
+      // Update in database first
+      const savedProduct = await window.dataManager.updateData("products", productId, updatedProduct);
+      
+      // Update global array only after successful database update
+      window.products[productIndex] = savedProduct;
+      
+      window.utils.showNotification("Product updated successfully!");
+    } else {
+      // Create new product
+      const product = {
+        id: window.utils.generateId(),
+        name: name.trim(),
+        category: category,
+        price: price,
+        stock_quantity: stock,
+        min_stock: Math.max(1, Math.floor(stock * 0.1)), // 10% of initial stock as minimum
+        is_active: true,
+        created_by: 'system',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+
+      // DATABASE-FIRST OPERATION: Send to database first, then update cache
       console.log('Sending product to database:', product);
       const savedProduct = await window.dataManager.createData("products", product);
       console.log('Product saved successfully:', savedProduct);
@@ -118,30 +121,36 @@ async function addProduct(event) {
       window.products = window.products || [];
       window.products.push(savedProduct);
 
-      loadProductsData();
-      document.getElementById("productForm").reset();
       window.utils.showNotification("Product added successfully!");
-    } catch (error) {
-      console.error("Failed to save product to database:", error);
-      window.utils.showNotification(`Failed to save product: ${error.message}`, "error");
     }
-  }
 
-  if (window.currentSection === "sales-settings") {
+    // Close modal and refresh data
+    closeModal("productModal");
     loadProductsData();
-  }
+    
+    // Update dashboard if visible
+    if (typeof updateDashboardStats === "function") {
+      updateDashboardStats();
+    }
 
-  // Update dashboard and refresh product select
-  if (typeof window.updateDashboardStats === "function") {
-    window.updateDashboardStats();
+  } catch (error) {
+    console.error("Failed to save product:", error);
+    
+    // Provide specific error messages based on error type
+    let errorMessage = "Failed to save product. Please try again.";
+    
+    if (error.message.includes('Database connection')) {
+      errorMessage = "Database connection error. Please check if the server is running.";
+    } else if (error.message.includes('validation')) {
+      errorMessage = "Invalid product data. Please check all fields.";
+    } else if (error.message.includes('duplicate')) {
+      errorMessage = "A product with this name already exists.";
+    } else if (error.message.includes('timeout')) {
+      errorMessage = "Request timed out. Please try again.";
+    }
+    
+    window.utils.showNotification(errorMessage, "error");
   }
-  if (typeof window.updateInventoryOverview === "function") {
-    window.updateInventoryOverview();
-  }
-  if (typeof window.updateDetailedInventory === "function") {
-    window.updateDetailedInventory();
-  }
-  populateProductSelect();
 }
 
 function loadProductsData(filteredProducts = null) {

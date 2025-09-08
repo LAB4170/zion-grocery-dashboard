@@ -6,51 +6,70 @@
 async function addExpense(event) {
   event.preventDefault();
 
-  const description = document.getElementById("expenseDescription").value;
-  const category = document.getElementById("expenseCategory").value;
-  const amount = parseFloat(document.getElementById("expenseAmount").value);
-
-  // Input validation for amount
-  if (isNaN(amount) || amount <= 0) {
-    window.utils.showNotification(
-      "Please enter a valid amount greater than zero.",
-      "error"
-    );
-    return; // Exit the function if the amount is invalid
-  }
-
-  const expense = {
-    id: window.utils.generateId(),
-    description,
-    category,
-    amount,
-    createdAt: new Date().toISOString(),
-    date: new Date().toISOString().split("T")[0],
-  };
-
-  // DATABASE-FIRST OPERATION: Send to database first, then update cache
   try {
+    const description = document.getElementById("expenseDescription").value;
+    const category = document.getElementById("expenseCategory").value;
+    const amount = parseFloat(document.getElementById("expenseAmount").value);
+
+    // Validation checks with user feedback
+    if (!description || description.trim() === "") {
+      window.utils.showNotification("Please enter an expense description", "error");
+      return;
+    }
+
+    if (!category) {
+      window.utils.showNotification("Please select a category", "error");
+      return;
+    }
+
+    if (!amount || amount <= 0) {
+      window.utils.showNotification("Please enter a valid amount", "error");
+      return;
+    }
+
+    const expense = {
+      id: window.utils.generateId(),
+      description: description.trim(),
+      category: category,
+      amount: amount,
+      created_by: 'system',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    // DATABASE-FIRST OPERATION: Send to database first, then update cache
     const savedExpense = await window.dataManager.createData("expenses", expense);
     
     // Update global variable only after successful database save
     window.expenses = window.expenses || [];
     window.expenses.push(savedExpense);
 
+    // Close modal and refresh data
+    closeModal("expenseModal");
     loadExpensesData();
-    document.getElementById("expenseForm").reset();
+    
+    // Update dashboard if visible
+    if (typeof updateDashboardStats === "function") {
+      updateDashboardStats();
+    }
+
     window.utils.showNotification("Expense added successfully!");
+
   } catch (error) {
-    console.error("Failed to save expense to database:", error);
-    window.utils.showNotification("Failed to save expense. Please try again.", "error");
-  }
-
-  if (window.currentSection === "expenses") {
-    loadExpensesData();
-  }
-
-  // Update dashboard
-  if (typeof window.updateDashboardStats === "function") {
-    window.updateDashboardStats();
+    console.error("Failed to save expense:", error);
+    
+    // Provide specific error messages based on error type
+    let errorMessage = "Failed to save expense. Please try again.";
+    
+    if (error.message.includes('Database connection')) {
+      errorMessage = "Database connection error. Please check if the server is running.";
+    } else if (error.message.includes('validation')) {
+      errorMessage = "Invalid expense data. Please check all fields.";
+    } else if (error.message.includes('timeout')) {
+      errorMessage = "Request timed out. Please try again.";
+    }
+    
+    window.utils.showNotification(errorMessage, "error");
   }
 }
 

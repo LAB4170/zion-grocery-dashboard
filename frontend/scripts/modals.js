@@ -42,7 +42,7 @@ function closeModal(modalId) {
   }
 
   // Use utils function for consistent behavior
-  window.utils.closeModal(modalId);
+  utils.closeModal(modalId);
 }
 
 // Close modals when clicking outside

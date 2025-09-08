@@ -3,7 +3,7 @@
     <div class="modal-content">
         <span class="close" onclick="closeModal('debtModal')">&times;</span>
         <h2>Record New Debt</h2>
-        <form id="debtForm">
+        <form id="debtForm" onsubmit="addDebt(event); return false;">
             <div class="form-group">
                 <label for="debtCustomerName">Customer Name</label>
                 <input type="text" id="debtCustomerName" required>

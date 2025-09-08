@@ -15,58 +15,88 @@ function initializeDebtsPagination() {
 async function addDebt(event) {
   event.preventDefault();
 
-  const customerName = document.getElementById("debtCustomerName").value;
-  const customerPhone = document.getElementById("debtCustomerPhone").value;
-  const amount = parseFloat(document.getElementById("debtAmount").value);
-
-  // Validate amount
-  if (isNaN(amount) || amount <= 0) {
-    window.utils.showNotification("Please enter a valid amount.", "error");
-    return; // Exit the function if the amount is invalid
-  }
-
-  const dueDate = document.getElementById("debtDueDate").value;
-
-  // Create debt object with proper field mapping for backend
-  const debt = {
-    id: window.utils.generateId(),
-    customer_name: customerName,
-    customer_phone: customerPhone,
-    amount,
-    due_date: dueDate,
-    status: "pending",
-    created_by: 'system',
-    created_at: new Date().toISOString(),
-    // Keep frontend-compatible fields for local cache
-    customerName,
-    customerPhone,
-    dueDate,
-    date: new Date().toISOString().split("T")[0],
-  };
-
-  // DATABASE-FIRST OPERATION: Send to database first, then update cache
   try {
+    const customerName = document.getElementById("debtCustomerName").value;
+    const customerPhone = document.getElementById("debtCustomerPhone").value;
+    const amount = parseFloat(document.getElementById("debtAmount").value);
+    const dueDate = document.getElementById("debtDueDate").value;
+
+    // Validation checks with user feedback
+    if (!customerName || customerName.trim() === "") {
+      window.utils.showNotification("Please enter customer name", "error");
+      return;
+    }
+
+    if (!customerPhone || customerPhone.trim() === "") {
+      window.utils.showNotification("Please enter customer phone number", "error");
+      return;
+    }
+
+    if (!amount || amount <= 0) {
+      window.utils.showNotification("Please enter a valid amount", "error");
+      return;
+    }
+
+    if (!dueDate) {
+      window.utils.showNotification("Please select a due date", "error");
+      return;
+    }
+
+    // Validate due date is not in the past
+    const today = new Date();
+    const selectedDate = new Date(dueDate);
+    if (selectedDate < today.setHours(0, 0, 0, 0)) {
+      window.utils.showNotification("Due date cannot be in the past", "error");
+      return;
+    }
+
+    const debt = {
+      id: window.utils.generateId(),
+      customer_name: customerName.trim(),
+      customer_phone: customerPhone.trim(),
+      amount: amount,
+      status: "pending",
+      due_date: dueDate,
+      created_by: 'system',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    // DATABASE-FIRST OPERATION: Send to database first, then update cache
     const savedDebt = await window.dataManager.createData("debts", debt);
     
     // Update global variable only after successful database save
     window.debts = window.debts || [];
     window.debts.push(savedDebt);
 
+    // Close modal and refresh data
+    closeModal("debtModal");
     loadDebtsData();
-    document.getElementById("debtForm").reset();
+    
+    // Update dashboard if visible
+    if (typeof updateDashboardStats === "function") {
+      updateDashboardStats();
+    }
+
     window.utils.showNotification("Debt added successfully!");
+
   } catch (error) {
-    console.error("Failed to save debt to database:", error);
-    window.utils.showNotification("Failed to save debt. Please try again.", "error");
-  }
-
-  if (window.currentSection === "individual-debts") {
-    loadDebtsData();
-  }
-
-  // Update dashboard
-  if (typeof window.updateDashboardStats === "function") {
-    window.updateDashboardStats();
+    console.error("Failed to save debt:", error);
+    
+    // Provide specific error messages based on error type
+    let errorMessage = "Failed to save debt. Please try again.";
+    
+    if (error.message.includes('Database connection')) {
+      errorMessage = "Database connection error. Please check if the server is running.";
+    } else if (error.message.includes('validation')) {
+      errorMessage = "Invalid debt data. Please check all fields.";
+    } else if (error.message.includes('duplicate')) {
+      errorMessage = "A debt record for this customer already exists.";
+    } else if (error.message.includes('timeout')) {
+      errorMessage = "Request timed out. Please try again.";
+    }
+    
+    window.utils.showNotification(errorMessage, "error");
   }
 }
 

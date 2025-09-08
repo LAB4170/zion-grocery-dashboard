@@ -14,84 +14,111 @@ function initializeSalesPagination() {
 async function addSale(event) {
   event.preventDefault();
 
-  const productId = document.getElementById("saleProduct").value;
-  const quantity = parseInt(document.getElementById("saleQuantity").value);
-  const saleDate = document.getElementById("saleDate").value;
-  const paymentMethod = document.getElementById("salePaymentMethod").value;
-  const customerName = document.getElementById("customerName").value;
-  const customerPhone = document.getElementById("customerPhone").value;
-  const saleId = document.getElementById("salesModal").dataset.saleId;
+  try {
+    const productId = document.getElementById("saleProduct").value;
+    const quantity = parseInt(document.getElementById("saleQuantity").value);
+    const saleDate = document.getElementById("saleDate").value;
+    const paymentMethod = document.getElementById("salePaymentMethod").value;
+    const customerName = document.getElementById("customerName").value;
+    const customerPhone = document.getElementById("customerPhone").value;
+    const saleId = document.getElementById("salesModal").dataset.saleId;
 
-  // CRITICAL FIX: Remove parseInt conversion - IDs are strings
-  const product = (window.products || []).find((p) => p.id === productId);
-  if (!product) {
-    window.utils.showNotification("Please select a valid product", "error");
-    return;
-  }
-
-  if (saleId) {
-    // Editing an existing sale
-    const existingSale = (window.sales || []).find((s) => s.id === saleId);
-    if (!existingSale) return;
-
-    // Calculate stock difference
-    const quantityDifference = quantity - existingSale.quantity;
-
-    if (quantityDifference > product.stock_quantity) {
-      window.utils.showNotification(
-        "Insufficient stock available for this update",
-        "error"
-      );
+    // Validation checks with user feedback
+    if (!productId) {
+      window.utils.showNotification("Please select a product", "error");
       return;
     }
 
-    // Update product stock
-    product.stock_quantity -= quantityDifference;
-    await window.dataManager.updateData("products", product.id, product);
-
-    // Update sale record
-    existingSale.productId = productId;
-    existingSale.productName = product.name;
-    existingSale.quantity = quantity;
-    existingSale.unitPrice = product.price;
-    existingSale.total = product.price * quantity;
-    existingSale.paymentMethod = paymentMethod;
-    existingSale.customerName = paymentMethod === "cash" ? "" : customerName;
-    existingSale.customerPhone = paymentMethod === "cash" ? "" : customerPhone;
-    existingSale.status = paymentMethod === "debt" ? "pending" : "completed";
-    existingSale.date = saleDate;
-    existingSale.createdAt = new Date(saleDate + 'T' + new Date().toTimeString().split(' ')[0]).toISOString();
-
-    await window.dataManager.updateData("sales", saleId, existingSale);
-    window.utils.showNotification("Sale updated successfully!");
-  } else {
-    // Adding a new sale
-    if (quantity > product.stock_quantity) {
-      window.utils.showNotification("Insufficient stock available", "error");
+    if (!quantity || quantity <= 0) {
+      window.utils.showNotification("Please enter a valid quantity", "error");
       return;
     }
 
-    const total = product.price * quantity;
+    if (!saleDate) {
+      window.utils.showNotification("Please select a sale date", "error");
+      return;
+    }
 
-    const sale = {
-      id: window.utils.generateId(), // Generate UUID for primary key
-      product_id: product.id,
-      product_name: product.name,
-      quantity: quantity,
-      unit_price: parseFloat(product.price),  // Convert to number, not string
-      total: parseFloat(product.price) * quantity,
-      payment_method: paymentMethod,
-      customer_name: (paymentMethod === "debt") ? customerName : null,  // Use null instead of empty string
-      customer_phone: (paymentMethod === "debt") ? customerPhone : null, // Use null instead of empty string
-      status: paymentMethod === "debt" ? "pending" : "completed",
-      mpesa_code: paymentMethod === "mpesa" ? (document.getElementById('mpesaCode')?.value || null) : null,
-      notes: document.getElementById('saleNotes')?.value || null,
-      created_by: 'system', // FIX: Use 'system' instead of null
-      created_at: new Date().toISOString()  // Single timestamp field only
-    };
+    // CRITICAL FIX: Remove parseInt conversion - IDs are strings
+    const product = (window.products || []).find((p) => p.id === productId);
+    if (!product) {
+      window.utils.showNotification("Please select a valid product", "error");
+      return;
+    }
 
-    // DATABASE-FIRST OPERATION: Send to database first, then update cache
-    try {
+    if (saleId) {
+      // Editing an existing sale
+      const existingSale = (window.sales || []).find((s) => s.id === saleId);
+      if (!existingSale) {
+        window.utils.showNotification("Sale not found for editing", "error");
+        return;
+      }
+
+      // Calculate stock difference
+      const quantityDifference = quantity - existingSale.quantity;
+
+      if (quantityDifference > product.stock_quantity) {
+        window.utils.showNotification(
+          "Insufficient stock available for this update",
+          "error"
+        );
+        return;
+      }
+
+      // Update product stock
+      product.stock_quantity -= quantityDifference;
+      await window.dataManager.updateData("products", product.id, product);
+
+      // Update sale record
+      existingSale.productId = productId;
+      existingSale.productName = product.name;
+      existingSale.quantity = quantity;
+      existingSale.unitPrice = product.price;
+      existingSale.total = product.price * quantity;
+      existingSale.paymentMethod = paymentMethod;
+      existingSale.customerName = paymentMethod === "cash" ? "" : customerName;
+      existingSale.customerPhone = paymentMethod === "cash" ? "" : customerPhone;
+      existingSale.status = paymentMethod === "debt" ? "pending" : "completed";
+      existingSale.date = saleDate;
+      existingSale.createdAt = new Date(saleDate + 'T' + new Date().toTimeString().split(' ')[0]).toISOString();
+
+      await window.dataManager.updateData("sales", saleId, existingSale);
+      window.utils.showNotification("Sale updated successfully!");
+    } else {
+      // Adding a new sale
+      if (quantity > product.stock_quantity) {
+        window.utils.showNotification("Insufficient stock available", "error");
+        return;
+      }
+
+      // Validate required fields for debt payments
+      if (paymentMethod === "debt") {
+        if (!customerName || !customerPhone) {
+          window.utils.showNotification("Customer name and phone are required for debt payments", "error");
+          return;
+        }
+      }
+
+      const total = product.price * quantity;
+
+      const sale = {
+        id: window.utils.generateId(), // Generate UUID for primary key
+        product_id: product.id,
+        product_name: product.name,
+        quantity: quantity,
+        unit_price: parseFloat(product.price),  // Convert to number, not string
+        total: parseFloat(product.price) * quantity,
+        payment_method: paymentMethod,
+        customer_name: (paymentMethod === "debt") ? customerName : null,  // Use null instead of empty string
+        customer_phone: (paymentMethod === "debt") ? customerPhone : null, // Use null instead of empty string
+        status: paymentMethod === "debt" ? "pending" : "completed",
+        mpesa_code: paymentMethod === "mpesa" ? (document.getElementById('mpesaCode')?.value || null) : null,
+        notes: document.getElementById('saleNotes')?.value || null,
+        created_by: 'system', // FIX: Use 'system' instead of null
+        created_at: new Date().toISOString()  // Single timestamp field only
+      };
+
+      // DATABASE-FIRST OPERATION: Send to database first, then update cache
       const savedSale = await window.dataManager.createData("sales", sale);
       
       // Update global variable only after successful database save
@@ -110,27 +137,40 @@ async function addSale(event) {
 
       // Add debt if payment method is debt
       if (paymentMethod === "debt") {
-        addDebtFromSale(savedSale);
+        await addDebtFromSale(savedSale);
       }
 
       window.utils.showNotification("Sale recorded successfully!");
-    } catch (error) {
-      console.error("Failed to save sale to database:", error);
-      window.utils.showNotification("Failed to save sale. Please try again.", "error");
-      return; // Don't proceed if database save failed
     }
-  }
 
-  window.utils.closeModal("salesModal");
-  resetSalesModal(); // FIX: Call reset function
+    // Close modal and refresh data
+    window.utils.closeModal("salesModal");
+    resetSalesModal(); // FIX: Call reset function
 
-  if (window.currentSection === "sales") {
-    loadSalesData();
-  }
+    if (window.currentSection === "sales") {
+      loadSalesData();
+    }
 
-  // Update dashboard
-  if (typeof window.updateDashboardStats === "function") {
-    window.updateDashboardStats();
+    // Update dashboard
+    if (typeof window.updateDashboardStats === "function") {
+      window.updateDashboardStats();
+    }
+
+  } catch (error) {
+    console.error("Failed to save sale:", error);
+    
+    // Provide specific error messages based on error type
+    let errorMessage = "Failed to save sale. Please try again.";
+    
+    if (error.message.includes('Database connection')) {
+      errorMessage = "Database connection error. Please check if the server is running.";
+    } else if (error.message.includes('validation')) {
+      errorMessage = "Invalid data provided. Please check all fields.";
+    } else if (error.message.includes('timeout')) {
+      errorMessage = "Request timed out. Please try again.";
+    }
+    
+    window.utils.showNotification(errorMessage, "error");
   }
 }
 

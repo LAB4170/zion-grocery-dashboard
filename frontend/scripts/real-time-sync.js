@@ -269,15 +269,8 @@ class CacheBustingApiClient extends ApiClient {
 // Initialize real-time sync system
 window.realTimeSync = new RealTimeSyncManager();
 
-// Replace API client with cache-busting version
-if (window.apiClient) {
-    const originalApiClient = window.apiClient;
-    window.apiClient = new CacheBustingApiClient();
-    // Copy any existing configuration
-    if (originalApiClient.baseURL) {
-        window.apiClient.baseURL = originalApiClient.baseURL;
-    }
-}
+
+console.log('🔄 Real-time sync initialized without API client override');
 
 // Auto-start sync when page loads
 document.addEventListener('DOMContentLoaded', () => {

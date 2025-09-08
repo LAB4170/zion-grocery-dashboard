@@ -3,7 +3,7 @@
     <div class="modal-content">
         <span class="close" onclick="closeModal('salesModal')">&times;</span>
         <h2 id="salesModalTitle">Create New Sale</h2>
-        <form id="saleForm" onsubmit="addSale(event)">
+        <form id="saleForm" onsubmit="addSale(event); return false;">
             <div class="form-group">
                 <label>Product</label>
                 <select id="saleProduct" required>

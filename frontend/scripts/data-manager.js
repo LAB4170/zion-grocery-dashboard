@@ -12,8 +12,27 @@ class DataManager {
     async initialize() {
         console.log('🔄 Initializing database-only data manager...');
         
-        // Add small delay to ensure API client is properly configured
-        await new Promise(resolve => setTimeout(resolve, 100));
+        // Wait for API client to be fully initialized
+        let apiClientReady = false;
+        let attempts = 0;
+        const maxAttempts = 10;
+        
+        while (!apiClientReady && attempts < maxAttempts) {
+            if (window.apiClient && typeof window.apiClient.checkHealth === 'function') {
+                apiClientReady = true;
+                console.log('✅ API Client is ready');
+            } else {
+                console.log(`⏳ Waiting for API Client initialization... (${attempts + 1}/${maxAttempts})`);
+                await new Promise(resolve => setTimeout(resolve, 200));
+                attempts++;
+            }
+        }
+        
+        if (!apiClientReady) {
+            console.error('❌ API Client failed to initialize after maximum attempts');
+            this.showDatabaseError();
+            throw new Error('API Client initialization timeout');
+        }
         
         for (let attempt = 1; attempt <= this.retryAttempts; attempt++) {
             try {
@@ -53,10 +72,8 @@ class DataManager {
                     throw new Error(`Database connection failed after ${this.retryAttempts} attempts: ${errorMessage}`);
                 }
                 
-                // Exponential backoff: wait longer between retries
-                const waitTime = Math.min(this.retryDelay * Math.pow(2, attempt - 1), 10000); // Cap at 10 seconds
-                console.log(`⏳ Waiting ${waitTime}ms before retry ${attempt + 1}/${this.retryAttempts}...`);
-                await new Promise(resolve => setTimeout(resolve, waitTime));
+                // Wait before retry
+                await new Promise(resolve => setTimeout(resolve, this.retryDelay));
             }
         }
     }
