@@ -1,4 +1,4 @@
-// Dashboard data and charts management - FIXED VERSION
+
 let paymentChart, weeklyChart;
 
 // Use global variables for consistency - no redeclaration
