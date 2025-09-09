@@ -1,21 +1,21 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Zion Groceries - Dashboard</title>
-    <link rel="stylesheet" href="styles/css/main.css">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
-</head>
-<body>
-<div class="container">
-    <!-- Sidebar will be loaded here -->
-    <div id="sidebar-container"></div>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Zion Groceries - Dashboard</title>
+    <link rel="stylesheet" href="styles/css/main.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+  </head>
+  <body>
+    <div class="container">
+      <!-- Sidebar will be loaded here -->
+      <div id="sidebar-container"></div>
 
-    <div class="main-content">
+      <div class="main-content">
         <!-- Dashboard section will be loaded here -->
         <div id="dashboard-container"></div>
-        
+
         <!-- Sales section will be loaded here -->
         <div id="sales-container"></div>
         <!-- Products section will be loaded here -->
@@ -28,132 +28,150 @@
         <div id="expenses-container"></div>
         <!-- Debts section will be loaded here -->
         <div id="debts-container"></div>
-
+      </div>
     </div>
-</div>
 
-<!-- Modal containers will be loaded here -->
-<div id="modals-container"></div>
+    <!-- Modal containers will be loaded here -->
+    <div id="modals-container"></div>
 
-<script src="scripts/config.js"></script>
-<script src="scripts/auth-check.js"></script>
-<script src="scripts/utils.js"></script>
-<script src="scripts/api-client.js"></script>
-<script src="scripts/data-manager.js"></script>
-<script src="scripts/real-time-sync.js"></script>
+    <script src="scripts/config.js"></script>
+    <script src="scripts/auth-check.js"></script>
+    <script src="scripts/utils.js"></script>
+    <script src="scripts/api-client.js"></script>
+    <script src="scripts/data-manager.js"></script>
+    <script src="scripts/real-time-sync.js"></script>
 
-<!-- Pagination utility -->
-<script src="scripts/pagination-utils.js"></script>
+    <!-- Pagination utility -->
+    <script src="scripts/pagination-utils.js"></script>
 
-<!-- Socket.IO Client - REMOVED TO PREVENT BLOCKING -->
-<!-- <script src="https://cdn.socket.io/4.7.0/socket.io.min.js"></script>
-<script src="scripts/socket-io-sync.js"></script> -->
+    <script src="scripts/navigation.js"></script>
+    <script src="scripts/modals.js"></script>
+    <script src="scripts/products.js"></script>
+    <script src="scripts/sales.js"></script>
+    <script src="scripts/expenses.js"></script>
+    <script src="scripts/debts.js"></script>
 
-<script src="scripts/navigation.js"></script>
-<script src="scripts/modals.js"></script>
-<script src="scripts/products.js"></script>
-<script src="scripts/sales.js"></script>
-<script src="scripts/expenses.js"></script>
-<script src="scripts/debts.js"></script>
+    <script src="scripts/dashboard.js"></script>
+    <script src="scripts/reports.js"></script>
+    <script src="scripts/reports-enhanced.js"></script>
+    <script src="scripts/system-test.js"></script>
+    <script src="scripts/system-health-check.js"></script>
+    <script src="scripts/data-integrity-validator.js"></script>
+    <script src="scripts/main.js"></script>
 
-<script src="scripts/dashboard.js"></script>
-<script src="scripts/reports.js"></script>
-<script src="scripts/reports-enhanced.js"></script>
-<script src="scripts/system-test.js"></script>
-<script src="scripts/system-health-check.js"></script>
-<script src="scripts/data-integrity-validator.js"></script>
-<script src="scripts/main.js"></script>
+    <script>
+      // Load all partials and modals
+      document.addEventListener("DOMContentLoaded", function () {
+        // Check authentication before loading dashboard
+        if (!authManager.isAuthenticated()) {
+          authManager.redirectToLogin();
+          return;
+        }
 
-<script>
-// Load all partials and modals
-document.addEventListener('DOMContentLoaded', function() {
-    // Check authentication before loading dashboard
-    if (!authManager.isAuthenticated()) {
-        authManager.redirectToLogin();
-        return;
-    }
+        let partialsLoaded = 0;
+        const totalPartials = 8;
 
-    let partialsLoaded = 0;
-    const totalPartials = 8;
-
-    function onPartialLoaded() {
-        partialsLoaded++;
-        if (partialsLoaded === totalPartials) {
+        function onPartialLoaded() {
+          partialsLoaded++;
+          if (partialsLoaded === totalPartials) {
             // All partials loaded, now initialize navigation and pagination
             setTimeout(() => {
-                if (typeof initializeNavigation === 'function') {
-                    initializeNavigation();
+              if (typeof initializeNavigation === "function") {
+                initializeNavigation();
+              }
+
+              // Initialize pagination managers after partials are loaded
+              setTimeout(() => {
+                console.log("Initializing pagination managers...");
+                // Remove individual pagination initialization since it's now handled in navigation.js
+
+                // Show dashboard by default
+                if (typeof showSection === "function") {
+                  showSection("dashboard");
                 }
-                
-                // Initialize pagination managers after partials are loaded
-                setTimeout(() => {
-                    console.log('Initializing pagination managers...');
-                    // Remove individual pagination initialization since it's now handled in navigation.js
-                    
-                    // Show dashboard by default
-                    if (typeof showSection === 'function') {
-                        showSection('dashboard');
-                    }
-                }, 500); // Increased delay to ensure DOM is ready
+              }, 500); // Increased delay to ensure DOM is ready
             }, 100);
+          }
         }
-    }
 
-    loadPartial('partials/sidebar.html', 'sidebar-container', onPartialLoaded);
-    loadPartial('partials/dashboard.html', 'dashboard-container', onPartialLoaded);
-    loadPartial('partials/sales.html', 'sales-container', onPartialLoaded);
-    loadPartial('partials/products.html', 'products-container', onPartialLoaded);
-    loadPartial('partials/sales-settings.html', 'sales-settings-container', onPartialLoaded);
-    loadPartial('partials/sales-reports.html', 'sales-reports-container', onPartialLoaded);
-    loadPartial('partials/expenses.html', 'expenses-container', onPartialLoaded);
-    loadPartial('partials/debts.html', 'debts-container', onPartialLoaded);
+        loadPartial(
+          "partials/sidebar.html",
+          "sidebar-container",
+          onPartialLoaded
+        );
+        loadPartial(
+          "partials/dashboard.html",
+          "dashboard-container",
+          onPartialLoaded
+        );
+        loadPartial("partials/sales.html", "sales-container", onPartialLoaded);
+        loadPartial(
+          "partials/products.html",
+          "products-container",
+          onPartialLoaded
+        );
+        loadPartial(
+          "partials/sales-settings.html",
+          "sales-settings-container",
+          onPartialLoaded
+        );
+        loadPartial(
+          "partials/sales-reports.html",
+          "sales-reports-container",
+          onPartialLoaded
+        );
+        loadPartial(
+          "partials/expenses.html",
+          "expenses-container",
+          onPartialLoaded
+        );
+        loadPartial("partials/debts.html", "debts-container", onPartialLoaded);
 
-    
-    // Load modals
-    loadModals();
-    
-    // Add logout functionality after sidebar loads
-    setTimeout(() => {
-        authManager.addLogoutButton();
-    }, 1000);
-});
+        // Load modals
+        loadModals();
 
-function loadPartial(url, containerId, callback) {
-    fetch(url)
-        .then(response => response.text())
-        .then(html => {
+        // Add logout functionality after sidebar loads
+        setTimeout(() => {
+          authManager.addLogoutButton();
+        }, 1000);
+      });
+
+      function loadPartial(url, containerId, callback) {
+        fetch(url)
+          .then((response) => response.text())
+          .then((html) => {
             const container = document.getElementById(containerId);
             if (container) {
-                container.innerHTML = html;
+              container.innerHTML = html;
             } else {
-                console.error('Container not found:', containerId);
+              console.error("Container not found:", containerId);
             }
             if (callback) {
-                callback();
+              callback();
             }
-        })
-        .catch(error => console.error('Error loading partial:', error));
-}
+          })
+          .catch((error) => console.error("Error loading partial:", error));
+      }
 
-function loadModals() {
-    const modalFiles = [
-        'modals/sales-modal.html',
-        'modals/product-modal.html',
-        'modals/expense-modal.html',
-        'modals/debt-modal.html'
-    ];
-    
-    Promise.all(modalFiles.map(file => fetch(file).then(r => r.text())))
-        .then(htmlArray => {
-            const modalsContainer = document.getElementById('modals-container');
+      function loadModals() {
+        const modalFiles = [
+          "modals/sales-modal.html",
+          "modals/product-modal.html",
+          "modals/expense-modal.html",
+          "modals/debt-modal.html",
+        ];
+
+        Promise.all(modalFiles.map((file) => fetch(file).then((r) => r.text())))
+          .then((htmlArray) => {
+            const modalsContainer = document.getElementById("modals-container");
             if (modalsContainer) {
-                modalsContainer.innerHTML = htmlArray.join('');
+              modalsContainer.innerHTML = htmlArray.join("");
             } else {
-                console.error('Modals container not found');
+              console.error("Modals container not found");
             }
-        })
-        .catch(error => console.error('Error loading modals:', error));
-}
-</script>
-</body>
+          })
+          .catch((error) => console.error("Error loading modals:", error));
+      }
+    </script>
+  </body>
 </html>
