@@ -1,4 +1,16 @@
 {
   "cSpell.words": ["Biashara", "mpesa", "Pesa", "Pochi"],
-  "liveServer.settings.port": 5501
+  "liveServer.settings.port": 5501,
+  "sqltools.connections": [
+    {
+      "ssh": "Disabled",
+      "previewLimit": 50,
+      "server": "localhost",
+      "port": 5432,
+      "driver": "PostgreSQL",
+      "name": "Zion Grocery Local",
+      "database": "zion_grocery_db",
+      "username": "postgres"
+    }
+  ]
 }
