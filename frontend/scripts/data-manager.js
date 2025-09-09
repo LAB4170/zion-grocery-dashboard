@@ -1,8 +1,21 @@
-// data-manager.js - Fixed to use correct API client methods
+// data-manager.js - Enhanced with proper initialization and backend detection
 class DataManager {
   constructor() {
+    this.isBackendAvailable = false;
+    this.initializationPromise = this.initialize();
+  }
+
+  async initialize() {
+    console.log("🔄 Initializing DataManager...");
+    
     // Wait for API client to be ready
-    this.waitForApiClient();
+    await this.waitForApiClient();
+    
+    // Test backend connection
+    await this.testBackendConnection();
+    
+    console.log(`✅ DataManager initialized. Backend available: ${this.isBackendAvailable}`);
+    return this.isBackendAvailable;
   }
 
   async waitForApiClient() {
@@ -17,8 +30,34 @@ class DataManager {
 
     if (!window.apiClient) {
       console.error("❌ API Client not available after waiting");
+      throw new Error("API Client not available");
     } else {
       console.log("✅ API Client ready");
+    }
+  }
+
+  async testBackendConnection() {
+    try {
+      if (!window.apiClient) {
+        throw new Error("API Client not available");
+      }
+
+      // Test backend health endpoint
+      console.log("🔍 Testing backend connection...");
+      await window.apiClient.checkHealth();
+      
+      this.isBackendAvailable = true;
+      console.log("✅ Backend connection successful");
+    } catch (error) {
+      console.error("❌ Backend connection failed:", error.message);
+      this.isBackendAvailable = false;
+      
+      // Provide specific troubleshooting guidance
+      if (error.message.includes("fetch")) {
+        console.error("💡 Backend server may not be running on http://localhost:5000");
+      } else if (error.message.includes("ECONNREFUSED")) {
+        console.error("💡 PostgreSQL database connection failed");
+      }
     }
   }
 
@@ -172,6 +211,23 @@ class DataManager {
       console.error(`❌ Failed to delete ${table}:`, error);
       throw new Error(`Database delete operation failed: ${error.message}`);
     }
+  }
+
+  // Convenience methods for dashboard
+  async getSales() {
+    return this.getData("sales");
+  }
+
+  async getProducts() {
+    return this.getData("products");
+  }
+
+  async getExpenses() {
+    return this.getData("expenses");
+  }
+
+  async getDebts() {
+    return this.getData("debts");
   }
 }
 
