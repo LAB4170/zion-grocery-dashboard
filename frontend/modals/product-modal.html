@@ -6,11 +6,11 @@
         <form id="productForm" onsubmit="addProduct(event); return false;">
             <div class="form-group">
                 <label for="productName">Product Name</label>
-                <input type="text" id="productName" name="productName" required />
+                <input type="text" id="productName" name="name" required />
             </div>
             <div class="form-group">
                 <label for="productCategory">Category</label>
-                <select id="productCategory" name="productCategory" required>
+                <select id="productCategory" name="category" required>
                     <option value="">Select Category</option>
                     <option value="beverages">Beverages</option>
                     <option value="snacks">Snacks</option>
@@ -23,7 +23,7 @@
             </div>
             <div class="form-group">
                 <label for="productPrice">Price (KES)</label>
-                <input type="number" id="productPrice" name="productPrice" step="0.01" min="0" required />
+                <input type="number" id="productPrice" name="price" step="0.01" min="0" required />
             </div>
             <div class="form-group">
                 <label for="productStock">Stock Quantity</label>

@@ -47,9 +47,9 @@ class Product {
     return newProduct;
   }
 
-  // Get all products
+  // Get all products with filters
   static async findAll(filters = {}) {
-    let query = db('products').select('*');
+    let query = db('products').where('is_active', true);
     
     if (filters.category) {
       query = query.where('category', filters.category);
@@ -62,18 +62,53 @@ class Product {
     if (filters.search) {
       query = query.where(function() {
         this.where('name', 'ilike', `%${filters.search}%`)
-            .orWhere('description', 'ilike', `%${filters.search}%`)
             .orWhere('barcode', 'ilike', `%${filters.search}%`);
       });
     }
     
-    return await query.orderBy('name', 'asc');
+    const products = await query.orderBy('name', 'asc');
+    
+    // Transform to frontend format
+    return products.map(product => ({
+      id: product.id,
+      name: product.name,
+      category: product.category,
+      price: product.price,
+      stockQuantity: product.stock_quantity,  // Transform to camelCase
+      lowStockThreshold: product.low_stock_threshold,  // Transform to camelCase
+      description: product.description,
+      barcode: product.barcode,
+      supplier: product.supplier,
+      costPrice: product.cost_price,  // Transform to camelCase
+      createdBy: product.created_by,  // Transform to camelCase
+      createdAt: product.created_at,  // Transform to camelCase
+      updatedAt: product.updated_at,  // Transform to camelCase
+      isActive: product.is_active  // Transform to camelCase
+    }));
   }
 
   // Get product by ID
   static async findById(id) {
     const product = await db('products').where('id', id).first();
-    return product;
+    if (!product) return null;
+    
+    // Transform to frontend format
+    return {
+      id: product.id,
+      name: product.name,
+      category: product.category,
+      price: product.price,
+      stockQuantity: product.stock_quantity,  // Transform to camelCase
+      lowStockThreshold: product.low_stock_threshold,  // Transform to camelCase
+      description: product.description,
+      barcode: product.barcode,
+      supplier: product.supplier,
+      costPrice: product.cost_price,  // Transform to camelCase
+      createdBy: product.created_by,  // Transform to camelCase
+      createdAt: product.created_at,  // Transform to camelCase
+      updatedAt: product.updated_at,  // Transform to camelCase
+      isActive: product.is_active  // Transform to camelCase
+    };
   }
 
   // Update product

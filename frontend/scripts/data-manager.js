@@ -2,60 +2,12 @@
 class DataManager {
   constructor() {
     this.isBackendAvailable = false;
-    this.initializationPromise = this.initialize();
+    this.retryCount = 0;
+    this.maxRetries = 3;
     
-    // Field mappings for frontend (camelCase) to backend (snake_case) conversion
-    this.fieldMappings = {
-      products: {
-        // Frontend -> Backend
-        stock: 'stock_quantity',
-        createdAt: 'created_at',
-        updatedAt: 'updated_at'
-      },
-      sales: {
-        // Frontend -> Backend
-        createdAt: 'created_at',
-        updatedAt: 'updated_at',
-        paymentMethod: 'payment_method',
-        productId: 'product_id',
-        productName: 'product_name',
-        unitPrice: 'unit_price',
-        customerName: 'customer_name',
-        customerPhone: 'customer_phone',
-        mpesaCode: 'mpesa_code',
-        createdBy: 'created_by'
-      },
-      expenses: {
-        // Frontend -> Backend
-        createdAt: 'created_at',
-        updatedAt: 'updated_at',
-        expenseDate: 'expense_date',
-        receiptNumber: 'receipt_number',
-        createdBy: 'created_by',
-        approvedBy: 'approved_by',
-        approvedAt: 'approved_at'
-      },
-      debts: {
-        // Frontend -> Backend
-        createdAt: 'created_at',
-        updatedAt: 'updated_at',
-        customerName: 'customer_name',
-        customerPhone: 'customer_phone',
-        amountPaid: 'amount_paid',
-        saleId: 'sale_id',
-        dueDate: 'due_date',
-        createdBy: 'created_by'
-      }
-    };
-
-    // Reverse mappings for backend to frontend conversion
+    // No field mappings needed - frontend and backend use consistent naming
+    this.fieldMappings = {};
     this.reverseMappings = {};
-    Object.keys(this.fieldMappings).forEach(table => {
-      this.reverseMappings[table] = {};
-      Object.entries(this.fieldMappings[table]).forEach(([frontend, backend]) => {
-        this.reverseMappings[table][backend] = frontend;
-      });
-    });
   }
 
   async initialize() {

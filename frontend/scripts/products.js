@@ -62,11 +62,11 @@ async function addProduct(event) {
 
   try {
     // Get form data automatically
-    const data = {
+    const productData = {
       name: document.getElementById("productName").value.trim(),
       category: document.getElementById("productCategory").value,
       price: parseFloat(document.getElementById("productPrice").value) || 0,
-      stock_quantity: parseInt(document.getElementById("productStock").value) || 0
+      stockQuantity: parseInt(document.getElementById("productStock").value) || 0
     };
 
     const modal = document.getElementById("productModal");
@@ -75,7 +75,7 @@ async function addProduct(event) {
     if (isEditing) {
       // Update existing product
       const productId = modal.getAttribute("data-editing");
-      const result = await window.ProductCRUD.update(productId, data);
+      const result = await window.ProductCRUD.update(productId, productData);
       
       if (result) {
         closeModal("productModal");
@@ -84,7 +84,7 @@ async function addProduct(event) {
       }
     } else {
       // Create new product
-      const result = await window.ProductCRUD.create(data);
+      const result = await window.ProductCRUD.create(productData);
       
       if (result) {
         closeModal("productModal");
@@ -118,8 +118,8 @@ function renderProductsTable(productsToShow) {
 
   tbody.innerHTML = dataToRender
     .map((product) => {
-      const stockClass = (product.stock_quantity || 0) <= 5 ? "low-stock" : "";
-      const stockIndicator = (product.stock_quantity || 0) <= 5 ? "" : "";
+      const stockClass = (product.stockQuantity || 0) <= 5 ? "low-stock" : "";
+      const stockIndicator = (product.stockQuantity || 0) <= 5 ? "" : "";
 
       return `
             <tr class="${stockClass}">
@@ -128,7 +128,7 @@ function renderProductsTable(productsToShow) {
                   product.category || "Uncategorized"
                 }</span></td>
                 <td>${window.utils.formatCurrency(product.price || 0)}</td>
-                <td>${stockIndicator} ${product.stock_quantity || 0}</td>
+                <td>${stockIndicator} ${product.stockQuantity || 0}</td>
                 <td class="action-buttons">
                     <button class="btn-small" onclick="editProduct('${
                       product.id
@@ -180,7 +180,7 @@ function editProduct(productId) {
   document.getElementById("productName").value = product.name || "";
   document.getElementById("productCategory").value = product.category || "";
   document.getElementById("productPrice").value = product.price || 0;
-  document.getElementById("productStock").value = product.stock_quantity || 0;
+  document.getElementById("productStock").value = product.stockQuantity || 0;
 
   // FIX: Update modal state for editing
   const modal = document.getElementById("productModal");
@@ -220,9 +220,9 @@ function populateProductSelect() {
     products
       .map((product) => {
         const stockInfo =
-          (product.stock_quantity || 0) <= 5
-            ? ` (Low Stock: ${product.stock_quantity || 0})`
-            : ` (Stock: ${product.stock_quantity || 0})`;
+          (product.stockQuantity || 0) <= 5
+            ? ` (Low Stock: ${product.stockQuantity || 0})`
+            : ` (Stock: ${product.stockQuantity || 0})`;
         return `<option value="${product.id}">${
           product.name || "Unknown Product"
         } - ${window.utils.formatCurrency(

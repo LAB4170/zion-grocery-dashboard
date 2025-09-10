@@ -57,7 +57,7 @@ async function addSale(event) {
       // Calculate stock difference
       const quantityDifference = quantity - existingSale.quantity;
 
-      if (quantityDifference > product.stock_quantity) {
+      if (quantityDifference > product.stockQuantity) {
         window.utils.showNotification(
           "Insufficient stock available for this update",
           "error"
@@ -66,7 +66,7 @@ async function addSale(event) {
       }
 
       // Update product stock
-      product.stock_quantity -= quantityDifference;
+      product.stockQuantity -= quantityDifference;
       await window.dataManager.updateData("products", product.id, product);
 
       // Update sale record
@@ -86,7 +86,7 @@ async function addSale(event) {
       window.utils.showNotification("Sale updated successfully!");
     } else {
       // Adding a new sale
-      if (quantity > product.stock_quantity) {
+      if (quantity > product.stockQuantity) {
         window.utils.showNotification("Insufficient stock available", "error");
         return;
       }
@@ -126,7 +126,7 @@ async function addSale(event) {
       window.sales.push(savedSale);
       
       // Update product stock in database
-      product.stock_quantity -= quantity;
+      product.stockQuantity -= quantity;
       const updatedProduct = await window.dataManager.updateData("products", product.id, product);
       
       // Update global products array
@@ -274,7 +274,7 @@ async function deleteSale(saleId) {
       (p) => p.id === sale.productId
     );
     if (product) {
-      product.stock_quantity += sale.quantity;
+      product.stockQuantity += sale.quantity;
       await window.dataManager.updateData("products", product.id, product);
     }
   }

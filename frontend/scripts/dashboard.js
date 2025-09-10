@@ -360,7 +360,7 @@ function updateInventoryOverview() {
     }
   }
 
-  const lowStockProducts = products.filter((p) => (p.stock || 0) <= 5);
+  const lowStockProducts = products.filter((p) => (p.stockQuantity || 0) <= 5);
 
   container.innerHTML =
     lowStockProducts.length > 0
@@ -369,7 +369,7 @@ function updateInventoryOverview() {
             (product) => `
             <div class="inventory-item low-stock">
                 <h4>${product.name || "Unknown Product"}</h4>
-                <p>Stock: ${product.stock || 0}</p>
+                <p>Stock: ${product.stockQuantity || 0}</p>
                 <p class="warning">Low Stock!</p>
             </div>
         `
@@ -409,12 +409,12 @@ function updateDetailedInventory() {
     .map(
       (product) => `
         <div class="inventory-item ${
-          (product.stock || 0) <= 5 ? "low-stock" : ""
+          (product.stockQuantity || 0) <= 5 ? "low-stock" : ""
         }">
             <h4>${product.name || "Unknown Product"}</h4>
             <p>Category: ${product.category || "Uncategorized"}</p>
             <p>Price: ${window.utils.formatCurrency(product.price || 0)}</p>
-            <p>Stock: ${product.stock || 0}</p>
+            <p>Stock: ${product.stockQuantity || 0}</p>
         </div>
     `
     )
