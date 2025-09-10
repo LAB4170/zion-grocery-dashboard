@@ -304,13 +304,13 @@ class DataManager {
     
     // Add default values for required backend fields
     if (table === 'sales' && !transformed.created_by) {
-      transformed.created_by = 'system';
+      transformed.created_by = null; // Use null instead of 'system' to avoid UUID error
     }
     if (table === 'expenses' && !transformed.created_by) {
-      transformed.created_by = 'system';
+      transformed.created_by = null; // Use null instead of 'system' to avoid UUID error
     }
     if (table === 'debts' && !transformed.created_by) {
-      transformed.created_by = 'system';
+      transformed.created_by = null; // Use null instead of 'system' to avoid UUID error
     }
     
     console.log(`🔄 Transformed ${table} data for backend:`, { original: data, transformed });
