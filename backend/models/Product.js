@@ -6,35 +6,35 @@ class Product {
     this.name = data.name;
     this.category = data.category;
     this.price = parseFloat(data.price);
-    this.stock_quantity = parseInt(data.stock_quantity || data.stock);
-    this.description = data.description || '';
-    this.barcode = data.barcode || null;
-    this.supplier = data.supplier || '';
-    // FIX: Use min_stock to match database schema
-    this.min_stock = parseInt(data.min_stock || data.reorder_level) || 5;
-    this.cost_price = parseFloat(data.cost_price) || null;
-    this.is_active = data.is_active !== undefined ? data.is_active : true;
-    this.created_at = data.created_at || new Date();
-    this.updated_at = data.updated_at || new Date();
+    this.stockQuantity = parseInt(data.stockQuantity || data.stock_quantity || data.stock || 0);
+    this.lowStockThreshold = parseInt(data.lowStockThreshold || data.low_stock_threshold || 10);
+    this.description = data.description;
+    this.barcode = data.barcode;
+    this.supplier = data.supplier;
+    this.costPrice = parseFloat(data.costPrice || data.cost_price || 0);
+    this.createdBy = data.createdBy || data.created_by;
+    this.createdAt = data.createdAt || data.created_at || new Date().toISOString();
+    this.updatedAt = data.updatedAt || data.updated_at;
+    this.isActive = data.isActive !== undefined ? data.isActive : true;
   }
 
   // Create new product with proper field mapping
   static async create(productData) {
-    // Transform camelCase to snake_case for database
     const dbData = {
-      id: productData.id,
+      id: productData.id || require('uuid').v4(),
       name: productData.name,
       category: productData.category,
       price: parseFloat(productData.price),
-      stock_quantity: parseInt(productData.stock_quantity || productData.stock),
-      description: productData.description || '',
-      barcode: productData.barcode || null,
-      supplier: productData.supplier || '',
-      min_stock: parseInt(productData.min_stock || productData.reorder_level) || 5,
-      cost_price: parseFloat(productData.cost_price) || null,
-      is_active: productData.is_active !== undefined ? productData.is_active : true,
-      created_at: productData.createdAt || productData.created_at || new Date(),
-      updated_at: productData.updatedAt || productData.updated_at || new Date()
+      stock_quantity: parseInt(productData.stockQuantity || productData.stock_quantity || productData.stock || 0),
+      low_stock_threshold: parseInt(productData.lowStockThreshold || productData.low_stock_threshold || 10),
+      description: productData.description,
+      barcode: productData.barcode,
+      supplier: productData.supplier,
+      cost_price: parseFloat(productData.costPrice || productData.cost_price || 0),
+      created_by: productData.createdBy || productData.created_by,
+      created_at: productData.createdAt || productData.created_at || new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      is_active: productData.isActive !== undefined ? productData.isActive : true
     };
 
     console.log('Creating product with data:', dbData);
@@ -56,7 +56,7 @@ class Product {
     }
     
     if (filters.low_stock) {
-      query = query.whereRaw('stock_quantity <= min_stock');
+      query = query.whereRaw('stock_quantity <= low_stock_threshold');
     }
     
     if (filters.search) {
@@ -78,7 +78,7 @@ class Product {
 
   // Update product
   static async update(id, updateData) {
-    updateData.updated_at = new Date();
+    updateData.updated_at = new Date().toISOString();
     
     const [updatedProduct] = await db('products')
       .where('id', id)
@@ -125,7 +125,7 @@ class Product {
   // Get low stock products
   static async getLowStock() {
     return await db('products')
-      .whereRaw('stock_quantity <= min_stock')
+      .whereRaw('stock_quantity <= low_stock_threshold')
       .orderBy('stock_quantity', 'asc');
   }
 
@@ -161,7 +161,7 @@ class Product {
       errors.push('Valid price is required');
     }
     
-    if (data.stock_quantity === undefined || isNaN(parseInt(data.stock_quantity)) || parseInt(data.stock_quantity) < 0) {
+    if (data.stockQuantity === undefined || isNaN(parseInt(data.stockQuantity)) || parseInt(data.stockQuantity) < 0) {
       errors.push('Valid stock quantity is required');
     }
     

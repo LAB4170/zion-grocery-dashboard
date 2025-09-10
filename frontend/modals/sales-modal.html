@@ -5,45 +5,46 @@
         <h2 id="salesModalTitle">Create New Sale</h2>
         <form id="saleForm" onsubmit="addSale(event); return false;">
             <div class="form-group">
-                <label>Product</label>
-                <select id="saleProduct" required>
+                <label for="saleProduct">Product</label>
+                <select id="saleProduct" name="productId" required>
                     <option value="">Select Product</option>
                 </select>
             </div>
             <div class="form-group">
-                <label>Quantity</label>
-                <input type="number" id="saleQuantity" required min="1">
+                <label for="saleQuantity">Quantity</label>
+                <input type="number" id="saleQuantity" name="quantity" min="1" required />
             </div>
             <div class="form-group">
-                <label>Sale Date</label>
+                <label for="saleDate">Sale Date</label>
                 <div class="date-input-container">
-                    <input type="date" id="saleDate" required min="1940-01-01" max="2099-12-31" onclick="this.showPicker && this.showPicker()">
+                    <input type="date" id="saleDate" name="saleDate" required min="1940-01-01" max="2099-12-31" onclick="this.showPicker && this.showPicker()">
                     <i class="fas fa-calendar-alt date-picker-icon" onclick="openDatePicker('saleDate')" title="Select Date"></i>
                 </div>
             </div>
             <div class="form-group">
-                <label>Payment Method</label>
-                <select id="salePaymentMethod" required onchange="toggleCustomerInfo()">
+                <label for="salePaymentMethod">Payment Method</label>
+                <select id="salePaymentMethod" name="paymentMethod" required onchange="toggleCustomerInfo()">
+                    <option value="">Select Payment Method</option>
                     <option value="cash">Cash</option>
                     <option value="mpesa">M-Pesa</option>
                     <option value="debt">Debt</option>
                 </select>
             </div>
-            <div class="form-group" id="customerInfoGroup" style="display: none;">
-                <label>Customer Name</label>
-                <input type="text" id="customerName">
+            <div class="form-group debt-fields" id="customerInfoGroup" style="display: none;">
+                <label for="customerName">Customer Name</label>
+                <input type="text" id="customerName" name="customerName" />
             </div>
-            <div class="form-group" id="customerPhoneGroup" style="display: none;">
-                <label>Customer Phone</label>
-                <input type="tel" id="customerPhone">
+            <div class="form-group debt-fields" id="customerPhoneGroup" style="display: none;">
+                <label for="customerPhone">Customer Phone</label>
+                <input type="tel" id="customerPhone" name="customerPhone" />
             </div>
-            <div class="form-group" id="mpesaCodeGroup" style="display: none;">
-                <label>M-Pesa Transaction Code</label>
-                <input type="text" id="mpesaCode" placeholder="Enter M-Pesa code">
+            <div class="form-group mpesa-fields" id="mpesaCodeGroup" style="display: none;">
+                <label for="mpesaCode">M-Pesa Code</label>
+                <input type="text" id="mpesaCode" name="mpesaCode" placeholder="Enter M-Pesa code" />
             </div>
             <div class="form-group">
-                <label>Notes (Optional)</label>
-                <textarea id="saleNotes" rows="3" placeholder="Additional notes about this sale"></textarea>
+                <label for="saleNotes">Notes (Optional)</label>
+                <textarea id="saleNotes" name="notes" rows="3" placeholder="Additional notes about this sale"></textarea>
             </div>
             <button type="submit" class="btn" id="salesModalSubmit">Create Sale</button>
         </form>

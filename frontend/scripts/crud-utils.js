@@ -144,13 +144,13 @@ window.ProductCRUD = new SimpleCRUD('products', 'products', {
   name: { required: true, message: "Product name is required" },
   category: { required: true, message: "Please select a category" },
   price: { required: true, type: 'number', min: 0, message: "Please enter a valid price" },
-  stock_quantity: { type: 'number', min: 0, message: "Stock quantity cannot be negative" }
+  stockQuantity: { type: 'number', min: 0, message: "Stock quantity cannot be negative" }
 });
 
 window.SaleCRUD = new SimpleCRUD('sales', 'sales', {
-  product_id: { required: true, message: "Please select a product" },
+  productId: { required: true, message: "Please select a product" },
   quantity: { required: true, type: 'number', min: 1, message: "Please enter a valid quantity" },
-  payment_method: { required: true, message: "Please select a payment method" }
+  paymentMethod: { required: true, message: "Please select a payment method" }
 });
 
 window.ExpenseCRUD = new SimpleCRUD('expenses', 'expenses', {
@@ -160,8 +160,8 @@ window.ExpenseCRUD = new SimpleCRUD('expenses', 'expenses', {
 });
 
 window.DebtCRUD = new SimpleCRUD('debts', 'debts', {
-  customer_name: { required: true, message: "Customer name is required" },
-  customer_phone: { required: true, message: "Customer phone is required" },
+  customerName: { required: true, message: "Customer name is required" },
+  customerPhone: { required: true, message: "Customer phone is required" },
   amount: { required: true, type: 'number', min: 0, message: "Please enter a valid amount" }
 });
 

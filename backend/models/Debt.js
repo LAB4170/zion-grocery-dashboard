@@ -3,38 +3,51 @@ const { v4: uuidv4 } = require('uuid');
 
 class Debt {
   constructor(data) {
-    this.id = data.id || uuidv4();
-    this.customer_name = data.customer_name;
-    this.customer_phone = data.customer_phone;
+    this.id = data.id;
+    this.saleId = data.saleId || data.sale_id;  
+    this.customerName = data.customerName || data.customer_name;  
+    this.customerPhone = data.customerPhone || data.customer_phone;  
     this.amount = parseFloat(data.amount);
-    this.amount_paid = parseFloat(data.amount_paid || data.paid_amount) || 0;
-    this.balance = parseFloat(data.balance || data.remaining_amount) || parseFloat(data.amount);
-    this.status = data.status || 'pending'; // 'pending', 'partial', 'paid', 'overdue'
-    this.due_date = data.due_date || null;
+    this.amountPaid = parseFloat(data.amountPaid || data.amount_paid || 0);  
+    this.balance = parseFloat(data.balance || data.amount);
+    this.status = data.status || 'pending';
     this.notes = data.notes || data.description || '';
-    this.sale_id = data.sale_id || null;
-    this.created_by = data.created_by || data.user_id || 'system';
-    this.created_at = data.created_at || new Date();
-    this.updated_at = data.updated_at || new Date();
+    this.createdBy = data.createdBy || data.created_by;  
+    this.createdAt = data.createdAt || data.created_at || new Date().toISOString();  
+    this.updatedAt = data.updatedAt || data.updated_at;  
   }
 
   // Create new debt
   static async create(debtData) {
-    const debt = new Debt(debtData);
+    const dbData = {
+      id: debtData.id || uuidv4(),
+      sale_id: debtData.saleId || debtData.sale_id,  
+      customer_name: debtData.customerName || debtData.customer_name,  
+      customer_phone: debtData.customerPhone || debtData.customer_phone,  
+      amount: parseFloat(debtData.amount),
+      amount_paid: parseFloat(debtData.amountPaid || debtData.amount_paid || 0),  
+      balance: parseFloat(debtData.balance || debtData.amount),
+      status: debtData.status || 'pending',
+      notes: debtData.notes,
+      created_by: debtData.createdBy || debtData.created_by,  
+      created_at: debtData.createdAt || debtData.created_at || new Date().toISOString(),  
+      updated_at: new Date().toISOString()
+    };
+    
+    const debt = new Debt(dbData);
     debt.balance = debt.amount - debt.amount_paid;
     
     const [newDebt] = await db('debts')
       .insert({
         id: debt.id,
+        sale_id: debt.sale_id,
         customer_name: debt.customer_name,
         customer_phone: debt.customer_phone,
         amount: debt.amount,
         amount_paid: debt.amount_paid,
         balance: debt.balance,
         status: debt.status,
-        due_date: debt.due_date,
         notes: debt.notes,
-        sale_id: debt.sale_id,
         created_by: debt.created_by,
         created_at: debt.created_at,
         updated_at: debt.updated_at
@@ -52,20 +65,20 @@ class Debt {
       query = query.where('status', filters.status);
     }
     
-    if (filters.customer_name) {
-      query = query.where('customer_name', 'ilike', `%${filters.customer_name}%`);
+    if (filters.customerName) {
+      query = query.where('customer_name', 'ilike', `%${filters.customerName}%`);
     }
     
-    if (filters.customer_phone) {
-      query = query.where('customer_phone', 'ilike', `%${filters.customer_phone}%`);
+    if (filters.customerPhone) {
+      query = query.where('customer_phone', 'ilike', `%${filters.customerPhone}%`);
     }
     
-    if (filters.date_from) {
-      query = query.where('created_at', '>=', filters.date_from);
+    if (filters.dateFrom) {
+      query = query.where('created_at', '>=', filters.dateFrom);
     }
     
-    if (filters.date_to) {
-      query = query.where('created_at', '<=', filters.date_to);
+    if (filters.dateTo) {
+      query = query.where('created_at', '<=', filters.dateTo);
     }
     
     if (filters.overdue) {
@@ -83,25 +96,32 @@ class Debt {
 
   // Update debt
   static async update(id, updateData) {
-    updateData.updated_at = new Date();
+    updateData.updatedAt = new Date().toISOString();
     
     // Recalculate balance if amount_paid is updated
-    if (updateData.amount_paid !== undefined) {
+    if (updateData.amountPaid !== undefined) {
       const debt = await Debt.findById(id);
-      updateData.balance = debt.amount - parseFloat(updateData.amount_paid);
+      updateData.balance = debt.amount - parseFloat(updateData.amountPaid);
       
       // Update status based on payment
       if (updateData.balance <= 0) {
         updateData.status = 'paid';
         updateData.balance = 0;
-      } else if (updateData.amount_paid > 0) {
+      } else if (updateData.amountPaid > 0) {
         updateData.status = 'partial';
       }
     }
     
+    const dbUpdateData = {
+      amount_paid: updateData.amountPaid,
+      balance: updateData.balance,
+      status: updateData.status,
+      updated_at: updateData.updatedAt
+    };
+    
     const [updatedDebt] = await db('debts')
       .where('id', id)
-      .update(updateData)
+      .update(dbUpdateData)
       .returning('*');
     
     return updatedDebt;
@@ -145,7 +165,7 @@ class Debt {
           amount_paid: newAmountPaid,
           balance: Math.max(0, newBalance),
           status: newStatus,
-          updated_at: new Date()
+          updated_at: new Date().toISOString()
         })
         .returning('*');
       
@@ -155,7 +175,7 @@ class Debt {
         debt_id: id,
         amount: paymentAmount,
         payment_method: paymentMethod,
-        created_at: new Date()
+        created_at: new Date().toISOString()
       });
       
       await trx.commit();
@@ -170,12 +190,12 @@ class Debt {
   static async getSummary(filters = {}) {
     let query = db('debts');
     
-    if (filters.date_from) {
-      query = query.where('created_at', '>=', filters.date_from);
+    if (filters.dateFrom) {
+      query = query.where('created_at', '>=', filters.dateFrom);
     }
     
-    if (filters.date_to) {
-      query = query.where('created_at', '<=', filters.date_to);
+    if (filters.dateTo) {
+      query = query.where('created_at', '<=', filters.dateTo);
     }
     
     const summary = await query
@@ -239,11 +259,11 @@ class Debt {
   static validate(data) {
     const errors = [];
     
-    if (!data.customer_name || data.customer_name.trim().length === 0) {
+    if (!data.customerName || data.customerName.trim().length === 0) {
       errors.push('Customer name is required');
     }
     
-    if (!data.customer_phone || data.customer_phone.trim().length === 0) {
+    if (!data.customerPhone || data.customerPhone.trim().length === 0) {
       errors.push('Customer phone is required');
     }
     
@@ -251,11 +271,11 @@ class Debt {
       errors.push('Valid debt amount is required');
     }
     
-    if (data.amount_paid && (isNaN(parseFloat(data.amount_paid)) || parseFloat(data.amount_paid) < 0)) {
+    if (data.amountPaid && (isNaN(parseFloat(data.amountPaid)) || parseFloat(data.amountPaid) < 0)) {
       errors.push('Amount paid must be a valid positive number');
     }
     
-    if (data.amount_paid && parseFloat(data.amount_paid) > parseFloat(data.amount)) {
+    if (data.amountPaid && parseFloat(data.amountPaid) > parseFloat(data.amount)) {
       errors.push('Amount paid cannot exceed total debt amount');
     }
     
