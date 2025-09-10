@@ -252,23 +252,36 @@ class ApiClient {
     return this.makeRequest("/debts");
   }
 
-  async createDebt(debt) {
-    return this.makeRequest("/debts", {
-      method: "POST",
-      body: JSON.stringify(debt),
+  async createDebt(debtData) {
+    return this.makeRequest('/debts', {
+      method: 'POST',
+      body: JSON.stringify(debtData)
     });
   }
 
-  async updateDebt(id, debt) {
+  async updateDebt(id, debtData) {
     return this.makeRequest(`/debts/${id}`, {
-      method: "PUT",
-      body: JSON.stringify(debt),
+      method: 'PUT',
+      body: JSON.stringify(debtData)
     });
   }
 
   async deleteDebt(id) {
     return this.makeRequest(`/debts/${id}`, {
-      method: "DELETE",
+      method: 'DELETE'
+    });
+  }
+
+  // System operations
+  async fixDatabaseSchema() {
+    return this.makeRequest('/system/fix-schema', {
+      method: 'POST'
+    });
+  }
+
+  async getSchemaInfo() {
+    return this.makeRequest('/system/schema-info', {
+      method: 'GET'
     });
   }
 

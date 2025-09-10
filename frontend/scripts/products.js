@@ -6,6 +6,25 @@
 // Initialize pagination manager for products
 let productsPaginationManager;
 
+// Initialize products module
+async function initializeProducts() {
+  try {
+    console.log('🚀 Initializing products module...');
+    
+    // Auto-fix database schema if needed
+    if (window.SystemManager) {
+      await window.SystemManager.autoFixSchemaIfNeeded();
+    }
+    
+    await loadProductsData();
+    populateProductDropdowns();
+    console.log('✅ Products module initialized successfully');
+  } catch (error) {
+    console.error('❌ Failed to initialize products module:', error);
+    window.utils.showNotification('Failed to initialize products module', 'error');
+  }
+}
+
 function initializeProductsPagination() {
   console.log('Initializing products pagination...');
   
@@ -42,53 +61,13 @@ async function addProduct(event) {
   event.preventDefault();
 
   try {
-    const name = document.getElementById("productName").value;
-    const category = document.getElementById("productCategory").value;
-    const price = parseFloat(document.getElementById("productPrice").value);
-    const stockInput = document.getElementById("productStock").value;
-    const stock = stockInput ? parseInt(stockInput) : 0;
-
-    // Validation checks with user feedback
-    if (!name || name.trim() === "") {
-      window.utils.showNotification("Please enter a product name", "error");
-      return;
-    }
-
-    if (!category) {
-      window.utils.showNotification("Please select a category", "error");
-      return;
-    }
-
-    if (!price || price <= 0) {
-      window.utils.showNotification("Please enter a valid price", "error");
-      return;
-    }
-
-    if (stock < 0) {
-      window.utils.showNotification("Stock quantity cannot be negative", "error");
-      return;
-    }
-
-    // Validation checks with user feedback
-    if (!name || name.trim() === "") {
-      window.utils.showNotification("Please enter a product name", "error");
-      return;
-    }
-
-    if (!category) {
-      window.utils.showNotification("Please select a category", "error");
-      return;
-    }
-
-    if (!price || price <= 0) {
-      window.utils.showNotification("Please enter a valid price", "error");
-      return;
-    }
-
-    if (isNaN(stock) || stock < 0) {
-      window.utils.showNotification("Please enter a valid stock quantity", "error");
-      return;
-    }
+    // Get form data automatically
+    const data = {
+      name: document.getElementById("productName").value.trim(),
+      category: document.getElementById("productCategory").value,
+      price: parseFloat(document.getElementById("productPrice").value) || 0,
+      stock_quantity: parseInt(document.getElementById("productStock").value) || 0
+    };
 
     const modal = document.getElementById("productModal");
     const isEditing = modal && modal.hasAttribute("data-editing");
@@ -96,75 +75,26 @@ async function addProduct(event) {
     if (isEditing) {
       // Update existing product
       const productId = modal.getAttribute("data-editing");
-      const productIndex = (window.products || []).findIndex((p) => p.id === productId);
+      const result = await window.ProductCRUD.update(productId, data);
       
-      if (productIndex === -1) {
-        window.utils.showNotification("Product not found for editing", "error");
-        return;
+      if (result) {
+        closeModal("productModal");
+        loadProductsData();
+        populateProductSelect();
       }
-
-      const updatedProduct = {
-        ...window.products[productIndex],
-        name: name.trim(),
-        category: category,
-        price: price,
-        stock_quantity: stock,
-        updatedAt: new Date().toISOString()
-      };
-
-      // Update in database first
-      const savedProduct = await window.dataManager.updateData("products", productId, updatedProduct);
-      
-      // Update global array only after successful database update
-      window.products[productIndex] = savedProduct.data || savedProduct;
-      
-      window.utils.showNotification("Product updated successfully!");
     } else {
-      // Add new product
-      const newProduct = {
-        id: window.utils.generateId(),
-        name: name.trim(),
-        category: category,
-        price: price,
-        stock_quantity: stock,
-        createdAt: new Date().toISOString()
-      };
-
-      // Save to database first
-      const savedProduct = await window.dataManager.createData("products", newProduct);
+      // Create new product
+      const result = await window.ProductCRUD.create(data);
       
-      // Add to global array only after successful database save
-      window.products.push(savedProduct.data || savedProduct);
-      
-      window.utils.showNotification("Product added successfully!");
+      if (result) {
+        closeModal("productModal");
+        loadProductsData();
+        populateProductSelect();
+      }
     }
-
-    // Close modal and refresh data
-    closeModal("productModal");
-    loadProductsData();
-    
-    // Update dashboard if visible
-    if (typeof updateDashboardStats === "function") {
-      updateDashboardStats();
-    }
-
   } catch (error) {
-    console.error("Failed to save product:", error);
-    
-    // Provide specific error messages based on error type
-    let errorMessage = "Failed to save product. Please try again.";
-    
-    if (error.message.includes('Database connection')) {
-      errorMessage = "Database connection error. Please check if the server is running.";
-    } else if (error.message.includes('validation')) {
-      errorMessage = "Invalid product data. Please check all fields.";
-    } else if (error.message.includes('duplicate')) {
-      errorMessage = "A product with this name already exists.";
-    } else if (error.message.includes('timeout')) {
-      errorMessage = "Request timed out. Please try again.";
-    }
-    
-    window.utils.showNotification(errorMessage, "error");
+    console.error("Product operation failed:", error);
+    window.utils.showNotification("Operation failed. Please try again.", "error");
   }
 }
 

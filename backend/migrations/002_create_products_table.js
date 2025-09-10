@@ -8,7 +8,7 @@ exports.up = function(knex) {
     table.string('name', 100).notNullable();
     table.string('category', 50).notNullable();
     table.decimal('price', 10, 2).notNullable();
-    table.integer('stock').defaultTo(0);
+    table.integer('stock_quantity').defaultTo(0);
     table.integer('min_stock').defaultTo(10);
     table.text('description').nullable();
     table.string('barcode', 50).nullable().unique();
@@ -22,7 +22,7 @@ exports.up = function(knex) {
     table.index(['category']);
     table.index(['barcode']);
     table.index(['is_active']);
-    table.index(['stock']);
+    table.index(['stock_quantity']);
   });
 };
 
