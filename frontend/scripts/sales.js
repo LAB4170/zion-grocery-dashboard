@@ -114,7 +114,7 @@ async function addSale(event) {
         status: paymentMethod === "debt" ? "pending" : "completed",
         mpesa_code: paymentMethod === "mpesa" ? (document.getElementById('mpesaCode')?.value || null) : null,
         notes: document.getElementById('saleNotes')?.value || null,
-        created_by: 'system', // FIX: Use 'system' instead of null
+        created_by: null, // FIX: Use null instead of 'system' string to avoid UUID error
         created_at: new Date().toISOString()  // Single timestamp field only
       };
 
