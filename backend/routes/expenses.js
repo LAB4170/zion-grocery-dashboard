@@ -82,7 +82,7 @@ router.post('/', catchAsync(async (req, res) => {
 
   const expenseData = {
     ...req.body,
-    user_id: req.user.id
+    created_by: req.body.created_by || 'system'
   };
 
   const expense = await Expense.create(expenseData);
@@ -127,7 +127,7 @@ router.patch('/:id/approve', catchAsync(async (req, res) => {
     throw new AppError('Expense is already approved', 400);
   }
 
-  const approvedExpense = await Expense.approve(req.params.id, req.user.id);
+  const approvedExpense = await Expense.approve(req.params.id, 'system');
   
   res.json({
     success: true,
@@ -147,7 +147,7 @@ router.patch('/:id/reject', catchAsync(async (req, res) => {
     throw new AppError('Expense is already rejected', 400);
   }
 
-  const rejectedExpense = await Expense.reject(req.params.id, req.user.id);
+  const rejectedExpense = await Expense.reject(req.params.id, 'system');
   
   res.json({
     success: true,
