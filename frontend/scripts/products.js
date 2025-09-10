@@ -45,7 +45,29 @@ async function addProduct(event) {
     const name = document.getElementById("productName").value;
     const category = document.getElementById("productCategory").value;
     const price = parseFloat(document.getElementById("productPrice").value);
-    const stock = parseInt(document.getElementById("productStock").value);
+    const stockInput = document.getElementById("productStock").value;
+    const stock = stockInput ? parseInt(stockInput) : 0;
+
+    // Validation checks with user feedback
+    if (!name || name.trim() === "") {
+      window.utils.showNotification("Please enter a product name", "error");
+      return;
+    }
+
+    if (!category) {
+      window.utils.showNotification("Please select a category", "error");
+      return;
+    }
+
+    if (!price || price <= 0) {
+      window.utils.showNotification("Please enter a valid price", "error");
+      return;
+    }
+
+    if (stock < 0) {
+      window.utils.showNotification("Stock quantity cannot be negative", "error");
+      return;
+    }
 
     // Validation checks with user feedback
     if (!name || name.trim() === "") {
