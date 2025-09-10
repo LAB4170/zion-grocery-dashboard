@@ -35,11 +35,36 @@ async function fetchDashboardData() {
           window.dataManager.getProducts(),
         ]);
 
+        // Enhanced debugging for products response
+        console.log("🔍 Debug - Raw productsResponse:", productsResponse);
+        if (productsResponse.status === "fulfilled") {
+          console.log("🔍 Debug - Products value:", productsResponse.value);
+          console.log("🔍 Debug - Products value type:", typeof productsResponse.value);
+          console.log("🔍 Debug - Products value.data:", productsResponse.value?.data);
+        }
+
         // Process results and handle any individual failures - Extract data property from API responses
-        window.sales = salesResponse.status === "fulfilled" ? (salesResponse.value?.data || salesResponse.value || []) : [];
-        window.debts = debtsResponse.status === "fulfilled" ? (debtsResponse.value?.data || debtsResponse.value || []) : [];
-        window.expenses = expensesResponse.status === "fulfilled" ? (expensesResponse.value?.data || expensesResponse.value || []) : [];
-        window.products = productsResponse.status === "fulfilled" ? (productsResponse.value?.data || productsResponse.value || []) : [];
+        // FIX: Ensure we extract arrays properly from API response structure
+        window.sales = salesResponse.status === "fulfilled" ? 
+          (Array.isArray(salesResponse.value?.data) ? salesResponse.value.data : 
+           Array.isArray(salesResponse.value) ? salesResponse.value : []) : [];
+        
+        window.debts = debtsResponse.status === "fulfilled" ? 
+          (Array.isArray(debtsResponse.value?.data) ? debtsResponse.value.data : 
+           Array.isArray(debtsResponse.value) ? debtsResponse.value : []) : [];
+        
+        window.expenses = expensesResponse.status === "fulfilled" ? 
+          (Array.isArray(expensesResponse.value?.data) ? expensesResponse.value.data : 
+           Array.isArray(expensesResponse.value) ? expensesResponse.value : []) : [];
+        
+        window.products = productsResponse.status === "fulfilled" ? 
+          (Array.isArray(productsResponse.value?.data) ? productsResponse.value.data : 
+           Array.isArray(productsResponse.value) ? productsResponse.value : []) : [];
+
+        // Additional debugging after assignment
+        console.log("🔍 Debug - Final window.products:", window.products);
+        console.log("🔍 Debug - Final window.products type:", typeof window.products);
+        console.log("🔍 Debug - Final window.products is array:", Array.isArray(window.products));
 
         // Log any individual failures
         if (salesResponse.status === "rejected")
