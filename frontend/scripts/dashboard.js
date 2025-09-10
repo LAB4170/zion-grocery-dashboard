@@ -312,8 +312,28 @@ function updateInventoryOverview() {
   const container = document.getElementById("inventoryOverview");
   if (!container) return;
 
-  // FIX: Use consistent global variable access
-  const products = window.products || [];
+  // FIX: Use consistent global variable access with defensive programming
+  let products = window.products || [];
+  
+  // Debug logging to identify the issue
+  console.log('🔍 Debug - Products in updateInventoryOverview:', products);
+  console.log('🔍 Debug - Type:', typeof products);
+  console.log('🔍 Debug - Is array:', Array.isArray(products));
+  
+  // Ensure products is always an array
+  if (!Array.isArray(products)) {
+    console.warn('⚠️ Products is not an array. Converting to array or using empty array.');
+    // If products is an object with a data property, use that
+    if (products && products.data && Array.isArray(products.data)) {
+      products = products.data;
+    } else if (products && typeof products === 'object') {
+      // If it's an object, try to extract array values
+      products = Object.values(products).filter(item => item && typeof item === 'object');
+    } else {
+      // Fallback to empty array
+      products = [];
+    }
+  }
 
   const lowStockProducts = products.filter((p) => (p.stock || 0) <= 5);
 
