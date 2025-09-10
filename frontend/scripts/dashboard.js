@@ -510,15 +510,22 @@ function createWeeklyChart() {
     const sales = window.sales || [];
     const dailySales = sales
       .filter((s) => {
-        const saleDate = new Date(s.date || s.createdAt);
+        // Try multiple date fields with better fallback
+        const dateValue = s.date || s.createdAt || s.created_at;
+        if (!dateValue) {
+          console.warn("Skipping sale with no date field:", s);
+          return false;
+        }
+        
+        const saleDate = new Date(dateValue);
         // Check if the date is valid before using toISOString()
         if (isNaN(saleDate.getTime())) {
-          console.warn("Skipping sale with invalid date:", s.date || s.createdAt, s);
+          console.warn("Skipping sale with invalid date:", dateValue, s);
           return false;
         }
         return saleDate.toISOString().split("T")[0] === dateString;
       })
-      .reduce((sum, sale) => sum + (sale.totalAmount || 0), 0);
+      .reduce((sum, sale) => sum + (sale.total || sale.totalAmount || 0), 0);
 
     salesByDay.push(dailySales);
   }

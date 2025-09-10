@@ -103,19 +103,20 @@ async function addSale(event) {
 
       const sale = {
         id: window.utils.generateId(), // Generate UUID for primary key
-        product_id: product.id,
-        product_name: product.name,
+        productId: product.id,
+        productName: product.name,
         quantity: quantity,
-        unit_price: parseFloat(product.price),  // Convert to number, not string
+        unitPrice: parseFloat(product.price),  // Convert to number, not string
         total: parseFloat(product.price) * quantity,
-        payment_method: paymentMethod,
-        customer_name: (paymentMethod === "debt") ? customerName : null,  // Use null instead of empty string
-        customer_phone: (paymentMethod === "debt") ? customerPhone : null, // Use null instead of empty string
+        paymentMethod: paymentMethod,
+        customerName: (paymentMethod === "debt") ? customerName : null,  // Use null instead of empty string
+        customerPhone: (paymentMethod === "debt") ? customerPhone : null, // Use null instead of empty string
         status: paymentMethod === "debt" ? "pending" : "completed",
-        mpesa_code: paymentMethod === "mpesa" ? (document.getElementById('mpesaCode')?.value || null) : null,
+        mpesaCode: paymentMethod === "mpesa" ? (document.getElementById('mpesaCode')?.value || null) : null,
         notes: document.getElementById('saleNotes')?.value || null,
-        created_by: null, // FIX: Use null instead of 'system' string to avoid UUID error
-        created_at: new Date().toISOString()  // Single timestamp field only
+        date: saleDate,  // Add date field for dashboard compatibility
+        createdBy: null, // FIX: Use null instead of 'system' string to avoid UUID error
+        createdAt: new Date().toISOString()  // Single timestamp field only
       };
 
       // DATABASE-FIRST OPERATION: Send to database first, then update cache

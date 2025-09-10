@@ -95,44 +95,77 @@ class Sale {
     }
   }
 
-  // Get all sales
+  // Get all sales with filters
   static async findAll(filters = {}) {
-    let query = db('sales')
-      .select('sales.*', 'products.name as product_name')
-      .leftJoin('products', 'sales.product_id', 'products.id');
+    let query = db('sales').select('*');
     
     if (filters.date_from) {
-      query = query.where('sales.created_at', '>=', filters.date_from);
+      query = query.where('created_at', '>=', filters.date_from);
     }
     
     if (filters.date_to) {
-      query = query.where('sales.created_at', '<=', filters.date_to);
+      query = query.where('created_at', '<=', filters.date_to);
     }
     
     if (filters.payment_method) {
-      query = query.where('sales.payment_method', filters.payment_method);
+      query = query.where('payment_method', filters.payment_method);
     }
     
     if (filters.status) {
-      query = query.where('sales.status', filters.status);
+      query = query.where('status', filters.status);
     }
     
     if (filters.customer_name) {
-      query = query.where('sales.customer_name', 'ilike', `%${filters.customer_name}%`);
+      query = query.where('customer_name', 'ilike', `%${filters.customer_name}%`);
     }
     
-    return await query.orderBy('sales.created_at', 'desc');
+    const sales = await query.orderBy('created_at', 'desc');
+    
+    // Transform to frontend format
+    return sales.map(sale => ({
+      id: sale.id,
+      productId: sale.product_id,
+      productName: sale.product_name,
+      quantity: sale.quantity,
+      unitPrice: sale.unit_price,
+      total: sale.total,
+      paymentMethod: sale.payment_method,
+      customerName: sale.customer_name,
+      customerPhone: sale.customer_phone,
+      status: sale.status,
+      mpesaCode: sale.mpesa_code,
+      notes: sale.notes,
+      date: sale.created_at ? sale.created_at.split('T')[0] : new Date().toISOString().split('T')[0],  // Add date field
+      createdBy: sale.created_by,
+      createdAt: sale.created_at,
+      updatedAt: sale.updated_at
+    }));
   }
 
   // Get sale by ID
   static async findById(id) {
-    const sale = await db('sales')
-      .select('sales.*', 'products.name as product_name')
-      .leftJoin('products', 'sales.product_id', 'products.id')
-      .where('sales.id', id)
-      .first();
+    const sale = await db('sales').where('id', id).first();
+    if (!sale) return null;
     
-    return sale;
+    // Transform to frontend format
+    return {
+      id: sale.id,
+      productId: sale.product_id,
+      productName: sale.product_name,
+      quantity: sale.quantity,
+      unitPrice: sale.unit_price,
+      total: sale.total,
+      paymentMethod: sale.payment_method,
+      customerName: sale.customer_name,
+      customerPhone: sale.customer_phone,
+      status: sale.status,
+      mpesaCode: sale.mpesa_code,
+      notes: sale.notes,
+      date: sale.created_at ? sale.created_at.split('T')[0] : new Date().toISOString().split('T')[0],  // Add date field
+      createdBy: sale.created_by,
+      createdAt: sale.created_at,
+      updatedAt: sale.updated_at
+    };
   }
 
   // Update sale
