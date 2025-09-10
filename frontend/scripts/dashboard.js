@@ -28,30 +28,36 @@ async function fetchDashboardData() {
         console.log("📊 Loading dashboard data from database...");
 
         // Load all data from database with proper error handling
-        const [sales, debts, expenses, products] = await Promise.allSettled([
+        const [salesResponse, debtsResponse, expensesResponse, productsResponse] = await Promise.allSettled([
           window.dataManager.getSales(),
           window.dataManager.getDebts(),
           window.dataManager.getExpenses(),
           window.dataManager.getProducts(),
         ]);
 
-        // Process results and handle any individual failures
-        window.sales = sales.status === "fulfilled" ? sales.value : [];
-        window.debts = debts.status === "fulfilled" ? debts.value : [];
-        window.expenses = expenses.status === "fulfilled" ? expenses.value : [];
-        window.products = products.status === "fulfilled" ? products.value : [];
+        // Process results and handle any individual failures - Extract data property from API responses
+        window.sales = salesResponse.status === "fulfilled" ? (salesResponse.value?.data || salesResponse.value || []) : [];
+        window.debts = debtsResponse.status === "fulfilled" ? (debtsResponse.value?.data || debtsResponse.value || []) : [];
+        window.expenses = expensesResponse.status === "fulfilled" ? (expensesResponse.value?.data || expensesResponse.value || []) : [];
+        window.products = productsResponse.status === "fulfilled" ? (productsResponse.value?.data || productsResponse.value || []) : [];
 
         // Log any individual failures
-        if (sales.status === "rejected")
-          console.warn("⚠️ Failed to load sales:", sales.reason);
-        if (debts.status === "rejected")
-          console.warn("⚠️ Failed to load debts:", debts.reason);
-        if (expenses.status === "rejected")
-          console.warn("⚠️ Failed to load expenses:", expenses.reason);
-        if (products.status === "rejected")
-          console.warn("⚠️ Failed to load products:", products.reason);
+        if (salesResponse.status === "rejected")
+          console.warn("⚠️ Failed to load sales:", salesResponse.reason);
+        if (debtsResponse.status === "rejected")
+          console.warn("⚠️ Failed to load debts:", debtsResponse.reason);
+        if (expensesResponse.status === "rejected")
+          console.warn("⚠️ Failed to load expenses:", expensesResponse.reason);
+        if (productsResponse.status === "rejected")
+          console.warn("⚠️ Failed to load products:", productsResponse.reason);
 
         console.log("✅ Dashboard data loaded from database");
+        console.log("📊 Data summary:", {
+          sales: window.sales.length,
+          debts: window.debts.length,
+          expenses: window.expenses.length,
+          products: window.products.length
+        });
       } else {
         throw new Error(
           "Database connection not available after initialization"
