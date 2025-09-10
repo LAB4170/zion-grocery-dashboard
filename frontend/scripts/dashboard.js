@@ -218,11 +218,20 @@ function updateDashboardStats() {
   const currentMonth = new Date().getMonth();
   const currentYear = new Date().getFullYear();
 
-  // FIX: Use global variables consistently
-  const sales = window.sales || [];
-  const debts = window.debts || [];
-  const expenses = window.expenses || [];
-  const products = window.products || [];
+  // Debug: Check what's actually in window.sales
+  console.log("🔍 Debug - window.sales:", window.sales);
+  console.log("🔍 Debug - Type of window.sales:", typeof window.sales);
+  console.log("🔍 Debug - Is array:", Array.isArray(window.sales));
+
+  // FIX: Use global variables consistently and ensure they are arrays
+  const sales = Array.isArray(window.sales) ? window.sales : [];
+  const debts = Array.isArray(window.debts) ? window.debts : [];
+  const expenses = Array.isArray(window.expenses) ? window.expenses : [];
+  const products = Array.isArray(window.products) ? window.products : [];
+
+  // Additional debug info
+  console.log("🔍 Debug - Final sales array:", sales);
+  console.log("🔍 Debug - Sales length:", sales.length);
 
   // Total sales
   const totalSales = sales.reduce((sum, sale) => sum + (sale.total || 0), 0);
