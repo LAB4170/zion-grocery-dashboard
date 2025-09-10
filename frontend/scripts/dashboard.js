@@ -511,6 +511,11 @@ function createWeeklyChart() {
     const dailySales = sales
       .filter((s) => {
         const saleDate = new Date(s.date || s.createdAt);
+        // Check if the date is valid before using toISOString()
+        if (isNaN(saleDate.getTime())) {
+          console.warn("Skipping sale with invalid date:", s.date || s.createdAt, s);
+          return false;
+        }
         return saleDate.toISOString().split("T")[0] === dateString;
       })
       .reduce((sum, sale) => sum + (sale.totalAmount || 0), 0);
