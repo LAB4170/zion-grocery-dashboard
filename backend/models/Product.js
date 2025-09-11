@@ -135,6 +135,12 @@ class Product {
     return await db('products').where('id', id).del();
   }
 
+  // Check if product has sales records
+  static async hasSalesRecords(id) {
+    const salesCount = await db('sales').where('product_id', id).count('id as count').first();
+    return parseInt(salesCount.count) > 0;
+  }
+
   // Update stock
   static async updateStock(id, quantity, operation = 'subtract') {
     const product = await Product.findById(id);

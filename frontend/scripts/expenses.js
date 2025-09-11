@@ -102,16 +102,26 @@ function loadExpensesData() {
 }
 
 async function deleteExpense(expenseId) {
-  if (confirm("Are you sure you want to delete this expense?")) {
-    // FIX: Use consistent global variable access
-    window.expenses = (window.expenses || []).filter((e) => e.id !== expenseId);
-    await window.dataManager.removeData("expenses", expenseId);
-    loadExpensesData();
+  try {
+    if (!confirm("Are you sure you want to delete this expense?")) {
+      return;
+    }
+
+    await window.dataManager.deleteData("expenses", expenseId);
+
+    // Update local array
+    const expenses = window.expenses || [];
+    window.expenses = expenses.filter((e) => e.id !== expenseId);
+
     window.utils.showNotification("Expense deleted successfully!");
+    loadExpensesData();
 
     // Update dashboard
     if (typeof window.updateDashboardStats === "function") {
       window.updateDashboardStats();
     }
+  } catch (error) {
+    console.error('Error deleting expense:', error);
+    window.utils.showNotification(`Failed to delete expense: ${error.message}`, 'error');
   }
 }

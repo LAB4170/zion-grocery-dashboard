@@ -297,17 +297,27 @@ async function markDebtPaid(debtId) {
 }
 
 async function deleteDebt(debtId) {
-  if (confirm("Are you sure you want to delete this debt record?")) {
-    // FIX: Use consistent global variable access
-    window.debts = (window.debts || []).filter((d) => d.id !== debtId);
+  try {
+    if (!confirm("Are you sure you want to delete this debt record?")) {
+      return;
+    }
+
     await window.dataManager.deleteData("debts", debtId);
+
+    // Update local array
+    const debts = window.debts || [];
+    window.debts = debts.filter((d) => d.id !== debtId);
+
+    window.utils.showNotification("Debt deleted successfully!");
     loadDebtsData();
-    window.utils.showNotification("Debt record deleted!");
 
     // Update dashboard
     if (typeof window.updateDashboardStats === "function") {
       window.updateDashboardStats();
     }
+  } catch (error) {
+    console.error('Error deleting debt:', error);
+    window.utils.showNotification(`Failed to delete debt: ${error.message}`, 'error');
   }
 }
 

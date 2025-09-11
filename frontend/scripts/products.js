@@ -144,28 +144,55 @@ function renderProductsTable(productsToShow) {
 }
 
 async function deleteProduct(productId) {
-  if (!confirm("Are you sure you want to delete this product?")) {
-    return;
-  }
+  try {
+    // First check if the product can be deleted
+    const response = await window.apiClient.makeRequest(`/products/${productId}/can-delete`);
+    
+    if (!response.data.canDelete) {
+      window.utils.showNotification(
+        `Cannot delete this product: ${response.data.message}. Consider deactivating it instead.`,
+        'error'
+      );
+      return;
+    }
 
-  const products = window.products || [];
-  window.products = products.filter((p) => p.id !== productId);
-  await window.dataManager.deleteData("products", productId);
+    if (!confirm("Are you sure you want to delete this product?")) {
+      return;
+    }
 
-  window.utils.showNotification("Product deleted successfully!");
-  loadProductsData();
+    // Proceed with deletion
+    await window.dataManager.deleteData("products", productId);
 
-  // Update dashboard and refresh product select
-  if (typeof window.updateDashboardStats === "function") {
-    window.updateDashboardStats();
+    // Update local array
+    const products = window.products || [];
+    window.products = products.filter((p) => p.id !== productId);
+
+    window.utils.showNotification("Product deleted successfully!");
+    loadProductsData();
+
+    // Update dashboard and refresh product select
+    if (typeof window.updateDashboardStats === "function") {
+      window.updateDashboardStats();
+    }
+    if (typeof window.populateProductSelect === "function") {
+      window.populateProductSelect();
+    }
+  } catch (error) {
+    console.error('Error deleting product:', error);
+    
+    // Handle specific constraint errors
+    if (error.message.includes('sales records')) {
+      window.utils.showNotification(
+        'Cannot delete product with existing sales records. Consider deactivating it instead.',
+        'error'
+      );
+    } else {
+      window.utils.showNotification(
+        `Failed to delete product: ${error.message}`,
+        'error'
+      );
+    }
   }
-  if (typeof window.updateInventoryOverview === "function") {
-    window.updateInventoryOverview();
-  }
-  if (typeof window.updateDetailedInventory === "function") {
-    window.updateDetailedInventory();
-  }
-  populateProductSelect();
 }
 
 function editProduct(productId) {

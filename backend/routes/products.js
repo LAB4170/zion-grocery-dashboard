@@ -55,6 +55,25 @@ router.get('/:id', catchAsync(async (req, res) => {
   });
 }));
 
+// GET /api/products/:id/can-delete - Check if product can be deleted
+router.get('/:id/can-delete', catchAsync(async (req, res) => {
+  const product = await Product.findById(req.params.id);
+  if (!product) {
+    throw new AppError('Product not found', 404);
+  }
+
+  const hasSales = await Product.hasSalesRecords(req.params.id);
+  
+  res.json({
+    success: true,
+    data: {
+      canDelete: !hasSales,
+      hasSalesRecords: hasSales,
+      message: hasSales ? 'Product has sales records and cannot be deleted' : 'Product can be safely deleted'
+    }
+  });
+}));
+
 // POST /api/products - Create new product
 router.post('/', catchAsync(async (req, res) => {
   // Validate input
@@ -124,6 +143,12 @@ router.delete('/:id', catchAsync(async (req, res) => {
   const product = await Product.findById(req.params.id);
   if (!product) {
     throw new AppError('Product not found', 404);
+  }
+
+  // Check if product has sales records before deletion
+  const hasSales = await Product.hasSalesRecords(req.params.id);
+  if (hasSales) {
+    throw new AppError('Cannot delete product that has sales records. Please deactivate the product instead or remove all associated sales first.', 400);
   }
 
   await Product.delete(req.params.id);
