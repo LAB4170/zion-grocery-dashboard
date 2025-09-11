@@ -135,7 +135,7 @@ class Sale {
       status: sale.status,
       mpesaCode: sale.mpesa_code,
       notes: sale.notes,
-      date: sale.created_at ? sale.created_at.split('T')[0] : new Date().toISOString().split('T')[0],  // Add date field
+      date: sale.created_at ? (typeof sale.created_at === 'string' ? sale.created_at.split('T')[0] : sale.created_at.toISOString().split('T')[0]) : new Date().toISOString().split('T')[0],
       createdBy: sale.created_by,
       createdAt: sale.created_at,
       updatedAt: sale.updated_at
@@ -161,7 +161,7 @@ class Sale {
       status: sale.status,
       mpesaCode: sale.mpesa_code,
       notes: sale.notes,
-      date: sale.created_at ? sale.created_at.split('T')[0] : new Date().toISOString().split('T')[0],  // Add date field
+      date: sale.created_at ? (typeof sale.created_at === 'string' ? sale.created_at.split('T')[0] : sale.created_at.toISOString().split('T')[0]) : new Date().toISOString().split('T')[0],
       createdBy: sale.created_by,
       createdAt: sale.created_at,
       updatedAt: sale.updated_at
