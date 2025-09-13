@@ -17,15 +17,9 @@ class Expense {
     this.description = data.description;
     this.amount = parseFloat(data.amount);
     this.category = data.category;
-    this.status = data.status || 'pending'; // 'pending', 'approved', 'rejected'
-    this.expense_date = data.expense_date || data.date || new Date().toISOString().split('T')[0];
-    this.receipt_number = data.receipt_number || '';
-    this.notes = data.notes || '';
-    this.created_by = data.created_by || data.user_id || 'system';
-    this.approved_by = data.approved_by || null;
-    this.approved_at = data.approved_at || null;
-    this.created_at = data.created_at || new Date();
-    this.updated_at = data.updated_at || new Date();
+    this.createdBy = data.createdBy || data.created_by || 'system';
+    this.createdAt = data.createdAt || data.created_at || new Date().toISOString();
+    this.updatedAt = data.updatedAt || data.updated_at;
   }
 
   // Create new expense
@@ -38,20 +32,16 @@ class Expense {
         description: expense.description,
         amount: expense.amount,
         category: expense.category,
-        status: expense.status,
-        expense_date: expense.expense_date,
-        receipt_number: expense.receipt_number,
-        notes: expense.notes,
-        created_by: expense.created_by,
-        created_at: expense.created_at,
-        updated_at: expense.updated_at
+        created_by: expense.createdBy,
+        created_at: expense.createdAt,
+        updated_at: new Date().toISOString()
       })
       .returning('*');
     
     return newExpense;
   }
 
-  // Get all expenses
+  // Get all expenses with basic filters
   static async findAll(filters = {}) {
     let query = getDatabase()('expenses').select('*');
     
@@ -59,42 +49,62 @@ class Expense {
       query = query.where('category', filters.category);
     }
     
-    if (filters.status) {
-      query = query.where('status', filters.status);
-    }
-    
     if (filters.date_from) {
-      query = query.where('expense_date', '>=', filters.date_from);
+      query = query.where('created_at', '>=', filters.date_from);
     }
     
     if (filters.date_to) {
-      query = query.where('expense_date', '<=', filters.date_to);
+      query = query.where('created_at', '<=', filters.date_to);
     }
     
     if (filters.search) {
-      query = query.where(function() {
-        this.where('description', 'ilike', `%${filters.search}%`)
-            .orWhere('notes', 'ilike', `%${filters.search}%`)
-            .orWhere('receipt_number', 'ilike', `%${filters.search}%`);
-      });
+      query = query.where('description', 'ilike', `%${filters.search}%`);
     }
     
-    return await query.orderBy('expense_date', 'desc');
+    const expenses = await query.orderBy('created_at', 'desc');
+    
+    // Transform to frontend format (camelCase)
+    return expenses.map(expense => ({
+      id: expense.id,
+      description: expense.description,
+      amount: expense.amount,
+      category: expense.category,
+      createdBy: expense.created_by,
+      createdAt: expense.created_at,
+      updatedAt: expense.updated_at
+    }));
   }
 
   // Get expense by ID
   static async findById(id) {
     const expense = await getDatabase()('expenses').where('id', id).first();
-    return expense;
+    if (!expense) return null;
+    
+    // Transform to frontend format (camelCase)
+    return {
+      id: expense.id,
+      description: expense.description,
+      amount: expense.amount,
+      category: expense.category,
+      createdBy: expense.created_by,
+      createdAt: expense.created_at,
+      updatedAt: expense.updated_at
+    };
   }
 
   // Update expense
   static async update(id, updateData) {
-    updateData.updated_at = new Date();
+    const db = getDatabase();
+    const dbData = {
+      description: updateData.description,
+      amount: parseFloat(updateData.amount),
+      category: updateData.category,
+      updated_at: new Date().toISOString()
+    };
     
-    const [updatedExpense] = await getDatabase()('expenses')
+    const [updatedExpense] = await db('expenses')
       .where('id', id)
-      .update(updateData)
+      .update(dbData)
       .returning('*');
     
     return updatedExpense;
@@ -105,64 +115,28 @@ class Expense {
     return await getDatabase()('expenses').where('id', id).del();
   }
 
-  // Approve expense
-  static async approve(id, approvedBy) {
-    const [approvedExpense] = await getDatabase()('expenses')
-      .where('id', id)
-      .update({
-        status: 'approved',
-        approved_by: approvedBy,
-        approved_at: new Date(),
-        updated_at: new Date()
-      })
-      .returning('*');
-    
-    return approvedExpense;
-  }
-
-  // Reject expense
-  static async reject(id, rejectedBy) {
-    const [rejectedExpense] = await getDatabase()('expenses')
-      .where('id', id)
-      .update({
-        status: 'rejected',
-        approved_by: rejectedBy,
-        approved_at: new Date(),
-        updated_at: new Date()
-      })
-      .returning('*');
-    
-    return rejectedExpense;
-  }
-
-  // Get expense summary
+  // Get basic expense summary for dashboard
   static async getSummary(filters = {}) {
     let query = getDatabase()('expenses');
     
     if (filters.date_from) {
-      query = query.where('expense_date', '>=', filters.date_from);
+      query = query.where('created_at', '>=', filters.date_from);
     }
     
     if (filters.date_to) {
-      query = query.where('expense_date', '<=', filters.date_to);
+      query = query.where('created_at', '<=', filters.date_to);
     }
     
     const summary = await query
       .select(
         getDatabase().raw('COUNT(*) as total_expenses'),
-        getDatabase().raw('SUM(amount) as total_amount'),
-        getDatabase().raw('SUM(CASE WHEN status = ? THEN amount ELSE 0 END) as approved_amount', ['approved']),
-        getDatabase().raw('SUM(CASE WHEN status = ? THEN amount ELSE 0 END) as pending_amount', ['pending']),
-        getDatabase().raw('AVG(amount) as average_expense')
+        getDatabase().raw('SUM(amount) as total_amount')
       )
       .first();
     
     return {
       total_expenses: parseInt(summary.total_expenses) || 0,
-      total_amount: parseFloat(summary.total_amount) || 0,
-      approved_amount: parseFloat(summary.approved_amount) || 0,
-      pending_amount: parseFloat(summary.pending_amount) || 0,
-      average_expense: parseFloat(summary.average_expense) || 0
+      total_amount: parseFloat(summary.total_amount) || 0
     };
   }
 
@@ -178,31 +152,7 @@ class Expense {
     return categories;
   }
 
-  // Get monthly expenses
-  static async getMonthlyExpenses(months = 12) {
-    const expenses = await getDatabase()('expenses')
-      .select(
-        getDatabase().raw('DATE_TRUNC(\'month\', expense_date) as month'),
-        getDatabase().raw('SUM(amount) as total_amount'),
-        getDatabase().raw('COUNT(*) as count')
-      )
-      .where('expense_date', '>=', getDatabase().raw(`NOW() - INTERVAL '${months} months'`))
-      .groupBy(getDatabase().raw('DATE_TRUNC(\'month\', expense_date)'))
-      .orderBy('month', 'desc');
-    
-    return expenses;
-  }
-
-  // Get expense categories
-  static async getCategories() {
-    const categories = await getDatabase()('expenses')
-      .distinct('category')
-      .orderBy('category', 'asc');
-    
-    return categories.map(cat => cat.category);
-  }
-
-  // Validate expense data
+  // Simple validation matching frontend
   static validate(data) {
     const errors = [];
     

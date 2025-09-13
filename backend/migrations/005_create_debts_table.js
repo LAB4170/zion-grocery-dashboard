@@ -9,24 +9,19 @@ exports.up = function(knex) {
     table.string('customer_name', 100).notNullable();
     table.string('customer_phone', 20).nullable();
     table.decimal('amount', 10, 2).notNullable();
-    table.decimal('amount_paid', 10, 2).defaultTo(0);
-    table.decimal('balance', 10, 2).notNullable();
-    table.enum('status', ['pending', 'partial', 'paid', 'overdue']).defaultTo('pending');
-    table.date('due_date').nullable();
+    table.enum('status', ['pending', 'paid']).defaultTo('pending');
     table.text('notes').nullable();
     table.uuid('created_by').nullable();
     table.timestamps(true, true);
     
-    // Foreign keys
+    // Foreign keys - simplified
     table.foreign('sale_id').references('id').inTable('sales').onDelete('SET NULL');
-    table.foreign('created_by').references('id').inTable('users').onDelete('SET NULL');
     
-    // Indexes
+    // Essential indexes only
     table.index(['customer_name']);
     table.index(['customer_phone']);
     table.index(['status']);
-    table.index(['due_date']);
-    table.index(['created_by']);
+    table.index(['created_at']);
     table.index(['sale_id']);
   });
 };

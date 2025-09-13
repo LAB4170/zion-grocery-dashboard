@@ -14,20 +14,21 @@ const { v4: uuidv4 } = require('uuid');
 class Sale {
   constructor(data) {
     this.id = data.id; 
-    this.product_id = data.product_id;
-    this.product_name = data.product_name;
+    this.productId = data.productId || data.product_id;
+    this.productName = data.productName || data.product_name;
     this.quantity = parseInt(data.quantity);
-    this.unit_price = parseFloat(data.unit_price);
+    this.unitPrice = parseFloat(data.unitPrice || data.unit_price);
     this.total = parseFloat(data.total);
-    this.payment_method = data.payment_method; // 'cash', 'mpesa', 'debt'
-    this.customer_name = data.customer_name || '';
-    this.customer_phone = data.customer_phone || '';
-    this.status = data.status || 'completed'; // 'completed', 'pending', 'cancelled'
-    this.mpesa_code = data.mpesa_code || null; // M-Pesa transaction code
-    this.notes = data.notes || null; // Additional notes
-    this.created_by = data.created_by || data.user_id || null; // Handle both field names
-    this.created_at = data.created_at || new Date();
-    this.updated_at = data.updated_at || new Date();
+    this.paymentMethod = data.paymentMethod || data.payment_method;
+    this.customerName = data.customerName || data.customer_name || null;
+    this.customerPhone = data.customerPhone || data.customer_phone || null;
+    this.status = data.status || 'completed';
+    this.mpesaCode = data.mpesaCode || data.mpesa_code || null;
+    this.notes = data.notes || null;
+    this.date = data.date || new Date().toISOString().split('T')[0];
+    this.createdBy = data.createdBy || data.created_by || null;
+    this.createdAt = data.createdAt || data.created_at || new Date().toISOString();
+    this.updatedAt = data.updatedAt || data.updated_at;
   }
 
   // Create new sale
@@ -43,8 +44,8 @@ class Sale {
     const trx = await getDatabase().transaction();
     
     try {
-      // Check product stock - FIX: Use correct field name 'stock_quantity'
-      const product = await trx('products').where('id', sale.product_id).first();
+      // Check product stock
+      const product = await trx('products').where('id', sale.productId).first();
       if (!product) {
         throw new Error('Product not found');
       }
@@ -53,47 +54,47 @@ class Sale {
         throw new Error('Insufficient stock');
       }
       
-      // Create sale record with UUID
+      // Create sale record
       const [newSale] = await trx('sales')
         .insert({
-          id: sale.id, // Include UUID primary key
-          product_id: sale.product_id,
-          product_name: sale.product_name,
+          id: sale.id,
+          product_id: sale.productId,
+          product_name: sale.productName,
           quantity: sale.quantity,
-          unit_price: sale.unit_price,
+          unit_price: sale.unitPrice,
           total: sale.total,
-          payment_method: sale.payment_method,
-          customer_name: sale.customer_name,
-          customer_phone: sale.customer_phone,
+          payment_method: sale.paymentMethod,
+          customer_name: sale.customerName,
+          customer_phone: sale.customerPhone,
           status: sale.status,
-          mpesa_code: sale.mpesa_code,
+          mpesa_code: sale.mpesaCode,
           notes: sale.notes,
-          created_by: sale.created_by,
-          created_at: sale.created_at,
-          updated_at: sale.updated_at
+          date: sale.date,
+          created_by: sale.createdBy,
+          created_at: sale.createdAt,
+          updated_at: new Date().toISOString()
         })
         .returning('*');
       
-      // Update product stock - FIX: Use correct field name 'stock_quantity'
+      // Update product stock
       await trx('products')
-        .where('id', sale.product_id)
+        .where('id', sale.productId)
         .decrement('stock_quantity', sale.quantity)
-        .update('updated_at', new Date());
+        .update('updated_at', new Date().toISOString());
       
-      // If payment method is debt, create debt record with correct schema
-      if (sale.payment_method === 'debt') {
+      // If payment method is debt, create simple debt record
+      if (sale.paymentMethod === 'debt') {
         await trx('debts').insert({
+          id: uuidv4(),
           sale_id: newSale.id,
-          customer_name: sale.customer_name,
-          customer_phone: sale.customer_phone,
+          customer_name: sale.customerName,
+          customer_phone: sale.customerPhone,
           amount: sale.total,
-          amount_paid: 0, // New schema field
-          balance: sale.total, // New schema field
           status: 'pending',
-          notes: `Sale: ${sale.product_name} (${sale.quantity} units)`,
-          created_by: sale.created_by,
-          created_at: new Date(),
-          updated_at: new Date()
+          notes: `Sale: ${sale.productName} (${sale.quantity} units)`,
+          created_by: sale.createdBy,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
         });
       }
       
@@ -105,7 +106,7 @@ class Sale {
     }
   }
 
-  // Get all sales with filters
+  // Get all sales with basic filters
   static async findAll(filters = {}) {
     let query = getDatabase()('sales').select('*');
     
@@ -121,17 +122,13 @@ class Sale {
       query = query.where('payment_method', filters.payment_method);
     }
     
-    if (filters.status) {
-      query = query.where('status', filters.status);
-    }
-    
     if (filters.customer_name) {
       query = query.where('customer_name', 'ilike', `%${filters.customer_name}%`);
     }
     
     const sales = await query.orderBy('created_at', 'desc');
     
-    // Transform to frontend format
+    // Transform to frontend format (camelCase)
     return sales.map(sale => ({
       id: sale.id,
       productId: sale.product_id,
@@ -145,7 +142,7 @@ class Sale {
       status: sale.status,
       mpesaCode: sale.mpesa_code,
       notes: sale.notes,
-      date: sale.created_at ? (typeof sale.created_at === 'string' ? sale.created_at.split('T')[0] : sale.created_at.toISOString().split('T')[0]) : new Date().toISOString().split('T')[0],
+      date: sale.date || (sale.created_at ? sale.created_at.split('T')[0] : new Date().toISOString().split('T')[0]),
       createdBy: sale.created_by,
       createdAt: sale.created_at,
       updatedAt: sale.updated_at
@@ -157,7 +154,7 @@ class Sale {
     const sale = await getDatabase()('sales').where('id', id).first();
     if (!sale) return null;
     
-    // Transform to frontend format
+    // Transform to frontend format (camelCase)
     return {
       id: sale.id,
       productId: sale.product_id,
@@ -171,7 +168,7 @@ class Sale {
       status: sale.status,
       mpesaCode: sale.mpesa_code,
       notes: sale.notes,
-      date: sale.created_at ? (typeof sale.created_at === 'string' ? sale.created_at.split('T')[0] : sale.created_at.toISOString().split('T')[0]) : new Date().toISOString().split('T')[0],
+      date: sale.date || (sale.created_at ? sale.created_at.split('T')[0] : new Date().toISOString().split('T')[0]),
       createdBy: sale.created_by,
       createdAt: sale.created_at,
       updatedAt: sale.updated_at
@@ -180,11 +177,26 @@ class Sale {
 
   // Update sale
   static async update(id, updateData) {
-    updateData.updated_at = new Date();
+    const db = getDatabase();
+    const dbData = {
+      product_id: updateData.productId,
+      product_name: updateData.productName,
+      quantity: updateData.quantity,
+      unit_price: updateData.unitPrice,
+      total: updateData.total,
+      payment_method: updateData.paymentMethod,
+      customer_name: updateData.customerName,
+      customer_phone: updateData.customerPhone,
+      status: updateData.status,
+      mpesa_code: updateData.mpesaCode,
+      notes: updateData.notes,
+      date: updateData.date,
+      updated_at: new Date().toISOString()
+    };
     
-    const [updatedSale] = await getDatabase()('sales')
+    const [updatedSale] = await db('sales')
       .where('id', id)
-      .update(updateData)
+      .update(dbData)
       .returning('*');
     
     return updatedSale;
@@ -205,7 +217,7 @@ class Sale {
       await trx('products')
         .where('id', sale.product_id)
         .increment('stock_quantity', sale.quantity)
-        .update('updated_at', new Date());
+        .update('updated_at', new Date().toISOString());
       
       // Delete associated debt if exists
       await trx('debts').where('sale_id', id).del();
@@ -221,7 +233,7 @@ class Sale {
     }
   }
 
-  // Get sales summary
+  // Get basic sales summary for dashboard
   static async getSummary(filters = {}) {
     let query = getDatabase()('sales');
     
@@ -239,8 +251,7 @@ class Sale {
         getDatabase().raw('SUM(total) as total_revenue'),
         getDatabase().raw('SUM(CASE WHEN payment_method = ? THEN total ELSE 0 END) as cash_sales', ['cash']),
         getDatabase().raw('SUM(CASE WHEN payment_method = ? THEN total ELSE 0 END) as mpesa_sales', ['mpesa']),
-        getDatabase().raw('SUM(CASE WHEN payment_method = ? THEN total ELSE 0 END) as debt_sales', ['debt']),
-        getDatabase().raw('AVG(total) as average_sale_value')
+        getDatabase().raw('SUM(CASE WHEN payment_method = ? THEN total ELSE 0 END) as debt_sales', ['debt'])
       )
       .first();
     
@@ -249,45 +260,15 @@ class Sale {
       total_revenue: parseFloat(summary.total_revenue) || 0,
       cash_sales: parseFloat(summary.cash_sales) || 0,
       mpesa_sales: parseFloat(summary.mpesa_sales) || 0,
-      debt_sales: parseFloat(summary.debt_sales) || 0,
-      average_sale_value: parseFloat(summary.average_sale_value) || 0
+      debt_sales: parseFloat(summary.debt_sales) || 0
     };
   }
 
-  // Get daily sales
-  static async getDailySales(days = 7) {
-    const sales = await getDatabase()('sales')
-      .select(
-        getDatabase().raw('DATE(created_at) as date'),
-        getDatabase().raw('COUNT(*) as count'),
-        getDatabase().raw('SUM(total) as total')
-      )
-      .where('created_at', '>=', getDatabase().raw(`NOW() - INTERVAL '${days} days'`))
-      .groupBy(getDatabase().raw('DATE(created_at)'))
-      .orderBy('date', 'desc');
-    
-    return sales;
-  }
-
-  // Get top selling products
-  static async getTopProducts(limit = 10) {
-    const products = await getDatabase()('sales')
-      .select('product_name', 'product_id')
-      .sum('quantity as total_quantity')
-      .sum('total as total_revenue')
-      .count('* as sale_count')
-      .groupBy('product_id', 'product_name')
-      .orderBy('total_quantity', 'desc')
-      .limit(limit);
-    
-    return products;
-  }
-
-  // Validate sale data
+  // Simple validation matching frontend
   static validate(data) {
     const errors = [];
     
-    if (!data.product_id) {
+    if (!data.productId && !data.product_id) {
       errors.push('Product ID is required');
     }
     
@@ -295,26 +276,23 @@ class Sale {
       errors.push('Valid quantity is required');
     }
     
-    if (!data.unit_price || isNaN(parseFloat(data.unit_price)) || parseFloat(data.unit_price) <= 0) {
+    if (!data.unitPrice && !data.unit_price || isNaN(parseFloat(data.unitPrice || data.unit_price)) || parseFloat(data.unitPrice || data.unit_price) <= 0) {
       errors.push('Valid unit price is required');
     }
     
-    if (!data.payment_method || !['cash', 'mpesa', 'debt'].includes(data.payment_method)) {
+    if (!data.paymentMethod && !data.payment_method || !['cash', 'mpesa', 'debt'].includes(data.paymentMethod || data.payment_method)) {
       errors.push('Valid payment method is required (cash, mpesa, or debt)');
     }
     
-    if (data.payment_method === 'debt') {
-      if (!data.customer_name || data.customer_name.trim().length === 0) {
+    if ((data.paymentMethod === 'debt' || data.payment_method === 'debt')) {
+      if (!data.customerName && !data.customer_name || (data.customerName || data.customer_name || '').trim().length === 0) {
         errors.push('Customer name is required for debt payments');
       }
       
-      if (!data.customer_phone || data.customer_phone.trim().length === 0) {
+      if (!data.customerPhone && !data.customer_phone || (data.customerPhone || data.customer_phone || '').trim().length === 0) {
         errors.push('Customer phone is required for debt payments');
       }
     }
-    
-    // M-Pesa code is optional for M-Pesa payments (for record keeping only)
-    // No customer details required for M-Pesa payments (same as cash)
     
     return errors;
   }

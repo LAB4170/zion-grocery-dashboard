@@ -13,23 +13,22 @@ exports.up = function(knex) {
     table.enum('payment_method', ['cash', 'mpesa', 'debt']).notNullable();
     table.string('customer_name', 100).nullable();
     table.string('customer_phone', 20).nullable();
-    table.enum('status', ['completed', 'pending', 'cancelled']).defaultTo('completed');
+    table.enum('status', ['completed', 'pending']).defaultTo('completed');
     table.string('mpesa_code', 50).nullable();
     table.text('notes').nullable();
+    table.date('date').nullable();
     table.uuid('created_by').nullable();
     table.timestamps(true, true);
     
-    // Foreign keys
+    // Foreign keys - simplified
     table.foreign('product_id').references('id').inTable('products').onDelete('RESTRICT');
-    table.foreign('created_by').references('id').inTable('users').onDelete('SET NULL');
     
-    // Indexes
+    // Essential indexes only
     table.index(['product_id']);
     table.index(['payment_method']);
     table.index(['status']);
     table.index(['created_at']);
     table.index(['customer_phone']);
-    table.index(['mpesa_code']);
   });
 };
 

@@ -9,19 +9,11 @@ exports.up = function(knex) {
     table.string('category', 50).notNullable();
     table.decimal('price', 10, 2).notNullable();
     table.integer('stock_quantity').defaultTo(0);
-    table.integer('min_stock').defaultTo(10);
-    table.text('description').nullable();
-    table.string('barcode', 50).nullable().unique();
-    table.string('supplier', 100).nullable();
-    table.decimal('cost_price', 10, 2).nullable();
-    table.boolean('is_active').defaultTo(true);
     table.timestamps(true, true);
     
-    // Indexes
+    // Essential indexes only
     table.index(['name']);
     table.index(['category']);
-    table.index(['barcode']);
-    table.index(['is_active']);
     table.index(['stock_quantity']);
   });
 };

@@ -9,45 +9,33 @@ function getDatabase() {
   return db;
 }
 
+const { v4: uuidv4 } = require('uuid');
+
 class Product {
   constructor(data) {
     this.id = data.id;
     this.name = data.name;
     this.category = data.category;
     this.price = parseFloat(data.price);
-    this.stockQuantity = parseInt(data.stockQuantity || data.stock_quantity || data.stock || 0);
-    this.lowStockThreshold = parseInt(data.lowStockThreshold || data.low_stock_threshold || 10);
-    this.description = data.description;
-    this.barcode = data.barcode;
-    this.supplier = data.supplier;
-    this.costPrice = parseFloat(data.costPrice || data.cost_price || 0);
-    this.createdBy = data.createdBy || data.created_by;
+    this.stockQuantity = parseInt(data.stockQuantity || data.stock_quantity || 0);
     this.createdAt = data.createdAt || data.created_at || new Date().toISOString();
     this.updatedAt = data.updatedAt || data.updated_at;
-    this.isActive = data.isActive !== undefined ? data.isActive : true;
   }
 
-  // Create new product with proper field mapping
+  // Create new product with simplified fields
   static async create(productData) {
     const db = getDatabase();
     const dbData = {
-      id: productData.id || require('uuid').v4(),
+      id: productData.id || uuidv4(),
       name: productData.name,
       category: productData.category,
       price: parseFloat(productData.price),
-      stock_quantity: parseInt(productData.stockQuantity || productData.stock_quantity || productData.stock || 0),
-      low_stock_threshold: parseInt(productData.lowStockThreshold || productData.low_stock_threshold || 10),
-      description: productData.description,
-      barcode: productData.barcode,
-      supplier: productData.supplier,
-      cost_price: parseFloat(productData.costPrice || productData.cost_price || 0),
-      created_by: productData.createdBy || productData.created_by,
-      created_at: productData.createdAt || productData.created_at || new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      is_active: productData.isActive !== undefined ? productData.isActive : true
+      stock_quantity: parseInt(productData.stockQuantity || productData.stock_quantity || 0),
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
     };
 
-    console.log('Creating product with data:', dbData);
+    console.log('Creating product with simplified data:', dbData);
     
     const [newProduct] = await db('products')
       .insert(dbData)
@@ -57,44 +45,30 @@ class Product {
     return newProduct;
   }
 
-  // Get all products with filters
+  // Get all products with basic filters
   static async findAll(filters = {}) {
     const db = getDatabase();
-    let query = db('products').where('is_active', true);
+    let query = db('products');
     
     if (filters.category) {
       query = query.where('category', filters.category);
     }
     
-    if (filters.low_stock) {
-      query = query.whereRaw('stock_quantity <= low_stock_threshold');
-    }
-    
     if (filters.search) {
-      query = query.where(function() {
-        this.where('name', 'ilike', `%${filters.search}%`)
-            .orWhere('barcode', 'ilike', `%${filters.search}%`);
-      });
+      query = query.where('name', 'ilike', `%${filters.search}%`);
     }
     
     const products = await query.orderBy('name', 'asc');
     
-    // Transform to frontend format
+    // Transform to frontend format (camelCase)
     return products.map(product => ({
       id: product.id,
       name: product.name,
       category: product.category,
       price: product.price,
-      stockQuantity: product.stock_quantity,  // Transform to camelCase
-      lowStockThreshold: product.low_stock_threshold,  // Transform to camelCase
-      description: product.description,
-      barcode: product.barcode,
-      supplier: product.supplier,
-      costPrice: product.cost_price,  // Transform to camelCase
-      createdBy: product.created_by,  // Transform to camelCase
-      createdAt: product.created_at,  // Transform to camelCase
-      updatedAt: product.updated_at,  // Transform to camelCase
-      isActive: product.is_active  // Transform to camelCase
+      stockQuantity: product.stock_quantity,
+      createdAt: product.created_at,
+      updatedAt: product.updated_at
     }));
   }
 
@@ -104,33 +78,32 @@ class Product {
     const product = await db('products').where('id', id).first();
     if (!product) return null;
     
-    // Transform to frontend format
+    // Transform to frontend format (camelCase)
     return {
       id: product.id,
       name: product.name,
       category: product.category,
       price: product.price,
-      stockQuantity: product.stock_quantity,  // Transform to camelCase
-      lowStockThreshold: product.low_stock_threshold,  // Transform to camelCase
-      description: product.description,
-      barcode: product.barcode,
-      supplier: product.supplier,
-      costPrice: product.cost_price,  // Transform to camelCase
-      createdBy: product.created_by,  // Transform to camelCase
-      createdAt: product.created_at,  // Transform to camelCase
-      updatedAt: product.updated_at,  // Transform to camelCase
-      isActive: product.is_active  // Transform to camelCase
+      stockQuantity: product.stock_quantity,
+      createdAt: product.created_at,
+      updatedAt: product.updated_at
     };
   }
 
   // Update product
   static async update(id, updateData) {
     const db = getDatabase();
-    updateData.updated_at = new Date().toISOString();
+    const dbData = {
+      name: updateData.name,
+      category: updateData.category,
+      price: parseFloat(updateData.price),
+      stock_quantity: parseInt(updateData.stockQuantity || updateData.stock_quantity),
+      updated_at: new Date().toISOString()
+    };
     
     const [updatedProduct] = await db('products')
       .where('id', id)
-      .update(updateData)
+      .update(dbData)
       .returning('*');
     
     return updatedProduct;
@@ -149,15 +122,9 @@ class Product {
     return await db('products').where('id', id).del();
   }
 
-  // Check if product has sales records
-  static async hasSalesRecords(id) {
-    const db = getDatabase();
-    const salesCount = await db('sales').where('product_id', id).count('id as count').first();
-    return parseInt(salesCount.count) > 0;
-  }
-
-  // Update stock
+  // Update stock (for sales)
   static async updateStock(id, quantity, operation = 'subtract') {
+    const db = getDatabase();
     const product = await Product.findById(id);
     if (!product) {
       throw new Error('Product not found');
@@ -165,33 +132,17 @@ class Product {
     
     let newStock;
     if (operation === 'subtract') {
-      newStock = product.stock_quantity - quantity;
+      newStock = product.stockQuantity - quantity;
       if (newStock < 0) {
         throw new Error('Insufficient stock');
       }
     } else if (operation === 'add') {
-      newStock = product.stock_quantity + quantity;
+      newStock = product.stockQuantity + quantity;
     } else {
       throw new Error('Invalid operation. Use "add" or "subtract"');
     }
     
-    return await Product.update(id, { stock_quantity: newStock });
-  }
-
-  // Get low stock products
-  static async getLowStock() {
-    const db = getDatabase();
-    return await db('products')
-      .whereRaw('stock_quantity <= low_stock_threshold')
-      .orderBy('stock_quantity', 'asc');
-  }
-
-  // Get products by category
-  static async getByCategory(category) {
-    const db = getDatabase();
-    return await db('products')
-      .where('category', category)
-      .orderBy('name', 'asc');
+    return await Product.update(id, { stockQuantity: newStock });
   }
 
   // Get product categories
@@ -204,7 +155,7 @@ class Product {
     return categories.map(cat => cat.category);
   }
 
-  // Validate product data
+  // Simple validation matching frontend
   static validate(data) {
     const errors = [];
     
