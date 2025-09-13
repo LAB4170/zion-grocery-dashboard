@@ -1,6 +1,5 @@
 // Configuration for Zion Grocery Dashboard - Dual Environment Support
 // Automatically detects local vs production environment
-
 // Environment detection
 const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 const isRenderProduction = window.location.hostname.includes('onrender.com');
@@ -19,6 +18,7 @@ const getApiBase = () => {
     }
 };
 
+// Initialize configuration immediately
 window.CONFIG = {
     // API Configuration - Environment Auto-Detection
     API_BASE: getApiBase(),
@@ -41,11 +41,26 @@ window.CONFIG = {
     
     // Debug Settings
     DEBUG: isLocalhost, // Enable debug in local development
-    VERBOSE_LOGGING: isLocalhost
+    VERBOSE_LOGGING: isLocalhost,
+    
+    // Initialization state
+    INITIALIZED: true,
+    INIT_TIMESTAMP: Date.now()
 };
+
+// Mark configuration as ready
+window.CONFIG_READY = true;
+
+// Dispatch custom event to notify other scripts
+if (typeof window.dispatchEvent === 'function') {
+    window.dispatchEvent(new CustomEvent('configReady', { 
+        detail: { config: window.CONFIG } 
+    }));
+}
 
 console.log(`🔧 Configuration loaded for ${window.CONFIG.ENVIRONMENT}:`, {
     API_BASE: window.CONFIG.API_BASE,
     ENVIRONMENT: window.CONFIG.ENVIRONMENT,
-    DEBUG: window.CONFIG.DEBUG
+    DEBUG: window.CONFIG.DEBUG,
+    INITIALIZED: window.CONFIG.INITIALIZED
 });

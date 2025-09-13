@@ -1,6 +1,25 @@
 const knex = require("knex");
 require("dotenv").config();
 
+// Environment variable validation
+function validateEnvironmentVariables() {
+  const requiredVars = ['DB_PASSWORD'];
+  const missing = requiredVars.filter(key => !process.env[key]);
+  
+  if (missing.length > 0) {
+    throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
+  }
+
+  // Validate DB_PORT is a valid number
+  const port = process.env.DB_PORT;
+  if (port && (isNaN(parseInt(port)) || parseInt(port) <= 0)) {
+    throw new Error(`Invalid DB_PORT: ${port}. Must be a positive number.`);
+  }
+}
+
+// Validate environment variables at startup
+validateEnvironmentVariables();
+
 // Environment-based PostgreSQL configuration
 const config = {
   development: {
@@ -46,7 +65,7 @@ const config = {
 const environment = process.env.NODE_ENV || "development";
 const db = knex(config[environment]);
 
-// Simple connection test
+// Async connection test - DO NOT run at module load
 async function testConnection() {
   try {
     await db.raw("SELECT 1");
@@ -58,7 +77,8 @@ async function testConnection() {
   }
 }
 
-// Test connection on startup
-testConnection();
-
-module.exports = db;
+// Export both database instance and test function
+module.exports = {
+  db,
+  testConnection
+};

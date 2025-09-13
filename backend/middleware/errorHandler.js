@@ -10,6 +10,20 @@ class AppError extends Error {
   }
 }
 
+// Handle database connection errors
+const handleDatabaseError = (err) => {
+  if (err.code === 'ECONNREFUSED') {
+    return new AppError('Database connection failed. Please try again later.', 503);
+  }
+  if (err.code === '28P01') {
+    return new AppError('Database authentication failed', 503);
+  }
+  if (err.code === '3D000') {
+    return new AppError('Database not found', 503);
+  }
+  return new AppError('Database error occurred', 500);
+};
+
 // Handle cast errors (invalid ObjectId)
 const handleCastErrorDB = (err) => {
   const message = `Invalid ${err.path}: ${err.value}`;
@@ -37,20 +51,34 @@ const handleJWTError = () =>
 const handleJWTExpiredError = () =>
   new AppError('Your token has expired! Please log in again.', 401);
 
+// Standardized error response format
+const createErrorResponse = (err, includeStack = false) => {
+  const response = {
+    success: false,
+    error: {
+      message: err.message,
+      statusCode: err.statusCode,
+      status: err.status,
+      timestamp: new Date().toISOString()
+    }
+  };
+
+  if (includeStack && err.stack) {
+    response.error.stack = err.stack;
+  }
+
+  return response;
+};
+
 // Send error in development
 const sendErrorDev = (err, req, res) => {
   // API
   if (req.originalUrl.startsWith('/api')) {
-    return res.status(err.statusCode).json({
-      success: false,
-      error: err,
-      message: err.message,
-      stack: err.stack
-    });
+    return res.status(err.statusCode).json(createErrorResponse(err, true));
   }
 
   // RENDERED WEBSITE
-  console.error('ERROR 💥', err);
+  console.error('ERROR ', err);
   return res.status(err.statusCode).render('error', {
     title: 'Something went wrong!',
     msg: err.message
@@ -63,16 +91,18 @@ const sendErrorProd = (err, req, res) => {
   if (req.originalUrl.startsWith('/api')) {
     // Operational, trusted error: send message to client
     if (err.isOperational) {
-      return res.status(err.statusCode).json({
-        success: false,
-        message: err.message
-      });
+      return res.status(err.statusCode).json(createErrorResponse(err));
     }
     // Programming or other unknown error: don't leak error details
-    console.error('ERROR 💥', err);
+    console.error('ERROR ', err);
     return res.status(500).json({
       success: false,
-      message: 'Something went wrong!'
+      error: {
+        message: 'Something went wrong!',
+        statusCode: 500,
+        status: 'error',
+        timestamp: new Date().toISOString()
+      }
     });
   }
 
@@ -85,7 +115,7 @@ const sendErrorProd = (err, req, res) => {
     });
   }
   // Programming or other unknown error: don't leak error details
-  console.error('ERROR 💥', err);
+  console.error('ERROR ', err);
   return res.status(err.statusCode).render('error', {
     title: 'Something went wrong!',
     msg: 'Please try again later.'
@@ -97,11 +127,15 @@ const errorHandler = (err, req, res, next) => {
   err.statusCode = err.statusCode || 500;
   err.status = err.status || 'error';
 
-  // Log error to console
-  console.error('ERROR 💥', {
+  // Enhanced error logging
+  console.error('ERROR ', {
     message: err.message,
-    stack: err.stack,
     statusCode: err.statusCode,
+    stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
+    url: req.originalUrl,
+    method: req.method,
+    ip: req.ip,
+    userAgent: req.get('User-Agent'),
     timestamp: new Date().toISOString()
   });
 
@@ -111,6 +145,10 @@ const errorHandler = (err, req, res, next) => {
     let error = { ...err };
     error.message = err.message;
 
+    // Handle specific database errors
+    if (err.code === 'ECONNREFUSED' || err.code === '28P01' || err.code === '3D000') {
+      error = handleDatabaseError(err);
+    }
     if (error.name === 'CastError') error = handleCastErrorDB(error);
     if (error.code === 23505) error = handleDuplicateFieldsDB(error);
     if (error.name === 'ValidationError') error = handleValidationErrorDB(error);
@@ -134,9 +172,24 @@ const handleNotFound = (req, res, next) => {
   next(err);
 };
 
+// Graceful error handling for database operations
+const handleDatabaseOperation = async (operation, fallbackValue = null) => {
+  try {
+    return await operation();
+  } catch (error) {
+    console.error('Database operation failed:', error.message);
+    if (process.env.NODE_ENV === 'development') {
+      throw error;
+    }
+    return fallbackValue;
+  }
+};
+
 module.exports = {
   AppError,
   errorHandler,
   catchAsync,
-  handleNotFound
+  handleNotFound,
+  handleDatabaseOperation,
+  createErrorResponse
 };

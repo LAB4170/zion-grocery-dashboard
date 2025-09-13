@@ -1,4 +1,13 @@
-const db = require('../config/database');
+// Lazy-loaded database connection to prevent circular dependencies
+let db = null;
+
+function getDatabase() {
+  if (!db) {
+    const { db: database } = require('../config/database');
+    db = database;
+  }
+  return db;
+}
 
 class Product {
   constructor(data) {
@@ -20,6 +29,7 @@ class Product {
 
   // Create new product with proper field mapping
   static async create(productData) {
+    const db = getDatabase();
     const dbData = {
       id: productData.id || require('uuid').v4(),
       name: productData.name,
@@ -49,6 +59,7 @@ class Product {
 
   // Get all products with filters
   static async findAll(filters = {}) {
+    const db = getDatabase();
     let query = db('products').where('is_active', true);
     
     if (filters.category) {
@@ -89,6 +100,7 @@ class Product {
 
   // Get product by ID
   static async findById(id) {
+    const db = getDatabase();
     const product = await db('products').where('id', id).first();
     if (!product) return null;
     
@@ -113,6 +125,7 @@ class Product {
 
   // Update product
   static async update(id, updateData) {
+    const db = getDatabase();
     updateData.updated_at = new Date().toISOString();
     
     const [updatedProduct] = await db('products')
@@ -125,6 +138,7 @@ class Product {
 
   // Delete product
   static async delete(id) {
+    const db = getDatabase();
     // Check if product is referenced in sales
     const salesCount = await db('sales').where('product_id', id).count('id as count').first();
     
@@ -137,6 +151,7 @@ class Product {
 
   // Check if product has sales records
   static async hasSalesRecords(id) {
+    const db = getDatabase();
     const salesCount = await db('sales').where('product_id', id).count('id as count').first();
     return parseInt(salesCount.count) > 0;
   }
@@ -165,6 +180,7 @@ class Product {
 
   // Get low stock products
   static async getLowStock() {
+    const db = getDatabase();
     return await db('products')
       .whereRaw('stock_quantity <= low_stock_threshold')
       .orderBy('stock_quantity', 'asc');
@@ -172,6 +188,7 @@ class Product {
 
   // Get products by category
   static async getByCategory(category) {
+    const db = getDatabase();
     return await db('products')
       .where('category', category)
       .orderBy('name', 'asc');
@@ -179,6 +196,7 @@ class Product {
 
   // Get product categories
   static async getCategories() {
+    const db = getDatabase();
     const categories = await db('products')
       .distinct('category')
       .orderBy('category', 'asc');

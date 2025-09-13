@@ -4,6 +4,7 @@ class DataManager {
     this.isBackendAvailable = false;
     this.retryCount = 0;
     this.maxRetries = 3;
+    this.initializationPromise = this.initialize();
     
     // No field mappings needed - frontend and backend use consistent naming
     this.fieldMappings = {};
@@ -20,31 +21,64 @@ class DataManager {
     await this.testBackendConnection();
     
     console.log(`✅ DataManager initialized. Backend available: ${this.isBackendAvailable}`);
+    
+    // Mark as ready
+    window.dataManagerReady = true;
+    window.dispatchEvent(new CustomEvent('dataManagerReady', { 
+      detail: { backendAvailable: this.isBackendAvailable } 
+    }));
+    
     return this.isBackendAvailable;
   }
 
   async waitForApiClient() {
-    // Wait up to 5 seconds for apiClient to be available
-    let attempts = 0;
-    const maxAttempts = 50;
+    // Use event-based waiting with fallback polling
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        console.error("❌ API Client not available after waiting");
+        reject(new Error("API Client not available"));
+      }, 5000);
 
-    while (!window.apiClient && attempts < maxAttempts) {
-      await new Promise((resolve) => setTimeout(resolve, 100));
-      attempts++;
-    }
+      const checkReady = () => {
+        if (window.apiClientReady && window.apiClient) {
+          clearTimeout(timeout);
+          console.log("✅ API Client ready");
+          resolve();
+        }
+      };
 
-    if (!window.apiClient) {
-      console.error("❌ API Client not available after waiting");
-      throw new Error("API Client not available");
-    } else {
-      console.log("✅ API Client ready");
-    }
+      // Check if already ready
+      if (window.apiClientReady && window.apiClient) {
+        clearTimeout(timeout);
+        console.log("✅ API Client ready");
+        resolve();
+        return;
+      }
+
+      // Listen for ready event
+      window.addEventListener('apiClientReady', checkReady, { once: true });
+      
+      // Fallback polling
+      const pollInterval = setInterval(() => {
+        if (window.apiClientReady && window.apiClient) {
+          clearInterval(pollInterval);
+          clearTimeout(timeout);
+          console.log("✅ API Client ready");
+          resolve();
+        }
+      }, 100);
+    });
   }
 
   async testBackendConnection() {
     try {
       if (!window.apiClient) {
         throw new Error("API Client not available");
+      }
+
+      // Ensure API client is fully initialized
+      if (window.apiClient.initializationPromise) {
+        await window.apiClient.initializationPromise;
       }
 
       // Test backend health endpoint

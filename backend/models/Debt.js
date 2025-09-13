@@ -1,4 +1,14 @@
-const db = require('../config/database');
+// Lazy-loaded database connection to prevent circular dependencies
+let db = null;
+
+function getDatabase() {
+  if (!db) {
+    const { db: database } = require('../config/database');
+    db = database;
+  }
+  return db;
+}
+
 const { v4: uuidv4 } = require('uuid');
 
 class Debt {
@@ -37,7 +47,7 @@ class Debt {
     const debt = new Debt(dbData);
     debt.balance = debt.amount - debt.amount_paid;
     
-    const [newDebt] = await db('debts')
+    const [newDebt] = await getDatabase()('debts')
       .insert({
         id: debt.id,
         sale_id: debt.sale_id,
@@ -59,7 +69,7 @@ class Debt {
 
   // Get all debts
   static async findAll(filters = {}) {
-    let query = db('debts').select('*');
+    let query = getDatabase()('debts').select('*');
     
     if (filters.status) {
       query = query.where('status', filters.status);
@@ -90,7 +100,7 @@ class Debt {
 
   // Get debt by ID
   static async findById(id) {
-    const debt = await db('debts').where('id', id).first();
+    const debt = await getDatabase()('debts').where('id', id).first();
     return debt;
   }
 
@@ -119,7 +129,7 @@ class Debt {
       updated_at: updateData.updatedAt
     };
     
-    const [updatedDebt] = await db('debts')
+    const [updatedDebt] = await getDatabase()('debts')
       .where('id', id)
       .update(dbUpdateData)
       .returning('*');
@@ -129,12 +139,12 @@ class Debt {
 
   // Delete debt
   static async delete(id) {
-    return await db('debts').where('id', id).del();
+    return await getDatabase()('debts').where('id', id).del();
   }
 
   // Make payment
   static async makePayment(id, paymentAmount, paymentMethod = 'cash') {
-    const trx = await db.transaction();
+    const trx = await getDatabase().transaction();
     
     try {
       const debt = await trx('debts').where('id', id).first();
@@ -188,7 +198,7 @@ class Debt {
 
   // Get debt summary
   static async getSummary(filters = {}) {
-    let query = db('debts');
+    let query = getDatabase()('debts');
     
     if (filters.dateFrom) {
       query = query.where('created_at', '>=', filters.dateFrom);
@@ -200,13 +210,13 @@ class Debt {
     
     const summary = await query
       .select(
-        db.raw('COUNT(*) as total_debts'),
-        db.raw('SUM(amount) as total_amount'),
-        db.raw('SUM(amount_paid) as total_paid'),
-        db.raw('SUM(balance) as total_outstanding'),
-        db.raw('COUNT(CASE WHEN status = ? THEN 1 END) as pending_count', ['pending']),
-        db.raw('COUNT(CASE WHEN status = ? THEN 1 END) as paid_count', ['paid']),
-        db.raw('COUNT(CASE WHEN status = ? THEN 1 END) as partial_count', ['partial'])
+        getDatabase().raw('COUNT(*) as total_debts'),
+        getDatabase().raw('SUM(amount) as total_amount'),
+        getDatabase().raw('SUM(amount_paid) as total_paid'),
+        getDatabase().raw('SUM(balance) as total_outstanding'),
+        getDatabase().raw('COUNT(CASE WHEN status = ? THEN 1 END) as pending_count', ['pending']),
+        getDatabase().raw('COUNT(CASE WHEN status = ? THEN 1 END) as paid_count', ['paid']),
+        getDatabase().raw('COUNT(CASE WHEN status = ? THEN 1 END) as partial_count', ['partial'])
       )
       .first();
     
@@ -223,7 +233,7 @@ class Debt {
 
   // Get grouped debts by customer
   static async getGroupedByCustomer() {
-    const groupedDebts = await db('debts')
+    const groupedDebts = await getDatabase()('debts')
       .select('customer_name', 'customer_phone')
       .sum('amount as total_amount')
       .sum('amount_paid as total_paid')
@@ -238,7 +248,7 @@ class Debt {
 
   // Get overdue debts
   static async getOverdue() {
-    const overdueDebts = await db('debts')
+    const overdueDebts = await getDatabase()('debts')
       .where('due_date', '<', new Date())
       .where('status', '!=', 'paid')
       .orderBy('due_date', 'asc');
@@ -248,7 +258,7 @@ class Debt {
 
   // Get payment history for a debt
   static async getPaymentHistory(debtId) {
-    const payments = await db('debt_payments')
+    const payments = await getDatabase()('debt_payments')
       .where('debt_id', debtId)
       .orderBy('created_at', 'desc');
     

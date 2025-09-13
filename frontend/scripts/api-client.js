@@ -3,29 +3,71 @@
 
 class ApiClient {
   constructor() {
-    // Add fallback URL to prevent undefined baseURL
-    this.baseURL = this.getApiBaseUrl();
+    this.baseURL = null;
     this.isOnline = navigator.onLine;
+    this.initializationPromise = this.initialize();
     this.setupConnectionMonitoring();
+  }
+
+  async initialize() {
+    // Wait for config to be ready
+    await this.waitForConfig();
+    this.baseURL = this.getApiBaseUrl();
     console.log(`🔧 API Client initialized with baseURL: ${this.baseURL}`);
+    
+    // Mark as ready
+    window.apiClientReady = true;
+    window.dispatchEvent(new CustomEvent('apiClientReady', { 
+      detail: { baseURL: this.baseURL } 
+    }));
+  }
+
+  async waitForConfig(maxWait = 5000) {
+    const startTime = Date.now();
+    
+    return new Promise((resolve) => {
+      const checkConfig = () => {
+        if (window.CONFIG_READY && window.CONFIG?.API_BASE) {
+          resolve();
+          return;
+        }
+        
+        if (Date.now() - startTime > maxWait) {
+          console.warn('⚠️ Config timeout - using fallback API URL');
+          resolve();
+          return;
+        }
+        
+        setTimeout(checkConfig, 50);
+      };
+      
+      // Check if config is already ready
+      if (window.CONFIG_READY && window.CONFIG?.API_BASE) {
+        resolve();
+      } else {
+        // Listen for config ready event
+        window.addEventListener('configReady', resolve, { once: true });
+        // Also poll as fallback
+        setTimeout(checkConfig, 50);
+      }
+    });
   }
 
   getApiBaseUrl() {
-    // Try to get from config first, with fallback
+    // Simplified URL detection - use config if available, otherwise smart fallback
     if (window.CONFIG?.API_BASE) {
       return window.CONFIG.API_BASE;
     }
 
-    // Fallback based on current location
-    const isLocalhost =
-      window.location.hostname === "localhost" ||
-      window.location.hostname === "127.0.0.1";
-    if (isLocalhost) {
-      return "http://localhost:5000/api";
-    } else if (window.location.hostname.includes("onrender.com")) {
-      return "https://zion-grocery-dashboard-1.onrender.com/api";
+    // Single fallback logic based on current location
+    const hostname = window.location.hostname;
+    const protocol = window.location.protocol;
+    
+    if (hostname === "localhost" || hostname === "127.0.0.1") {
+      return `${protocol}//${hostname}:5000/api`;
     } else {
-      return `${window.location.protocol}//${window.location.host}/api`;
+      // For all other environments (including Render), use current host
+      return `${protocol}//${window.location.host}/api`;
     }
   }
 
@@ -45,6 +87,9 @@ class ApiClient {
   }
 
   async makeRequest(endpoint, options = {}) {
+    // Ensure initialization is complete
+    await this.initializationPromise;
+    
     const url = `${this.baseURL}${endpoint}`;
     const config = {
       method: "GET",

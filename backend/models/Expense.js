@@ -1,4 +1,14 @@
-const db = require('../config/database');
+// Lazy-loaded database connection to prevent circular dependencies
+let db = null;
+
+function getDatabase() {
+  if (!db) {
+    const { db: database } = require('../config/database');
+    db = database;
+  }
+  return db;
+}
+
 const { v4: uuidv4 } = require('uuid');
 
 class Expense {
@@ -22,7 +32,7 @@ class Expense {
   static async create(expenseData) {
     const expense = new Expense(expenseData);
     
-    const [newExpense] = await db('expenses')
+    const [newExpense] = await getDatabase()('expenses')
       .insert({
         id: expense.id,
         description: expense.description,
@@ -43,7 +53,7 @@ class Expense {
 
   // Get all expenses
   static async findAll(filters = {}) {
-    let query = db('expenses').select('*');
+    let query = getDatabase()('expenses').select('*');
     
     if (filters.category) {
       query = query.where('category', filters.category);
@@ -74,7 +84,7 @@ class Expense {
 
   // Get expense by ID
   static async findById(id) {
-    const expense = await db('expenses').where('id', id).first();
+    const expense = await getDatabase()('expenses').where('id', id).first();
     return expense;
   }
 
@@ -82,7 +92,7 @@ class Expense {
   static async update(id, updateData) {
     updateData.updated_at = new Date();
     
-    const [updatedExpense] = await db('expenses')
+    const [updatedExpense] = await getDatabase()('expenses')
       .where('id', id)
       .update(updateData)
       .returning('*');
@@ -92,12 +102,12 @@ class Expense {
 
   // Delete expense
   static async delete(id) {
-    return await db('expenses').where('id', id).del();
+    return await getDatabase()('expenses').where('id', id).del();
   }
 
   // Approve expense
   static async approve(id, approvedBy) {
-    const [approvedExpense] = await db('expenses')
+    const [approvedExpense] = await getDatabase()('expenses')
       .where('id', id)
       .update({
         status: 'approved',
@@ -112,7 +122,7 @@ class Expense {
 
   // Reject expense
   static async reject(id, rejectedBy) {
-    const [rejectedExpense] = await db('expenses')
+    const [rejectedExpense] = await getDatabase()('expenses')
       .where('id', id)
       .update({
         status: 'rejected',
@@ -127,7 +137,7 @@ class Expense {
 
   // Get expense summary
   static async getSummary(filters = {}) {
-    let query = db('expenses');
+    let query = getDatabase()('expenses');
     
     if (filters.date_from) {
       query = query.where('expense_date', '>=', filters.date_from);
@@ -139,11 +149,11 @@ class Expense {
     
     const summary = await query
       .select(
-        db.raw('COUNT(*) as total_expenses'),
-        db.raw('SUM(amount) as total_amount'),
-        db.raw('SUM(CASE WHEN status = ? THEN amount ELSE 0 END) as approved_amount', ['approved']),
-        db.raw('SUM(CASE WHEN status = ? THEN amount ELSE 0 END) as pending_amount', ['pending']),
-        db.raw('AVG(amount) as average_expense')
+        getDatabase().raw('COUNT(*) as total_expenses'),
+        getDatabase().raw('SUM(amount) as total_amount'),
+        getDatabase().raw('SUM(CASE WHEN status = ? THEN amount ELSE 0 END) as approved_amount', ['approved']),
+        getDatabase().raw('SUM(CASE WHEN status = ? THEN amount ELSE 0 END) as pending_amount', ['pending']),
+        getDatabase().raw('AVG(amount) as average_expense')
       )
       .first();
     
@@ -158,7 +168,7 @@ class Expense {
 
   // Get expenses by category
   static async getByCategory() {
-    const categories = await db('expenses')
+    const categories = await getDatabase()('expenses')
       .select('category')
       .sum('amount as total_amount')
       .count('* as count')
@@ -170,14 +180,14 @@ class Expense {
 
   // Get monthly expenses
   static async getMonthlyExpenses(months = 12) {
-    const expenses = await db('expenses')
+    const expenses = await getDatabase()('expenses')
       .select(
-        db.raw('DATE_TRUNC(\'month\', expense_date) as month'),
-        db.raw('SUM(amount) as total_amount'),
-        db.raw('COUNT(*) as count')
+        getDatabase().raw('DATE_TRUNC(\'month\', expense_date) as month'),
+        getDatabase().raw('SUM(amount) as total_amount'),
+        getDatabase().raw('COUNT(*) as count')
       )
-      .where('expense_date', '>=', db.raw(`NOW() - INTERVAL '${months} months'`))
-      .groupBy(db.raw('DATE_TRUNC(\'month\', expense_date)'))
+      .where('expense_date', '>=', getDatabase().raw(`NOW() - INTERVAL '${months} months'`))
+      .groupBy(getDatabase().raw('DATE_TRUNC(\'month\', expense_date)'))
       .orderBy('month', 'desc');
     
     return expenses;
@@ -185,7 +195,7 @@ class Expense {
 
   // Get expense categories
   static async getCategories() {
-    const categories = await db('expenses')
+    const categories = await getDatabase()('expenses')
       .distinct('category')
       .orderBy('category', 'asc');
     

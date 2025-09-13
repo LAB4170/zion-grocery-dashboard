@@ -1,4 +1,14 @@
-const db = require('../config/database');
+// Lazy-loaded database connection to prevent circular dependencies
+let db = null;
+
+function getDatabase() {
+  if (!db) {
+    const { db: database } = require('../config/database');
+    db = database;
+  }
+  return db;
+}
+
 const { v4: uuidv4 } = require('uuid');
 
 class Sale {
@@ -30,7 +40,7 @@ class Sale {
     }
     
     // Start transaction
-    const trx = await db.transaction();
+    const trx = await getDatabase().transaction();
     
     try {
       // Check product stock - FIX: Use correct field name 'stock_quantity'
@@ -97,7 +107,7 @@ class Sale {
 
   // Get all sales with filters
   static async findAll(filters = {}) {
-    let query = db('sales').select('*');
+    let query = getDatabase()('sales').select('*');
     
     if (filters.date_from) {
       query = query.where('created_at', '>=', filters.date_from);
@@ -144,7 +154,7 @@ class Sale {
 
   // Get sale by ID
   static async findById(id) {
-    const sale = await db('sales').where('id', id).first();
+    const sale = await getDatabase()('sales').where('id', id).first();
     if (!sale) return null;
     
     // Transform to frontend format
@@ -172,7 +182,7 @@ class Sale {
   static async update(id, updateData) {
     updateData.updated_at = new Date();
     
-    const [updatedSale] = await db('sales')
+    const [updatedSale] = await getDatabase()('sales')
       .where('id', id)
       .update(updateData)
       .returning('*');
@@ -182,7 +192,7 @@ class Sale {
 
   // Delete sale
   static async delete(id) {
-    const trx = await db.transaction();
+    const trx = await getDatabase().transaction();
     
     try {
       // Get sale details
@@ -213,7 +223,7 @@ class Sale {
 
   // Get sales summary
   static async getSummary(filters = {}) {
-    let query = db('sales');
+    let query = getDatabase()('sales');
     
     if (filters.date_from) {
       query = query.where('created_at', '>=', filters.date_from);
@@ -225,12 +235,12 @@ class Sale {
     
     const summary = await query
       .select(
-        db.raw('COUNT(*) as total_sales'),
-        db.raw('SUM(total) as total_revenue'),
-        db.raw('SUM(CASE WHEN payment_method = ? THEN total ELSE 0 END) as cash_sales', ['cash']),
-        db.raw('SUM(CASE WHEN payment_method = ? THEN total ELSE 0 END) as mpesa_sales', ['mpesa']),
-        db.raw('SUM(CASE WHEN payment_method = ? THEN total ELSE 0 END) as debt_sales', ['debt']),
-        db.raw('AVG(total) as average_sale_value')
+        getDatabase().raw('COUNT(*) as total_sales'),
+        getDatabase().raw('SUM(total) as total_revenue'),
+        getDatabase().raw('SUM(CASE WHEN payment_method = ? THEN total ELSE 0 END) as cash_sales', ['cash']),
+        getDatabase().raw('SUM(CASE WHEN payment_method = ? THEN total ELSE 0 END) as mpesa_sales', ['mpesa']),
+        getDatabase().raw('SUM(CASE WHEN payment_method = ? THEN total ELSE 0 END) as debt_sales', ['debt']),
+        getDatabase().raw('AVG(total) as average_sale_value')
       )
       .first();
     
@@ -246,14 +256,14 @@ class Sale {
 
   // Get daily sales
   static async getDailySales(days = 7) {
-    const sales = await db('sales')
+    const sales = await getDatabase()('sales')
       .select(
-        db.raw('DATE(created_at) as date'),
-        db.raw('COUNT(*) as count'),
-        db.raw('SUM(total) as total')
+        getDatabase().raw('DATE(created_at) as date'),
+        getDatabase().raw('COUNT(*) as count'),
+        getDatabase().raw('SUM(total) as total')
       )
-      .where('created_at', '>=', db.raw(`NOW() - INTERVAL '${days} days'`))
-      .groupBy(db.raw('DATE(created_at)'))
+      .where('created_at', '>=', getDatabase().raw(`NOW() - INTERVAL '${days} days'`))
+      .groupBy(getDatabase().raw('DATE(created_at)'))
       .orderBy('date', 'desc');
     
     return sales;
@@ -261,7 +271,7 @@ class Sale {
 
   // Get top selling products
   static async getTopProducts(limit = 10) {
-    const products = await db('sales')
+    const products = await getDatabase()('sales')
       .select('product_name', 'product_id')
       .sum('quantity as total_quantity')
       .sum('total as total_revenue')

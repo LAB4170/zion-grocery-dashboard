@@ -16,7 +16,20 @@ const PORT = process.env.PORT || 5000;
 // Configure Socket.IO with CORS
 const io = socketIo(server, {
   cors: {
-    origin: process.env.FRONTEND_URL || 'https://zion-grocery-dashboard-1.onrender.com',
+    origin: function (origin, callback) {
+      if (!origin) return callback(null, true);
+      
+      const isDevelopment = process.env.NODE_ENV === 'development';
+      const allowedOrigins = isDevelopment ? 
+        ['http://localhost:5000', 'http://127.0.0.1:5000'] :
+        [process.env.FRONTEND_URL || 'https://zion-grocery-dashboard-1.onrender.com'];
+      
+      if (allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
     methods: ["GET", "POST"],
     credentials: true
   },
@@ -25,7 +38,7 @@ const io = socketIo(server, {
 });
 
 // PostgreSQL database connection - required
-const db = require('./config/database');
+const { db, testConnection } = require('./config/database');
 // Import routes
 const dashboardRoutes = require('./routes/dashboard');
 const productRoutes = require('./routes/products');
