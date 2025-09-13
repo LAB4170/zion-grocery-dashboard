@@ -24,7 +24,7 @@ router.get('/health', dbHealthCheck, catchAsync(async (req, res) => {
     // Get database size
     const dbSize = await db.raw(`
       SELECT pg_size_pretty(pg_database_size(?)) as size
-    `, [process.env.DB_NAME || 'zion_grocery_db']);
+    `, [process.env.DB_NAME]);
     
     // Get table statistics
     const tableStats = await db.raw(`
@@ -47,7 +47,7 @@ router.get('/health', dbHealthCheck, catchAsync(async (req, res) => {
         count(*) FILTER (WHERE state = 'idle') as idle_connections
       FROM pg_stat_activity 
       WHERE datname = ?
-    `, [process.env.DB_NAME || 'zion_grocery_db']);
+    `, [process.env.DB_NAME]);
     
     res.json({
       success: true,
@@ -59,7 +59,7 @@ router.get('/health', dbHealthCheck, catchAsync(async (req, res) => {
           uptime: process.uptime()
         },
         database: {
-          name: process.env.DB_NAME || 'zion_grocery_db',
+          name: process.env.DB_NAME,
           size: dbSize.rows[0].size,
           connections: connectionInfo.rows[0]
         },
@@ -158,9 +158,9 @@ router.get('/dashboard', dbHealthCheck, catchAsync(async (req, res) => {
           memory: process.memoryUsage()
         },
         database: {
-          name: process.env.DB_NAME || 'zion_grocery_db',
+          name: process.env.DB_NAME,
           host: process.env.DB_HOST || 'localhost',
-          port: process.env.DB_PORT || 5432
+          port: parseInt(process.env.DB_PORT)
         },
         performance: performanceStats,
         tables: recentActivity.rows,

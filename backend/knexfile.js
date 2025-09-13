@@ -10,11 +10,11 @@ const isDevelopment = environment === 'development';
 const getDatabaseUrl = () => {
   if (isDevelopment) {
     return process.env.LOCAL_DATABASE_URL || {
-      host: 'localhost',
-      port: 5432,
-      database: 'zion_grocery_db',
-      user: 'postgres',
-      password: 'ZionGrocery2024!',
+      host: process.env.DB_HOST || 'localhost',
+      port: parseInt(process.env.DB_PORT) || 5432,
+      database: process.env.DB_NAME || 'zion_grocery_db',
+      user: process.env.DB_USER || 'postgres',
+      password: process.env.DB_PASSWORD,
       ssl: false
     };
   } else {
@@ -46,11 +46,11 @@ module.exports = {
   test: {
     client: 'postgresql',
     connection: {
-      host: 'localhost',
-      port: 5432,
-      database: 'zion_grocery_test',
-      user: 'postgres',
-      password: 'ZionGrocery2024!'
+      host: process.env.DB_HOST || 'localhost',
+      port: parseInt(process.env.DB_PORT) || 5432,
+      database: process.env.DB_TEST_NAME || 'zion_grocery_test',
+      user: process.env.DB_USER || 'postgres',
+      password: process.env.DB_PASSWORD
     },
     pool: {
       min: 1,

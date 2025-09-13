@@ -1,13 +1,16 @@
 const { Client } = require('pg');
+require('dotenv').config();
 const { spawn } = require('child_process');
 const path = require('path');
 
-// Database configuration
+console.log('🔄 Setting up Zion Grocery Database...');
+
+// Database configuration from environment variables
 const config = {
-  host: 'localhost',
-  port: 5432,
-  user: 'postgres',
-  password: 'ZionGrocery2024!',
+  host: process.env.DB_HOST || 'localhost',
+  port: parseInt(process.env.DB_PORT) || 5432,
+  user: process.env.DB_USER || 'postgres',
+  password: process.env.DB_PASSWORD,
   // Don't specify database initially to connect to default postgres db
 };
 
@@ -22,16 +25,18 @@ async function setupDatabase() {
     console.log('✅ Connected to PostgreSQL server');
     
     // Check if database exists
+    const dbName = process.env.DB_NAME || 'zion_grocery_db';
     const result = await client.query(
-      "SELECT 1 FROM pg_database WHERE datname = 'zion_grocery_db'"
+      "SELECT 1 FROM pg_database WHERE datname = $1",
+      [dbName]
     );
     
     if (result.rows.length === 0) {
       // Create database
-      await client.query('CREATE DATABASE zion_grocery_db');
-      console.log('✅ Created database: zion_grocery_db');
+      await client.query(`CREATE DATABASE "${dbName}"`);
+      console.log(`✅ Created database: ${dbName}`);
     } else {
-      console.log('✅ Database zion_grocery_db already exists');
+      console.log(`✅ Database ${dbName} already exists`);
     }
     
     await client.end();
@@ -70,7 +75,7 @@ async function setupDatabase() {
       console.error('💡 PostgreSQL service is not running. Please start PostgreSQL first.');
       console.error('💡 On Windows: Start "PostgreSQL" service in Services');
     } else if (error.message.includes('password authentication failed')) {
-      console.error('💡 Check PostgreSQL password. Expected: ZionGrocery2024!');
+      console.error('💡 Check PostgreSQL password in .env file: DB_PASSWORD');
     }
     
     process.exit(1);

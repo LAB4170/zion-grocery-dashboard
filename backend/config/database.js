@@ -1,16 +1,16 @@
 const knex = require("knex");
 require("dotenv").config();
 
-// Simple PostgreSQL configuration
+// Environment-based PostgreSQL configuration
 const config = {
   development: {
     client: "postgresql",
     connection: {
-      host: "localhost",
-      port: 5432,
-      user: "postgres",
-      password: "ZionGrocery2024!",
-      database: "zion_grocery_db"
+      host: process.env.DB_HOST || "localhost",
+      port: parseInt(process.env.DB_PORT) || 5432,
+      user: process.env.DB_USER || "postgres",
+      password: process.env.DB_PASSWORD,
+      database: process.env.DB_NAME || "zion_grocery_db"
     },
     pool: {
       min: 2,

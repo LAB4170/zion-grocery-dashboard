@@ -210,9 +210,9 @@ app.get('/health', async (req, res) => {
       lastChecked: new Date().toISOString(),
       troubleshooting: process.env.NODE_ENV === 'development' ? [
         'Check if PostgreSQL service is running',
-        'Verify database "zion_grocery_db" exists',
-        'Check credentials: postgres/ZionGrocery2024!',
-        'Run: createdb zion_grocery_db',
+        `Verify database "${process.env.DB_NAME || 'zion_grocery_db'}" exists`,
+        `Check credentials in .env file: DB_USER and DB_PASSWORD`,
+        `Run: createdb ${process.env.DB_NAME || 'zion_grocery_db'}`,
         'Run: npm run migrate'
       ] : [
         'Check Render database status',

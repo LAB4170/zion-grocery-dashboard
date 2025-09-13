@@ -5,12 +5,14 @@
 const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 const isRenderProduction = window.location.hostname.includes('onrender.com');
 
-// API Base URL selection
+// API Base URL selection - now uses environment-aware detection
 const getApiBase = () => {
     if (isLocalhost) {
-        return 'http://localhost:5000/api';
+        // Use environment variable or fallback to localhost
+        return window.location.protocol + '//' + window.location.hostname + ':5000/api';
     } else if (isRenderProduction) {
-        return 'https://zion-grocery-dashboard-1.onrender.com/api';
+        // Use current domain for Render production
+        return window.location.protocol + '//' + window.location.hostname + '/api';
     } else {
         // Fallback for other environments
         return `${window.location.protocol}//${window.location.host}/api`;
