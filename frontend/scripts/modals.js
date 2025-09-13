@@ -57,7 +57,6 @@ function toggleCustomerInfo() {
   const paymentMethod = document.getElementById("salePaymentMethod").value;
   const customerInfoGroup = document.getElementById("customerInfoGroup");
   const customerPhoneGroup = document.getElementById("customerPhoneGroup");
-  const mpesaCodeGroup = document.getElementById("mpesaCodeGroup");
 
   // Show customer info only for debt payments
   if (paymentMethod === "debt") {
@@ -74,18 +73,6 @@ function toggleCustomerInfo() {
     // Make fields not required for cash and M-Pesa
     document.getElementById("customerName").required = false;
     document.getElementById("customerPhone").required = false;
-  }
-
-  // Show M-Pesa code field only for M-Pesa payments (optional)
-  if (mpesaCodeGroup) {
-    if (paymentMethod === "mpesa") {
-      mpesaCodeGroup.style.display = "block";
-      document.getElementById("mpesaCode").required = false; // Make optional
-      document.getElementById("mpesaCode").value = ""; // Clear M-Pesa code field
-    } else {
-      mpesaCodeGroup.style.display = "none";
-      document.getElementById("mpesaCode").required = false;
-    }
   }
 }
 

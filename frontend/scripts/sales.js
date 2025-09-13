@@ -112,7 +112,7 @@ async function addSale(event) {
         customerName: (paymentMethod === "debt") ? customerName : null,  // Use null instead of empty string
         customerPhone: (paymentMethod === "debt") ? customerPhone : null, // Use null instead of empty string
         status: paymentMethod === "debt" ? "pending" : "completed",
-        mpesaCode: paymentMethod === "mpesa" ? (document.getElementById('mpesaCode')?.value || null) : null,
+        mpesaCode: null, // Always null - no M-Pesa code tracking
         notes: document.getElementById('saleNotes')?.value || null,
         date: saleDate,  // Add date field for dashboard compatibility
         createdBy: null, // FIX: Use null instead of 'system' string to avoid UUID error
@@ -238,7 +238,6 @@ function renderSalesTable(salesToShow) {
 function getPaymentBadge(paymentMethod) {
   const badges = {
     cash: '<span class="payment-badge cash">CASH</span>',
-    mpesa: '<span class="payment-badge mpesa">M-PESA</span>',
     debt: '<span class="payment-badge debt">DEBT</span>',
   };
   return (
