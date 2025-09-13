@@ -5,12 +5,12 @@
     {
       "ssh": "Disabled",
       "previewLimit": 50,
-      "server": "localhost",
-      "port": 5432,
+      "server": "${DB_HOST}",
+      "port": "${DB_PORT}",
       "driver": "PostgreSQL",
       "name": "Zion Grocery Local",
-      "database": "zion_grocery_db",
-      "username": "postgres"
+      "database": "${DB_NAME}",
+      "username": "${DB_USER}"
     }
   ]
 }
