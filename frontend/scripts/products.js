@@ -85,7 +85,7 @@ async function addProduct(event) {
     if (isEditing) {
       // Update existing product
       const productId = modal.getAttribute("data-editing");
-      const result = await window.ProductCRUD.update(productId, productData);
+      const result = await window.dataManager.updateData("products", productId, productData);
       
       if (result) {
         closeModal("productModal");
@@ -94,7 +94,7 @@ async function addProduct(event) {
       }
     } else {
       // Create new product
-      const result = await window.ProductCRUD.create(productData);
+      const result = await window.dataManager.createData("products", productData);
       
       if (result) {
         closeModal("productModal");
