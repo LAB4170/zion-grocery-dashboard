@@ -3,6 +3,16 @@
 // Use global products variable for consistency - no redeclaration needed
 // Access window.products directly to avoid conflicts
 
+// Simple fallback for notifications if utils not loaded yet
+function showNotification(message, type = 'success') {
+  if (window.utils && window.utils.showNotification) {
+    window.utils.showNotification(message, type);
+  } else {
+    console.log(`${type.toUpperCase()}: ${message}`);
+    alert(message);
+  }
+}
+
 // Initialize pagination manager for products
 let productsPaginationManager;
 
@@ -21,7 +31,7 @@ async function initializeProducts() {
     console.log('✅ Products module initialized successfully');
   } catch (error) {
     console.error('❌ Failed to initialize products module:', error);
-    window.utils.showNotification('Failed to initialize products module', 'error');
+    showNotification('Failed to initialize products module', 'error');
   }
 }
 
@@ -94,7 +104,7 @@ async function addProduct(event) {
     }
   } catch (error) {
     console.error("Product operation failed:", error);
-    window.utils.showNotification("Operation failed. Please try again.", "error");
+    showNotification("Operation failed. Please try again.", "error");
   }
 }
 
@@ -149,7 +159,7 @@ async function deleteProduct(productId) {
     const response = await window.apiClient.makeRequest(`/products/${productId}/can-delete`);
     
     if (!response.data.canDelete) {
-      window.utils.showNotification(
+      showNotification(
         `Cannot delete this product: ${response.data.message}. Consider deactivating it instead.`,
         'error'
       );
@@ -167,7 +177,7 @@ async function deleteProduct(productId) {
     const products = window.products || [];
     window.products = products.filter((p) => p.id !== productId);
 
-    window.utils.showNotification("Product deleted successfully!");
+    showNotification("Product deleted successfully!");
     loadProductsData();
 
     // Update dashboard and refresh product select
@@ -182,12 +192,12 @@ async function deleteProduct(productId) {
     
     // Handle specific constraint errors
     if (error.message.includes('sales records')) {
-      window.utils.showNotification(
+      showNotification(
         'Cannot delete product with existing sales records. Consider deactivating it instead.',
         'error'
       );
     } else {
-      window.utils.showNotification(
+      showNotification(
         `Failed to delete product: ${error.message}`,
         'error'
       );
@@ -199,7 +209,7 @@ function editProduct(productId) {
   const products = window.products || [];
   const product = products.find((p) => p.id === productId);
   if (!product) {
-    window.utils.showNotification("Product not found", "error");
+    showNotification("Product not found", "error");
     return;
   }
 

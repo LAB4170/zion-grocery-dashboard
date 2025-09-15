@@ -1,5 +1,15 @@
 let salesPaginationManager;
 
+// Simple fallback for notifications if utils not loaded yet
+function showNotification(message, type = 'success') {
+  if (window.utils && window.utils.showNotification) {
+    window.utils.showNotification(message, type);
+  } else {
+    console.log(`${type.toUpperCase()}: ${message}`);
+    alert(message);
+  }
+}
+
 function initializeSalesPagination() {
   if (typeof window.createPaginationManager === 'function') {
     salesPaginationManager = window.createPaginationManager(
@@ -25,24 +35,24 @@ async function addSale(event) {
 
     // Validation checks with user feedback
     if (!productId) {
-      window.utils.showNotification("Please select a product", "error");
+      showNotification("Please select a product", "error");
       return;
     }
 
     if (!quantity || quantity <= 0) {
-      window.utils.showNotification("Please enter a valid quantity", "error");
+      showNotification("Please enter a valid quantity", "error");
       return;
     }
 
     if (!saleDate) {
-      window.utils.showNotification("Please select a sale date", "error");
+      showNotification("Please select a sale date", "error");
       return;
     }
 
     // CRITICAL FIX: Remove parseInt conversion - IDs are strings
     const product = (window.products || []).find((p) => p.id === productId);
     if (!product) {
-      window.utils.showNotification("Please select a valid product", "error");
+      showNotification("Please select a valid product", "error");
       return;
     }
 
@@ -50,7 +60,7 @@ async function addSale(event) {
       // Editing an existing sale
       const existingSale = (window.sales || []).find((s) => s.id === saleId);
       if (!existingSale) {
-        window.utils.showNotification("Sale not found for editing", "error");
+        showNotification("Sale not found for editing", "error");
         return;
       }
 
@@ -58,7 +68,7 @@ async function addSale(event) {
       const quantityDifference = quantity - existingSale.quantity;
 
       if (quantityDifference > product.stockQuantity) {
-        window.utils.showNotification(
+        showNotification(
           "Insufficient stock available for this update",
           "error"
         );
@@ -83,18 +93,18 @@ async function addSale(event) {
       existingSale.createdAt = new Date(saleDate + 'T' + new Date().toTimeString().split(' ')[0]).toISOString();
 
       await window.dataManager.updateData("sales", saleId, existingSale);
-      window.utils.showNotification("Sale updated successfully!");
+      showNotification("Sale updated successfully!");
     } else {
       // Adding a new sale
       if (quantity > product.stockQuantity) {
-        window.utils.showNotification("Insufficient stock available", "error");
+        showNotification("Insufficient stock available", "error");
         return;
       }
 
       // Validate required fields for debt payments
       if (paymentMethod === "debt") {
         if (!customerName || !customerPhone) {
-          window.utils.showNotification("Customer name and phone are required for debt payments", "error");
+          showNotification("Customer name and phone are required for debt payments", "error");
           return;
         }
       }
@@ -141,7 +151,7 @@ async function addSale(event) {
         await addDebtFromSale(savedSale);
       }
 
-      window.utils.showNotification("Sale recorded successfully!");
+      showNotification("Sale recorded successfully!");
     }
 
     // Close modal and refresh data
@@ -171,7 +181,7 @@ async function addSale(event) {
       errorMessage = "Request timed out. Please try again.";
     }
     
-    window.utils.showNotification(errorMessage, "error");
+    showNotification(errorMessage, "error");
   }
 }
 
@@ -283,7 +293,7 @@ async function deleteSale(saleId) {
   await window.dataManager.deleteData("sales", saleId);
 
   loadSalesData();
-  window.utils.showNotification("Sale deleted successfully!");
+  showNotification("Sale deleted successfully!");
 
   // Update dashboard
   if (typeof window.updateDashboardStats === "function") {
@@ -295,7 +305,7 @@ function viewSaleDetails(saleId) {
   const sales = window.sales || [];
   const sale = sales.find((s) => s.id === saleId);
   if (sale) {
-    window.utils.showNotification(
+    showNotification(
       `Sale Details:\n\nProduct: ${sale.productName}\nQuantity: ${
         sale.quantity
       }\nUnit Price: ${window.utils.formatCurrency(
@@ -426,7 +436,7 @@ async function editSaleDate(saleId) {
     // Validate date format
     const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
     if (!dateRegex.test(newDate)) {
-      window.utils.showNotification("Please enter date in YYYY-MM-DD format", "error");
+      showNotification("Please enter date in YYYY-MM-DD format", "error");
       return;
     }
     
@@ -436,7 +446,7 @@ async function editSaleDate(saleId) {
     const maxDate = new Date('2099-12-31');
     
     if (inputDate < minDate || inputDate > maxDate) {
-      window.utils.showNotification("Date must be between 1940 and 2099", "error");
+      showNotification("Date must be between 1940 and 2099", "error");
       return;
     }
     
@@ -459,7 +469,7 @@ async function editSaleDate(saleId) {
     
     await window.dataManager.updateData("sales", saleId, sale);
     loadSalesData();
-    window.utils.showNotification("Sale date updated successfully!");
+    showNotification("Sale date updated successfully!");
     
     // Update dashboard if visible
     if (typeof window.updateDashboardStats === "function") {
