@@ -97,6 +97,8 @@ async function addProduct(event) {
       const result = await window.dataManager.createData("products", productData);
       
       if (result) {
+        window.products = window.products || [];
+        window.products.push(result.data);
         closeModal("productModal");
         loadProductsData();
         populateProductSelect();
