@@ -259,7 +259,7 @@ function updateDashboardStats() {
   console.log("🔍 Debug - Sales length:", sales.length);
 
   // Total sales
-  const totalSales = sales.reduce((sum, sale) => sum + (sale.totalAmount || 0), 0);
+  const totalSales = sales.reduce((sum, sale) => sum + (sale.total || 0), 0);
   const totalSalesElement = document.getElementById("total-sales");
   if (totalSalesElement)
     totalSalesElement.textContent = window.utils.formatCurrency(totalSales);
@@ -267,7 +267,7 @@ function updateDashboardStats() {
   // Cash sales
   const cashSales = sales
     .filter((s) => s.paymentMethod === "cash")
-    .reduce((sum, sale) => sum + (sale.totalAmount || 0), 0);
+    .reduce((sum, sale) => sum + (sale.total || 0), 0);
   const cashTotalElement = document.getElementById("cash-total");
   if (cashTotalElement)
     cashTotalElement.textContent = window.utils.formatCurrency(cashSales);
@@ -275,7 +275,7 @@ function updateDashboardStats() {
   // M-Pesa sales (removed from dashboard but kept for payment distribution)
   const mpesaSales = sales
     .filter((s) => s.paymentMethod === "mpesa")
-    .reduce((sum, sale) => sum + (sale.totalAmount || 0), 0);
+    .reduce((sum, sale) => sum + (sale.total || 0), 0);
 
   // Today's debts
   const todaysDebts = debts
@@ -303,7 +303,7 @@ function updateDashboardStats() {
         saleDate.getFullYear() === currentYear
       );
     })
-    .reduce((sum, sale) => sum + (sale.totalAmount || 0), 0);
+    .reduce((sum, sale) => sum + (sale.total || 0), 0);
   const monthlySalesElement = document.getElementById("monthly-sales");
   if (monthlySalesElement)
     monthlySalesElement.textContent = window.utils.formatCurrency(monthlySales);
@@ -439,13 +439,13 @@ function createPaymentChart() {
 
   const cashTotal = sales
     .filter((s) => s.paymentMethod === "cash")
-    .reduce((sum, sale) => sum + (sale.totalAmount || 0), 0);
+    .reduce((sum, sale) => sum + (sale.total || 0), 0);
   const mpesaTotal = sales
     .filter((s) => s.paymentMethod === "mpesa")
-    .reduce((sum, sale) => sum + (sale.totalAmount || 0), 0);
+    .reduce((sum, sale) => sum + (sale.total || 0), 0);
   const debtTotal = sales
     .filter((s) => s.paymentMethod === "debt")
-    .reduce((sum, sale) => sum + (sale.totalAmount || 0), 0);
+    .reduce((sum, sale) => sum + (sale.total || 0), 0);
 
   paymentChart = new Chart(ctx, {
     type: "doughnut",
@@ -525,7 +525,7 @@ function createWeeklyChart() {
         }
         return saleDate.toISOString().split("T")[0] === dateString;
       })
-      .reduce((sum, sale) => sum + (sale.total || sale.totalAmount || 0), 0);
+      .reduce((sum, sale) => sum + (sale.total || 0), 0);
 
     salesByDay.push(dailySales);
   }
