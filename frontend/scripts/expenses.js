@@ -32,9 +32,9 @@ async function addExpense(event) {
       description: description.trim(),
       category: category,
       amount: amount,
-      created_by: 'system',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+      createdBy: 'system',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     };
 
     // DATABASE-FIRST OPERATION: Send to database first, then update cache

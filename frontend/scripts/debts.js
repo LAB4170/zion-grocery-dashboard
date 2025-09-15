@@ -52,14 +52,14 @@ async function addDebt(event) {
 
     const debt = {
       id: window.utils.generateId(),
-      customer_name: customerName.trim(),
-      customer_phone: customerPhone.trim(),
+      customerName: customerName.trim(),
+      customerPhone: customerPhone.trim(),
       amount: amount,
       status: "pending",
-      due_date: dueDate,
-      created_by: 'system',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+      dueDate: dueDate,
+      createdBy: 'system',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     };
 
     // DATABASE-FIRST OPERATION: Send to database first, then update cache
@@ -104,14 +104,14 @@ async function addDebtFromSale(sale) {
   // Create debt object with proper field mapping for backend
   const debt = {
     id: window.utils.generateId(),
-    customer_name: sale.customerName || sale.customer_name,
-    customer_phone: sale.customerPhone || sale.customer_phone,
+    customerName: sale.customerName || sale.customer_name,
+    customerPhone: sale.customerPhone || sale.customer_phone,
     amount: sale.total,
-    due_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0], // 7 days from now
+    dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0], // 7 days from now
     status: "pending",
-    sale_id: sale.id,
-    created_by: 'system',
-    created_at: sale.createdAt || sale.created_at,
+    saleId: sale.id,
+    createdBy: 'system',
+    createdAt: sale.createdAt || sale.created_at,
     // Keep frontend-compatible fields for local cache
     customerName: sale.customerName || sale.customer_name,
     customerPhone: sale.customerPhone || sale.customer_phone,
