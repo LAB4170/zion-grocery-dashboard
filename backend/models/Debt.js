@@ -18,7 +18,10 @@ class Debt {
     this.customerName = data.customerName || data.customer_name;
     this.customerPhone = data.customerPhone || data.customer_phone || null;
     this.amount = parseFloat(data.amount);
+    this.amountPaid = parseFloat(data.amountPaid || data.amount_paid || 0);
+    this.balance = parseFloat(data.balance || (data.amount - (data.amountPaid || data.amount_paid || 0)));
     this.status = data.status || 'pending';
+    this.dueDate = data.dueDate || data.due_date || null;
     this.notes = data.notes || null;
     this.createdBy = data.createdBy || data.created_by || null;
     this.createdAt = data.createdAt || data.created_at || new Date().toISOString();
@@ -36,7 +39,10 @@ class Debt {
         customer_name: debt.customerName,
         customer_phone: debt.customerPhone,
         amount: debt.amount,
+        amount_paid: debt.amountPaid,
+        balance: debt.balance,
         status: debt.status,
+        due_date: debt.dueDate,
         notes: debt.notes,
         created_by: debt.createdBy,
         created_at: debt.createdAt,
@@ -72,7 +78,10 @@ class Debt {
       customerName: debt.customer_name,
       customerPhone: debt.customer_phone,
       amount: debt.amount,
+      amountPaid: debt.amount_paid,
+      balance: debt.balance,
       status: debt.status,
+      dueDate: debt.due_date,
       notes: debt.notes,
       createdBy: debt.created_by,
       createdAt: debt.created_at,
@@ -92,7 +101,10 @@ class Debt {
       customerName: debt.customer_name,
       customerPhone: debt.customer_phone,
       amount: debt.amount,
+      amountPaid: debt.amount_paid,
+      balance: debt.balance,
       status: debt.status,
+      dueDate: debt.due_date,
       notes: debt.notes,
       createdBy: debt.created_by,
       createdAt: debt.created_at,
@@ -107,7 +119,10 @@ class Debt {
       customer_name: updateData.customerName,
       customer_phone: updateData.customerPhone,
       amount: parseFloat(updateData.amount),
+      amount_paid: parseFloat(updateData.amountPaid),
+      balance: parseFloat(updateData.balance),
       status: updateData.status,
+      due_date: updateData.dueDate,
       notes: updateData.notes,
       updated_at: new Date().toISOString()
     };
