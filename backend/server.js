@@ -22,7 +22,7 @@ const io = socketIo(server, {
       const isDevelopment = process.env.NODE_ENV === 'development';
       const allowedOrigins = isDevelopment ? 
         ['http://localhost:5000', 'http://127.0.0.1:5000'] :
-        [process.env.FRONTEND_URL || 'https://zion-grocery-dashboard-1.onrender.com'];
+        [process.env.FRONTEND_URL || process.env.RENDER_URL];
       
       if (allowedOrigins.includes(origin)) {
         callback(null, true);
