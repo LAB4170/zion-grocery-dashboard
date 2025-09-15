@@ -88,6 +88,12 @@ async function addProduct(event) {
       const result = await window.dataManager.updateData("products", productId, productData);
       
       if (result) {
+        // Update global products array with the updated product
+        const productIndex = window.products.findIndex(p => p.id === productId);
+        if (productIndex !== -1) {
+          window.products[productIndex] = result.data;
+        }
+        
         closeModal("productModal");
         loadProductsData();
         populateProductSelect();
