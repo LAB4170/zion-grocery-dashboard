@@ -134,7 +134,7 @@ async function addSale(event) {
       
       // Update global variable only after successful database save
       window.sales = window.sales || [];
-      window.sales.push(savedSale);
+      window.sales.push(savedSale.data || savedSale);
       
       // Update product stock in database
       product.stockQuantity -= quantity;
@@ -143,12 +143,12 @@ async function addSale(event) {
       // Update global products array
       const productIndex = window.products.findIndex(p => p.id === product.id);
       if (productIndex !== -1) {
-        window.products[productIndex] = updatedProduct;
+        window.products[productIndex] = updatedProduct.data || updatedProduct;
       }
 
       // Add debt if payment method is debt
       if (paymentMethod === "debt") {
-        await addDebtFromSale(savedSale);
+        await addDebtFromSale(savedSale.data || savedSale);
       }
 
       showNotification("Sale recorded successfully!");

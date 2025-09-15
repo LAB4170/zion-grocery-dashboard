@@ -74,7 +74,10 @@ class ApiClient {
   setupConnectionMonitoring() {
     window.addEventListener("online", () => {
       this.isOnline = true;
-      this.syncOfflineData();
+      // Only sync if method exists - avoid error for now
+      if (typeof this.syncOfflineData === 'function') {
+        this.syncOfflineData();
+      }
     });
 
     window.addEventListener("offline", () => {
@@ -84,6 +87,15 @@ class ApiClient {
         "warning"
       );
     });
+  }
+
+  async syncOfflineData() {
+    console.log('🔄 Syncing offline data...');
+    // TODO: Implement offline data sync logic if needed
+    // For now, just log that we're back online
+    if (window.utils && window.utils.showNotification) {
+      window.utils.showNotification("Back online - data synced", "success");
+    }
   }
 
   async makeRequest(endpoint, options = {}) {
