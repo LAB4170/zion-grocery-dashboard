@@ -185,18 +185,46 @@ async function addSale(event) {
   }
 }
 
-function loadSalesData(filteredSales = null) {
-  // Initialize pagination if not already done
-  if (!salesPaginationManager && typeof window.createPaginationManager === 'function') {
-    initializeSalesPagination();
-  }
+async function loadSalesData(filteredSales = null) {
+  try {
+    // If no filtered sales provided, fetch from database
+    if (!filteredSales) {
+      console.log('📥 Loading sales from database...');
+      const result = await window.dataManager.getData("sales");
+      
+      if (result && result.data) {
+        window.sales = result.data;
+        console.log('✅ Sales loaded from database:', window.sales.length, 'items');
+      } else {
+        window.sales = [];
+        console.warn('⚠️ No sales data received from database');
+      }
+    }
 
-  // Update pagination data
-  if (salesPaginationManager) {
-    salesPaginationManager.updateData(filteredSales);
-  } else {
-    // Fallback to original rendering if pagination not available
-    renderSalesTable(filteredSales || window.sales || []);
+    const salesToShow = filteredSales || window.sales || [];
+
+    // Initialize pagination if not already done
+    if (!salesPaginationManager && typeof window.createPaginationManager === 'function') {
+      initializeSalesPagination();
+    }
+
+    // Update pagination data
+    if (salesPaginationManager) {
+      salesPaginationManager.updateData(salesToShow);
+    } else {
+      // Fallback to original rendering if pagination not available
+      renderSalesTable(salesToShow);
+    }
+  } catch (error) {
+    console.error('❌ Failed to load sales:', error);
+    showNotification('Failed to load sales', 'error');
+    
+    // Show empty table on error
+    if (salesPaginationManager) {
+      salesPaginationManager.updateData([]);
+    } else {
+      renderSalesTable([]);
+    }
   }
 }
 
