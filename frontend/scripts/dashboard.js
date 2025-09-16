@@ -220,22 +220,54 @@ async function retryDatabaseConnection() {
   }
 }
 
-function loadDashboardData() {
+async function loadDashboardData() {
   if (typeof Chart === "undefined") {
     console.error("Chart.js is not loaded");
     return;
   }
 
-  // Ensure all global variables are synchronized
-  window.sales = window.sales || [];
-  window.debts = window.debts || [];
-  window.expenses = window.expenses || [];
-  window.products = window.products || [];
+  try {
+    console.log('📥 Loading dashboard data from database...');
+    
+    // Fetch all data from database in parallel
+    const [salesResult, debtsResult, expensesResult, productsResult] = await Promise.all([
+      window.dataManager.getData("sales"),
+      window.dataManager.getData("debts"),
+      window.dataManager.getData("expenses"),
+      window.dataManager.getData("products")
+    ]);
 
-  updateDashboardStats();
-  updateInventoryOverview();
-  updateDetailedInventory();
-  createCharts();
+    // Update global variables with fresh data
+    window.sales = (salesResult && salesResult.data) ? salesResult.data : [];
+    window.debts = (debtsResult && debtsResult.data) ? debtsResult.data : [];
+    window.expenses = (expensesResult && expensesResult.data) ? expensesResult.data : [];
+    window.products = (productsResult && productsResult.data) ? productsResult.data : [];
+
+    console.log('✅ Dashboard data loaded:', {
+      sales: window.sales.length,
+      debts: window.debts.length,
+      expenses: window.expenses.length,
+      products: window.products.length
+    });
+
+    updateDashboardStats();
+    updateInventoryOverview();
+    updateDetailedInventory();
+    createCharts();
+  } catch (error) {
+    console.error('❌ Failed to load dashboard data:', error);
+    
+    // Fallback to empty arrays to prevent crashes
+    window.sales = window.sales || [];
+    window.debts = window.debts || [];
+    window.expenses = window.expenses || [];
+    window.products = window.products || [];
+
+    updateDashboardStats();
+    updateInventoryOverview();
+    updateDetailedInventory();
+    createCharts();
+  }
 }
 
 function updateDashboardStats() {

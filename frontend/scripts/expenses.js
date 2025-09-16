@@ -73,32 +73,54 @@ async function addExpense(event) {
   }
 }
 
-function loadExpensesData() {
-  const tbody = document.getElementById("expensesTableBody");
-  if (!tbody) return;
+async function loadExpensesData(filteredExpenses = null) {
+  try {
+    // If no filtered expenses provided, fetch from database
+    if (!filteredExpenses) {
+      console.log('📥 Loading expenses from database...');
+      const result = await window.dataManager.getData("expenses");
+      
+      if (result && result.data) {
+        window.expenses = result.data;
+        console.log('✅ Expenses loaded from database:', window.expenses.length, 'items');
+      } else {
+        window.expenses = [];
+        console.warn('⚠️ No expenses data received from database');
+      }
+    }
 
-  // FIX: Use consistent global variable access
-  const expenses = window.expenses || [];
+    const expensesToShow = filteredExpenses || window.expenses || [];
+    
+    const tbody = document.getElementById("expensesTableBody");
+    if (!tbody) return;
 
-  tbody.innerHTML = expenses
-    .map(
-      (expense) => `
-        <tr>
-            <td>${window.utils.formatDate(expense.createdAt)}</td>
-            <td>${expense.description || "No description"}</td>
-            <td><span class="category-badge">${
-              expense.category || "Uncategorized"
-            }</span></td>
-            <td>${window.utils.formatCurrency(expense.amount || 0)}</td>
-            <td>
-                <button class="btn-small btn-danger" onclick="deleteExpense('${
-                  expense.id
-                }')">Delete</button>
-            </td>
-        </tr>
-    `
-    )
-    .join("");
+    tbody.innerHTML = expensesToShow
+      .map(
+        (expense) => `
+          <tr>
+              <td>${window.utils.formatDate(expense.createdAt)}</td>
+              <td>${expense.description || "No description"}</td>
+              <td><span class="category-badge">${
+                expense.category || "Uncategorized"
+              }</span></td>
+              <td>${window.utils.formatCurrency(expense.amount || 0)}</td>
+              <td>
+                  <button class="btn-small btn-danger" onclick="deleteExpense('${
+                    expense.id
+                  }')">Delete</button>
+              </td>
+          </tr>
+      `
+      )
+      .join("");
+  } catch (error) {
+    console.error('❌ Failed to load expenses:', error);
+    window.utils.showNotification('Failed to load expenses', 'error');
+    
+    // Show empty table on error
+    const tbody = document.getElementById("expensesTableBody");
+    if (tbody) tbody.innerHTML = "";
+  }
 }
 
 async function deleteExpense(expenseId) {

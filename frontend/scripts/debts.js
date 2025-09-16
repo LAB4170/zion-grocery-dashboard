@@ -133,18 +133,46 @@ async function addDebtFromSale(sale) {
   }
 }
 
-function loadDebtsData(filteredDebts = null) {
-  // Initialize pagination if not already done
-  if (!debtsPaginationManager && typeof window.createPaginationManager === 'function') {
-    initializeDebtsPagination();
-  }
+async function loadDebtsData(filteredDebts = null) {
+  try {
+    // If no filtered debts provided, fetch from database
+    if (!filteredDebts) {
+      console.log('📥 Loading debts from database...');
+      const result = await window.dataManager.getData("debts");
+      
+      if (result && result.data) {
+        window.debts = result.data;
+        console.log('✅ Debts loaded from database:', window.debts.length, 'items');
+      } else {
+        window.debts = [];
+        console.warn('⚠️ No debts data received from database');
+      }
+    }
 
-  // Update pagination data
-  if (debtsPaginationManager) {
-    debtsPaginationManager.updateData(filteredDebts);
-  } else {
-    // Fallback to original rendering if pagination not available
-    renderDebtsTable(filteredDebts || window.debts || []);
+    const debtsToShow = filteredDebts || window.debts || [];
+
+    // Initialize pagination if not already done
+    if (!debtsPaginationManager && typeof window.createPaginationManager === 'function') {
+      initializeDebtsPagination();
+    }
+
+    // Update pagination data
+    if (debtsPaginationManager) {
+      debtsPaginationManager.updateData(debtsToShow);
+    } else {
+      // Fallback to original rendering if pagination not available
+      renderDebtsTable(debtsToShow);
+    }
+  } catch (error) {
+    console.error('❌ Failed to load debts:', error);
+    window.utils.showNotification('Failed to load debts', 'error');
+    
+    // Show empty table on error
+    if (debtsPaginationManager) {
+      debtsPaginationManager.updateData([]);
+    } else {
+      renderDebtsTable([]);
+    }
   }
 }
 
