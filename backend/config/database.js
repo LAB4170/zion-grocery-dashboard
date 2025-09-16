@@ -1,19 +1,22 @@
 const knex = require("knex");
 require("dotenv").config();
 
-// Environment variable validation
+// Environment variable validation - only for development
 function validateEnvironmentVariables() {
-  const requiredVars = ['DB_PASSWORD'];
-  const missing = requiredVars.filter(key => !process.env[key]);
-  
-  if (missing.length > 0) {
-    throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
-  }
+  // Only validate DB_PASSWORD for development environment
+  if (process.env.NODE_ENV === 'development') {
+    const requiredVars = ['DB_PASSWORD'];
+    const missing = requiredVars.filter(key => !process.env[key]);
+    
+    if (missing.length > 0) {
+      throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
+    }
 
-  // Validate DB_PORT is a valid number
-  const port = process.env.DB_PORT;
-  if (port && (isNaN(parseInt(port)) || parseInt(port) <= 0)) {
-    throw new Error(`Invalid DB_PORT: ${port}. Must be a positive number.`);
+    // Validate DB_PORT is a valid number
+    const port = process.env.DB_PORT;
+    if (port && (isNaN(parseInt(port)) || parseInt(port) <= 0)) {
+      throw new Error(`Invalid DB_PORT: ${port}. Must be a positive number.`);
+    }
   }
 }
 
