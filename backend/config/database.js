@@ -46,10 +46,18 @@ const config = {
 
   production: {
     client: "postgresql",
-    connection: process.env.DATABASE_URL,
+    connection: {
+      connectionString: process.env.DATABASE_URL,
+      ssl: { rejectUnauthorized: false } // Required for Render PostgreSQL
+    },
     pool: {
-      min: 5,
-      max: 20
+      min: 2,
+      max: 8, // Reduced for Render limits
+      createTimeoutMillis: 30000,
+      acquireTimeoutMillis: 60000,
+      idleTimeoutMillis: 30000,
+      reapIntervalMillis: 1000,
+      createRetryIntervalMillis: 100
     },
     migrations: {
       tableName: "knex_migrations",

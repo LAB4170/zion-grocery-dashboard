@@ -10,6 +10,10 @@ const socketIo = require('socket.io');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
 const app = express();
+
+// CRITICAL: Trust proxy for Render deployment
+app.set('trust proxy', true);
+
 const server = http.createServer(app);
 const PORT = process.env.PORT || 5000;
 
