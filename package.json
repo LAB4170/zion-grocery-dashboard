@@ -1,7 +1,7 @@
 {
   "name": "zion-grocery-dashboard",
   "version": "1.0.0",
-  "description": "Zion Grocery Dashboard - Complete POS System with Integrated Frontend/Backend",
+  "description": "Point of Sale System for Zion Groceries",
   "main": "backend/server.js",
   "scripts": {
     "start": "cd backend && node server.js",
@@ -9,21 +9,19 @@
     "dev": "cd backend && npm run dev",
     "migrate": "cd backend && npm run migrate",
     "setup": "cd backend && npm install && cd ../frontend && npm install && cd ../backend && npm run migrate",
-    "render-build": "npm install && cd backend && npm install --production && npm run migrate",
-    "render-start": "cd backend && node server.js"
+    "render-build": "cd backend && npm install && cd ../frontend && npm install",
+    "render-start": "cd backend && node server.js",
+    "install-all": "cd backend && npm install && cd ../frontend && npm install"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/LAB4170/zion-grocery-dashboard.git"
   },
   "keywords": [
+    "pos",
     "grocery",
     "dashboard",
-    "pos",
-    "inventory",
-    "sales",
     "nodejs",
-    "express",
     "postgresql"
   ],
   "author": "Zion Groceries",
