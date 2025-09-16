@@ -116,13 +116,40 @@ async function addProduct(event) {
   }
 }
 
-function loadProductsData(filteredProducts = null) {
+async function loadProductsData(filteredProducts = null) {
+  try {
+    // If no filtered products provided, fetch from database
+    if (!filteredProducts) {
+      console.log('📥 Loading products from database...');
+      const result = await window.dataManager.getData("products");
+      
+      if (result && result.data) {
+        window.products = result.data;
+        console.log('✅ Products loaded from database:', window.products.length, 'items');
+      } else {
+        window.products = [];
+        console.warn('⚠️ No products data received from database');
+      }
+    }
 
-  if (productsPaginationManager) {
-    productsPaginationManager.updateData(filteredProducts);
-  } else {
-    // Fallback to original rendering if pagination not available
-    renderProductsTable(filteredProducts || window.products || []);
+    const productsToShow = filteredProducts || window.products || [];
+
+    if (productsPaginationManager) {
+      productsPaginationManager.updateData(productsToShow);
+    } else {
+      // Fallback to original rendering if pagination not available
+      renderProductsTable(productsToShow);
+    }
+  } catch (error) {
+    console.error('❌ Failed to load products:', error);
+    showNotification('Failed to load products', 'error');
+    
+    // Show empty table on error
+    if (productsPaginationManager) {
+      productsPaginationManager.updateData([]);
+    } else {
+      renderProductsTable([]);
+    }
   }
 }
 
