@@ -163,22 +163,11 @@ function renderProductsTable(productsToShow) {
 
 async function deleteProduct(productId) {
   try {
-    // First check if the product can be deleted
-    const response = await window.apiClient.makeRequest(`/products/${productId}/can-delete`);
-    
-    if (!response.data.canDelete) {
-      showNotification(
-        `Cannot delete this product: ${response.data.message}. Consider deactivating it instead.`,
-        'error'
-      );
-      return;
-    }
-
     if (!confirm("Are you sure you want to delete this product?")) {
       return;
     }
 
-    // Proceed with deletion
+    // Direct deletion without can-delete check
     await window.dataManager.deleteData("products", productId);
 
     // Update local array
