@@ -10,87 +10,41 @@
             </div>
             <div class="form-group">
                 <label for="productCategory">Category</label>
-                <select id="productCategory" name="category" required onchange="toggleCustomCategory()">
-                    <option value="">Select Category</option>
-                    <!-- Fresh Produce -->
-                    <option value="fresh-fruits">Fresh Fruits</option>
-                    <option value="fresh-vegetables">Fresh Vegetables</option>
-                    <option value="herbs-spices">Herbs & Spices</option>
+                <input type="text" id="productCategory" name="category" list="categoryOptions" placeholder="Type category (e.g., cereals, vegetables, fifa games)" required />
+                <datalist id="categoryOptions">
+                    <!-- Common grocery categories -->
+                    <option value="vegetables">
+                    <option value="fruits">
+                    <option value="cereals">
+                    <option value="dairy">
+                    <option value="meat">
+                    <option value="beverages">
+                    <option value="snacks">
+                    <option value="bread">
+                    <option value="rice">
+                    <option value="cooking-oil">
+                    <option value="spices">
+                    <option value="cleaning">
+                    <option value="personal-care">
                     
-                    <!-- Dairy & Eggs -->
-                    <option value="dairy-milk">Milk & Dairy Products</option>
-                    <option value="eggs">Eggs</option>
-                    <option value="cheese">Cheese</option>
-                    <option value="yogurt">Yogurt</option>
+                    <!-- Entertainment & Games -->
+                    <option value="fifa-games">
+                    <option value="video-games">
+                    <option value="toys">
+                    <option value="books">
                     
-                    <!-- Meat & Seafood -->
-                    <option value="fresh-meat">Fresh Meat</option>
-                    <option value="poultry">Poultry</option>
-                    <option value="seafood">Seafood</option>
-                    <option value="processed-meat">Processed Meat</option>
+                    <!-- Electronics -->
+                    <option value="electronics">
+                    <option value="phones">
+                    <option value="accessories">
                     
-                    <!-- Bakery & Bread -->
-                    <option value="bread">Bread</option>
-                    <option value="pastries">Pastries & Cakes</option>
-                    <option value="bakery-items">Bakery Items</option>
-                    
-                    <!-- Pantry Staples -->
-                    <option value="rice-grains">Rice & Grains</option>
-                    <option value="flour-baking">Flour & Baking Supplies</option>
-                    <option value="cooking-oil">Cooking Oil</option>
-                    <option value="sugar-sweeteners">Sugar & Sweeteners</option>
-                    <option value="salt-seasonings">Salt & Seasonings</option>
-                    
-                    <!-- Canned & Packaged -->
-                    <option value="canned-goods">Canned Goods</option>
-                    <option value="pasta-noodles">Pasta & Noodles</option>
-                    <option value="cereals">Cereals</option>
-                    <option value="packaged-snacks">Packaged Snacks</option>
-                    
-                    <!-- Beverages -->
-                    <option value="soft-drinks">Soft Drinks</option>
-                    <option value="juices">Juices</option>
-                    <option value="water">Water</option>
-                    <option value="tea-coffee">Tea & Coffee</option>
-                    <option value="alcoholic-beverages">Alcoholic Beverages</option>
-                    
-                    <!-- Frozen Foods -->
-                    <option value="frozen-vegetables">Frozen Vegetables</option>
-                    <option value="frozen-meat">Frozen Meat</option>
-                    <option value="ice-cream">Ice Cream</option>
-                    <option value="frozen-meals">Frozen Meals</option>
-                    
-                    <!-- Health & Personal Care -->
-                    <option value="personal-hygiene">Personal Hygiene</option>
-                    <option value="health-supplements">Health & Supplements</option>
-                    <option value="baby-care">Baby Care</option>
-                    <option value="feminine-care">Feminine Care</option>
-                    
-                    <!-- Household & Cleaning -->
-                    <option value="cleaning-supplies">Cleaning Supplies</option>
-                    <option value="laundry-detergent">Laundry & Detergent</option>
-                    <option value="paper-products">Paper Products</option>
-                    <option value="kitchen-supplies">Kitchen Supplies</option>
-                    
-                    <!-- Business Expansion Categories -->
-                    <option value="electronics">Electronics</option>
-                    <option value="clothing-accessories">Clothing & Accessories</option>
-                    <option value="stationery">Stationery & Office</option>
-                    <option value="toys-games">Toys & Games</option>
-                    <option value="hardware-tools">Hardware & Tools</option>
-                    <option value="automotive">Automotive</option>
-                    <option value="pharmacy">Pharmacy</option>
-                    
-                    <!-- Custom Category Option -->
-                    <option value="custom">Custom Category (Type Below)</option>
-                </select>
-            </div>
-            
-            <!-- Custom Category Input (Hidden by default) -->
-            <div class="form-group" id="customCategoryGroup" style="display: none;">
-                <label for="customCategory">Custom Category Name</label>
-                <input type="text" id="customCategory" name="customCategory" placeholder="Enter your custom category name" />
-                <small style="color: #666; font-size: 12px;">This will be saved as a new category for future use</small>
+                    <!-- Other common categories -->
+                    <option value="household">
+                    <option value="stationery">
+                    <option value="pharmacy">
+                    <option value="clothing">
+                </datalist>
+                <small style="color: #666; font-size: 12px;">Start typing to see suggestions, or enter your own category</small>
             </div>
             <div class="form-group">
                 <label for="productPrice">Price (KES)</label>

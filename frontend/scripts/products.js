@@ -13,28 +13,6 @@ function showNotification(message, type = 'success') {
   }
 }
 
-// Toggle custom category input visibility
-function toggleCustomCategory() {
-  const categorySelect = document.getElementById("productCategory");
-  const customCategoryGroup = document.getElementById("customCategoryGroup");
-  const customCategoryInput = document.getElementById("customCategory");
-  
-  if (categorySelect && customCategoryGroup) {
-    if (categorySelect.value === "custom") {
-      customCategoryGroup.style.display = "block";
-      if (customCategoryInput) {
-        customCategoryInput.required = true;
-      }
-    } else {
-      customCategoryGroup.style.display = "none";
-      if (customCategoryInput) {
-        customCategoryInput.required = false;
-        customCategoryInput.value = "";
-      }
-    }
-  }
-}
-
 // Initialize pagination manager for products
 let productsPaginationManager;
 
@@ -49,7 +27,7 @@ async function initializeProducts() {
     }
     
     await loadProductsData();
-    populateProductSelect(); // FIX: Call populateProductSelect instead of non-existent populateProductDropdowns
+    populateProductSelect(); 
     console.log('✅ Products module initialized successfully');
   } catch (error) {
     console.error('❌ Failed to initialize products module:', error);
@@ -93,19 +71,10 @@ async function addProduct(event) {
   event.preventDefault();
 
   try {
-    // Handle category selection (custom or predefined)
-    const categorySelect = document.getElementById("productCategory");
-    const customCategoryInput = document.getElementById("customCategory");
-    let finalCategory = categorySelect.value;
-    
-    if (categorySelect.value === "custom" && customCategoryInput.value.trim()) {
-      finalCategory = customCategoryInput.value.trim().toLowerCase().replace(/\s+/g, '-');
-    }
-
-    // Get form data automatically
+    // Get form data automatically - category is now a simple text input
     const productData = {
       name: document.getElementById("productName").value.trim(),
-      category: finalCategory,
+      category: document.getElementById("productCategory").value.trim().toLowerCase(),
       price: parseFloat(document.getElementById("productPrice").value) || 0,
       stockQuantity: parseInt(document.getElementById("productStock").value) || 0
     };
@@ -293,17 +262,11 @@ function resetProductModal() {
   const modalTitle = document.getElementById("productModalTitle");
   const submitButton = document.getElementById("productModalSubmit");
   const form = document.getElementById("productForm");
-  const customCategoryGroup = document.getElementById("customCategoryGroup");
 
   if (modal) modal.removeAttribute("data-editing");
   if (modalTitle) modalTitle.textContent = "Add New Product";
   if (submitButton) submitButton.textContent = "Add Product";
   if (form) form.reset();
-  
-  // Hide custom category input
-  if (customCategoryGroup) {
-    customCategoryGroup.style.display = "none";
-  }
 }
 
 function populateProductSelect() {
@@ -334,4 +297,3 @@ function populateProductSelect() {
 window.resetProductModal = resetProductModal;
 window.loadProductsData = loadProductsData;
 window.populateProductSelect = populateProductSelect;
-window.toggleCustomCategory = toggleCustomCategory;
