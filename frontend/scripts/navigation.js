@@ -50,29 +50,29 @@ function showSection(sectionId, isInitialLoad = false) {
           if (typeof window.initializeProductsPagination === "function") {
             window.initializeProductsPagination();
           }
-          if (typeof loadProductsData === "function") {
-            loadProductsData();
+          if (typeof window.loadProductsData === "function") {
+            window.loadProductsData();
           }
           break;
         case "sales":
           if (typeof window.initializeSalesPagination === "function") {
             window.initializeSalesPagination();
           }
-          if (typeof loadSalesData === "function") {
-            loadSalesData();
+          if (typeof window.loadSalesData === "function") {
+            window.loadSalesData();
           }
           break;
         case "individual-debts":
           if (typeof window.initializeDebtsPagination === "function") {
             window.initializeDebtsPagination();
           }
-          if (typeof loadDebtsData === "function") {
-            loadDebtsData();
+          if (typeof window.loadDebtsData === "function") {
+            window.loadDebtsData();
           }
           break;
         case "dashboard":
-          if (typeof updateDashboardStats === "function") {
-            updateDashboardStats();
+          if (typeof window.updateDashboardStats === "function") {
+            window.updateDashboardStats();
           }
           break;
         default:
@@ -148,8 +148,12 @@ function loadSectionData(sectionId) {
       if (typeof window.initializeSalesPagination === "function") {
         window.initializeSalesPagination();
       }
-      if (typeof loadSalesData === "function") loadSalesData();
-      if (typeof populateProductSelect === "function") populateProductSelect();
+      if (typeof window.loadSalesData === "function") {
+        window.loadSalesData();
+      }
+      if (typeof window.populateProductSelect === "function") {
+        window.populateProductSelect();
+      }
     },
     products: () => {
       // Initialize pagination first, then load data
@@ -159,21 +163,29 @@ function loadSectionData(sectionId) {
       }
       
       // Load data after a short delay to ensure pagination is ready
-      if (typeof loadProductsData === "function") {
-        loadProductsData();
+      if (typeof window.loadProductsData === "function") {
+        window.loadProductsData();
       }
     },
     "sales-settings": () => {
-      if (typeof loadProductsData === "function") loadProductsData();
+      if (typeof window.loadProductsData === "function") {
+        window.loadProductsData();
+      }
     },
     expenses: () => {
-      if (typeof loadExpensesData === "function") loadExpensesData();
+      if (typeof window.loadExpensesData === "function") {
+        window.loadExpensesData();
+      }
     },
     "individual-debts": () => {
-      if (typeof loadDebtsData === "function") loadDebtsData();
+      if (typeof window.loadDebtsData === "function") {
+        window.loadDebtsData();
+      }
     },
     "grouped-debts": () => {
-      if (typeof loadGroupedDebtsData === "function") loadGroupedDebtsData();
+      if (typeof window.loadGroupedDebtsData === "function") {
+        window.loadGroupedDebtsData();
+      }
     },
     "sales-reports": () => console.log("Reports section loaded"),
   };

@@ -27,7 +27,7 @@ async function initializeProducts() {
     }
     
     await loadProductsData();
-    populateProductDropdowns();
+    populateProductSelect(); // FIX: Call populateProductSelect instead of non-existent populateProductDropdowns
     console.log('✅ Products module initialized successfully');
   } catch (error) {
     console.error('❌ Failed to initialize products module:', error);
@@ -296,3 +296,4 @@ function populateProductSelect() {
 // Export for global access
 window.resetProductModal = resetProductModal;
 window.loadProductsData = loadProductsData;
+window.populateProductSelect = populateProductSelect; // FIX: Export populateProductSelect function
