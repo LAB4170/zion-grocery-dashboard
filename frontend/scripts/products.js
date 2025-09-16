@@ -71,10 +71,12 @@ async function addProduct(event) {
   event.preventDefault();
 
   try {
-    // Get form data automatically - category is now a simple text input
+    // Get form data automatically - preserve original case for category display
+    const categoryInput = document.getElementById("productCategory").value.trim();
+    
     const productData = {
       name: document.getElementById("productName").value.trim(),
-      category: document.getElementById("productCategory").value.trim().toLowerCase(),
+      category: categoryInput, // Keep original case for better display
       price: parseFloat(document.getElementById("productPrice").value) || 0,
       stockQuantity: parseInt(document.getElementById("productStock").value) || 0
     };
