@@ -109,16 +109,24 @@ class Product {
     return updatedProduct;
   }
 
+  // Check if product has sales records
+  static async hasSalesRecords(productId) {
+    const db = getDatabase();
+    const salesCount = await db('sales')
+      .where('product_id', productId)
+      .count('id as count')
+      .first();
+    
+    return parseInt(salesCount.count) > 0;
+  }
+
   // Delete product
   static async delete(id) {
-    const db = getDatabase();
-    // Check if product is referenced in sales
-    const salesCount = await db('sales').where('product_id', id).count('id as count').first();
-    
-    if (parseInt(salesCount.count) > 0) {
+    if (await Product.hasSalesRecords(id)) {
       throw new Error('Cannot delete product that has sales records');
     }
     
+    const db = getDatabase();
     return await db('products').where('id', id).del();
   }
 
