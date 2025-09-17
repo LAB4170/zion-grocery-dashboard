@@ -285,7 +285,7 @@ function renderSalesTable(salesToShow) {
             <tr data-sale-id="${sale.id}">
                 <td>
                     <div class="date-container">
-                        <span class="date-display">${window.utils.formatDate(sale.createdAt)}</span>
+                        <span class="date-display">${window.utils.formatDate(sale.date)}</span>
                         <i class="fas fa-calendar-alt date-edit-icon" onclick="editSaleDate('${sale.id}')" title="Edit Sale Date"></i>
                     </div>
                 </td>
@@ -387,7 +387,7 @@ function viewSaleDetails(saleId) {
         sale.paymentMethod
       }\nCustomer: ${
         sale.customerName || "N/A"
-      }\nDate: ${window.utils.formatDate(sale.createdAt)}`,
+      }\nDate: ${window.utils.formatDate(sale.date)}`,
       "info"
     );
   }

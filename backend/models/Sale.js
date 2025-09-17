@@ -131,24 +131,31 @@ class Sale {
     const sales = await query.orderBy('created_at', 'desc');
     
     // Transform to frontend format (camelCase)
-    return sales.map(sale => ({
-      id: sale.id,
-      productId: sale.product_id,
-      productName: sale.product_name,
-      quantity: sale.quantity,
-      unitPrice: sale.unit_price,
-      total: sale.total,
-      paymentMethod: sale.payment_method,
-      customerName: sale.customer_name,
-      customerPhone: sale.customer_phone,
-      status: sale.status,
-      mpesaCode: sale.mpesa_code,
-      notes: sale.notes,
-      date: sale.date || (sale.created_at ? sale.created_at.split('T')[0] : new Date().toISOString().split('T')[0]),
-      createdBy: sale.created_by,
-      createdAt: sale.created_at,
-      updatedAt: sale.updated_at
-    }));
+    return sales.map(sale => {
+      const createdAt = sale.created_at;
+      const createdAtISO = (createdAt && typeof createdAt !== 'string')
+        ? createdAt.toISOString()
+        : (createdAt || null);
+      const dateStr = sale.date || (createdAtISO ? createdAtISO.split('T')[0] : new Date().toISOString().split('T')[0]);
+      return {
+        id: sale.id,
+        productId: sale.product_id,
+        productName: sale.product_name,
+        quantity: sale.quantity,
+        unitPrice: sale.unit_price,
+        total: sale.total,
+        paymentMethod: sale.payment_method,
+        customerName: sale.customer_name,
+        customerPhone: sale.customer_phone,
+        status: sale.status,
+        mpesaCode: sale.mpesa_code,
+        notes: sale.notes,
+        date: dateStr,
+        createdBy: sale.created_by,
+        createdAt: createdAtISO,
+        updatedAt: sale.updated_at
+      };
+    });
   }
 
   // New: Server-side pagination with filters and sorting
@@ -195,24 +202,31 @@ class Sale {
       .limit(safePerPage)
       .offset(offset);
 
-    const items = rows.map(sale => ({
-      id: sale.id,
-      productId: sale.product_id,
-      productName: sale.product_name,
-      quantity: sale.quantity,
-      unitPrice: sale.unit_price,
-      total: sale.total,
-      paymentMethod: sale.payment_method,
-      customerName: sale.customer_name,
-      customerPhone: sale.customer_phone,
-      status: sale.status,
-      mpesaCode: sale.mpesa_code,
-      notes: sale.notes,
-      date: sale.date || (sale.created_at ? sale.created_at.split('T')[0] : new Date().toISOString().split('T')[0]),
-      createdBy: sale.created_by,
-      createdAt: sale.created_at,
-      updatedAt: sale.updated_at
-    }));
+    const items = rows.map(sale => {
+      const createdAt = sale.created_at;
+      const createdAtISO = (createdAt && typeof createdAt !== 'string')
+        ? createdAt.toISOString()
+        : (createdAt || null);
+      const dateStr = sale.date || (createdAtISO ? createdAtISO.split('T')[0] : new Date().toISOString().split('T')[0]);
+      return {
+        id: sale.id,
+        productId: sale.product_id,
+        productName: sale.product_name,
+        quantity: sale.quantity,
+        unitPrice: sale.unit_price,
+        total: sale.total,
+        paymentMethod: sale.payment_method,
+        customerName: sale.customer_name,
+        customerPhone: sale.customer_phone,
+        status: sale.status,
+        mpesaCode: sale.mpesa_code,
+        notes: sale.notes,
+        date: dateStr,
+        createdBy: sale.created_by,
+        createdAt: createdAtISO,
+        updatedAt: sale.updated_at
+      };
+    });
 
     return {
       items,
@@ -229,6 +243,11 @@ class Sale {
     if (!sale) return null;
     
     // Transform to frontend format (camelCase)
+    const createdAt = sale.created_at;
+    const createdAtISO = (createdAt && typeof createdAt !== 'string')
+      ? createdAt.toISOString()
+      : (createdAt || null);
+    const dateStr = sale.date || (createdAtISO ? createdAtISO.split('T')[0] : new Date().toISOString().split('T')[0]);
     return {
       id: sale.id,
       productId: sale.product_id,
@@ -242,9 +261,9 @@ class Sale {
       status: sale.status,
       mpesaCode: sale.mpesa_code,
       notes: sale.notes,
-      date: sale.date || (sale.created_at ? sale.created_at.split('T')[0] : new Date().toISOString().split('T')[0]),
+      date: dateStr,
       createdBy: sale.created_by,
-      createdAt: sale.created_at,
+      createdAt: createdAtISO,
       updatedAt: sale.updated_at
     };
   }
@@ -267,6 +286,11 @@ class Sale {
       date: updateData.date,
       updated_at: new Date().toISOString()
     };
+    
+    // If caller provided a specific createdAt (ISO string), persist it
+    if (updateData.createdAt || updateData.created_at) {
+      dbData.created_at = updateData.createdAt || updateData.created_at;
+    }
     
     const [updatedSale] = await db('sales')
       .where('id', id)
