@@ -1,4 +1,3 @@
-
 let paymentChart, weeklyChart;
 
 // Use global variables for consistency - no redeclaration
@@ -565,6 +564,11 @@ function createWeeklyChart() {
   // Find maximum sales value to set appropriate scale
   const maxSales = Math.max(...salesByDay, 0);
   const yAxisMax = Math.ceil(maxSales / 100) * 100 + 100; // Round up to next 100
+
+  // Prevent multiple chart instances overlapping
+  if (typeof weeklyChart !== 'undefined' && weeklyChart) {
+    try { weeklyChart.destroy(); } catch (e) { console.warn('Chart destroy failed:', e); }
+  }
 
   weeklyChart = new Chart(ctx, {
     type: "line",

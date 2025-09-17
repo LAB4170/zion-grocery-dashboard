@@ -95,6 +95,11 @@ async function addSale(event) {
 
       await window.dataManager.updateData("sales", saleId, existingSale);
       showNotification("Sale updated successfully!");
+
+      // Refresh dashboard charts if currently viewing dashboard
+      if (typeof window.loadDashboardData === "function" && window.currentSection === "dashboard") {
+        window.loadDashboardData();
+      }
     } else {
       // Adding a new sale
       if (quantity > product.stockQuantity) {
@@ -153,6 +158,11 @@ async function addSale(event) {
       }
 
       showNotification("Sale recorded successfully!");
+
+      // Refresh dashboard charts if currently viewing dashboard
+      if (typeof window.loadDashboardData === "function" && window.currentSection === "dashboard") {
+        window.loadDashboardData();
+      }
     }
 
     // Close modal and refresh data
@@ -327,6 +337,11 @@ async function deleteSale(saleId) {
   // Update dashboard
   if (typeof window.updateDashboardStats === "function") {
     window.updateDashboardStats();
+  }
+
+  // Refresh dashboard charts if currently viewing dashboard
+  if (typeof window.loadDashboardData === "function" && window.currentSection === "dashboard") {
+    window.loadDashboardData();
   }
 }
 
