@@ -5,10 +5,10 @@
         <h2 id="salesModalTitle">Create New Sale</h2>
         <form id="saleForm" onsubmit="addSale(event); return false;">
             <div class="form-group">
-                <label for="saleProduct">Product</label>
-                <select id="saleProduct" name="productId" required>
-                    <option value="">Select Product</option>
-                </select>
+                <label for="saleProductInput">Product</label>
+                <input type="text" id="saleProductInput" name="productName" list="productOptions" placeholder="Type to search product..." required />
+                <datalist id="productOptions"></datalist>
+                <small style="color:#666;font-size:12px;">Start typing to search and select an existing product</small>
             </div>
             <div class="form-group">
                 <label for="saleQuantity">Quantity</label>

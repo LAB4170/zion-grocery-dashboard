@@ -79,18 +79,18 @@ class PaginationManager {
           <span class="pagination-summary" style="color: white;"></span>
         </div>
         <div class="pagination-buttons" style="display: flex; align-items: center; gap: 5px;">
-          <button class="pagination-btn" onclick="window.paginationManagers['${this.dataKey}'].goToPage(1)" title="First Page" style="padding: 8px 12px; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); border-radius: 4px; color: white; cursor: pointer;">
-            ⟪
+          <button class="pagination-btn" onclick="window.paginationManagers['${this.dataKey}'].goToPage(1)" title="First Page" aria-label="First Page" style="padding: 8px 12px; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); border-radius: 4px; color: white; cursor: pointer;">
+            « First
           </button>
-          <button class="pagination-btn" onclick="window.paginationManagers['${this.dataKey}'].previousPage()" title="Previous Page" style="padding: 8px 12px; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); border-radius: 4px; color: white; cursor: pointer;">
-            ⟨
+          <button class="pagination-btn" onclick="window.paginationManagers['${this.dataKey}'].previousPage()" title="Previous Page" aria-label="Previous Page" style="padding: 8px 12px; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); border-radius: 4px; color: white; cursor: pointer;">
+            ‹ Prev
           </button>
           <span class="page-numbers" style="display: flex; gap: 2px;"></span>
-          <button class="pagination-btn" onclick="window.paginationManagers['${this.dataKey}'].nextPage()" title="Next Page" style="padding: 8px 12px; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); border-radius: 4px; color: white; cursor: pointer;">
-            ⟩
+          <button class="pagination-btn" onclick="window.paginationManagers['${this.dataKey}'].nextPage()" title="Next Page" aria-label="Next Page" style="padding: 8px 12px; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); border-radius: 4px; color: white; cursor: pointer;">
+            Next ›
           </button>
-          <button class="pagination-btn" onclick="window.paginationManagers['${this.dataKey}'].goToPage('last')" title="Last Page" style="padding: 8px 12px; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); border-radius: 4px; color: white; cursor: pointer;">
-            ⟫
+          <button class="pagination-btn" onclick="window.paginationManagers['${this.dataKey}'].goToPage('last')" title="Last Page" aria-label="Last Page" style="padding: 8px 12px; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); border-radius: 4px; color: white; cursor: pointer;">
+            Last »
           </button>
         </div>
       </div>

@@ -25,7 +25,9 @@ async function addSale(event) {
   event.preventDefault();
 
   try {
-    const productId = document.getElementById("saleProduct").value;
+    const productInput = document.getElementById("saleProductInput").value.trim();
+    const product = resolveProductFromInput(productInput);
+    const productId = product ? product.id : "";
     const quantity = parseInt(document.getElementById("saleQuantity").value);
     const saleDate = document.getElementById("saleDate").value;
     const paymentMethod = document.getElementById("salePaymentMethod").value;
@@ -35,7 +37,7 @@ async function addSale(event) {
 
     // Validation checks with user feedback
     if (!productId) {
-      showNotification("Please select a product", "error");
+      showNotification("Please type and select a valid product name", "error");
       return;
     }
 
@@ -49,8 +51,7 @@ async function addSale(event) {
       return;
     }
 
-    // CRITICAL FIX: Remove parseInt conversion - IDs are strings
-    const product = (window.products || []).find((p) => p.id === productId);
+    // product already resolved above
     if (!product) {
       showNotification("Please select a valid product", "error");
       return;
@@ -368,13 +369,13 @@ function editSale(saleId) {
   if (modal) modal.dataset.saleId = saleId;
 
   // Populate form fields with validation
-  const productSelect = document.getElementById("saleProduct");
+  const productInputEl = document.getElementById("saleProductInput");
   const quantityInput = document.getElementById("saleQuantity");
   const paymentSelect = document.getElementById("salePaymentMethod");
   const customerNameInput = document.getElementById("customerName");
   const customerPhoneInput = document.getElementById("customerPhone");
 
-  if (productSelect) productSelect.value = sale.productId;
+  if (productInputEl) productInputEl.value = sale.productName;
   if (quantityInput) quantityInput.value = sale.quantity;
   
   // Set the sale date
@@ -504,6 +505,18 @@ async function editSaleDate(saleId) {
       window.updateDashboardStats();
     }
   }
+}
+
+// Helper: resolve a product from typed input (exact match first, then case-insensitive unique match)
+function resolveProductFromInput(inputValue) {
+  const products = window.products || [];
+  if (!inputValue) return null;
+  // Exact match (case-insensitive)
+  const exact = products.find(p => (p.name || '').toLowerCase() === inputValue.toLowerCase());
+  if (exact) return exact;
+  // Starts-with or includes unique match
+  const candidates = products.filter(p => (p.name || '').toLowerCase().includes(inputValue.toLowerCase()));
+  return candidates.length === 1 ? candidates[0] : null;
 }
 
 // Export for global access

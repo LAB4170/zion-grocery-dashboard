@@ -272,27 +272,23 @@ function resetProductModal() {
 }
 
 function populateProductSelect() {
-  const select = document.getElementById("saleProduct");
-  if (!select) return;
+  // Populate the datalist used in the sales modal for type-to-search
+  const dataList = document.getElementById("productOptions");
+  if (!dataList) return;
 
-  // Sync with global variables - use window.products consistently
   const products = window.products || [];
 
-  select.innerHTML =
-    '<option value="">Select Product</option>' +
-    products
-      .map((product) => {
-        const stockInfo =
-          (product.stockQuantity || 0) <= 5
-            ? ` (Low Stock: ${product.stockQuantity || 0})`
-            : ` (Stock: ${product.stockQuantity || 0})`;
-        return `<option value="${product.id}">${
-          product.name || "Unknown Product"
-        } - ${window.utils.formatCurrency(
-          product.price || 0
-        )}${stockInfo}</option>`;
-      })
-      .join("");
+  // Build datalist options: value is product name for typing; label shows price/stock
+  dataList.innerHTML = products
+    .map((product) => {
+      const priceLabel = window.utils ? window.utils.formatCurrency(product.price || 0) : `KSh ${Number(product.price || 0).toFixed(2)}`;
+      const stockInfo = `Stock: ${product.stockQuantity || 0}`;
+      const labelText = `${priceLabel} • ${stockInfo}`;
+      const safeName = (product.name || "").replace(/"/g, '&quot;');
+      const safeLabel = labelText.replace(/"/g, '&quot;');
+      return `<option value="${safeName}" label="${safeLabel}"></option>`;
+    })
+    .join("");
 }
 
 // Export for global access
