@@ -345,28 +345,42 @@ async function deleteSale(saleId) {
     return;
   }
 
-  window.sales = (window.sales || []).filter((s) => s.id !== saleId);
-  await window.dataManager.deleteData("sales", saleId);
-
-  // Refresh products to reflect backend stock restoration
   try {
-    const refreshed = await window.dataManager.getData("products");
-    window.products = (refreshed && refreshed.data) ? refreshed.data : (window.products || []);
-  } catch (e) {
-    console.warn('Product refresh failed after sale delete:', e.message);
-  }
+    // Call backend to delete (backend restores stock transactionally)
+    await window.dataManager.deleteData("sales", saleId);
 
-  loadSalesData();
-  showNotification("Sale deleted successfully!");
+    // Remove from local cache (UI responsiveness)
+    window.sales = (window.sales || []).filter((s) => s.id !== saleId);
 
-  // Update dashboard
-  if (typeof window.updateDashboardStats === "function") {
-    window.updateDashboardStats();
-  }
+    // Refresh products from backend to reflect restored stock
+    try {
+      const refreshed = await window.dataManager.getData("products");
+      window.products = (refreshed && refreshed.data) ? refreshed.data : (window.products || []);
+    } catch (e) {
+      console.warn('Product refresh failed after sale delete:', e.message);
+    }
 
-  // Refresh dashboard charts if currently viewing dashboard
-  if (typeof window.loadDashboardData === "function" && window.currentSection === "dashboard") {
-    window.loadDashboardData();
+    // If using server-side pagination, refresh current page; else reload table
+    if (salesPaginationManager && salesPaginationManager.serverMode && typeof salesPaginationManager.fetchAndUpdate === 'function') {
+      await salesPaginationManager.fetchAndUpdate();
+    } else {
+      loadSalesData();
+    }
+
+    showNotification("Sale deleted successfully!");
+
+    // Update dashboard
+    if (typeof window.updateDashboardStats === "function") {
+      window.updateDashboardStats();
+    }
+
+    // Refresh dashboard charts if currently viewing dashboard
+    if (typeof window.loadDashboardData === "function" && window.currentSection === "dashboard") {
+      window.loadDashboardData();
+    }
+  } catch (err) {
+    console.error('Delete sale failed:', err);
+    showNotification('Failed to delete sale. Please try again.', 'error');
   }
 }
 
