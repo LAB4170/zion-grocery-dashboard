@@ -171,20 +171,15 @@ async function addSale(event) {
       window.sales = window.sales || [];
       window.sales.push(savedSale.data || savedSale);
       
-      // Update product stock in database
-      product.stockQuantity -= quantity;
-      const updatedProduct = await window.dataManager.updateData("products", product.id, product);
-      
-      // Update global products array
-      const productIndex = window.products.findIndex(p => p.id === product.id);
-      if (productIndex !== -1) {
-        window.products[productIndex] = updatedProduct.data || updatedProduct;
+      // Backend decrements stock transactionally; refresh products to reflect new stock
+      try {
+        const refreshed = await window.dataManager.getData("products");
+        window.products = (refreshed && refreshed.data) ? refreshed.data : (window.products || []);
+      } catch (e) {
+        console.warn('Product refresh failed after sale create:', e.message);
       }
 
-      // Add debt if payment method is debt
-      if (paymentMethod === "debt") {
-        await addDebtFromSale(savedSale.data || savedSale);
-      }
+      // Debt record is created in backend transaction when paymentMethod === 'debt'
 
       showNotification("Sale recorded successfully!");
 
@@ -525,7 +520,9 @@ async function editSaleDate(saleId) {
     
     // Update sale record
     sale.date = newDate;
-    sale.createdAt = new Date(newDate + 'T' + sale.createdAt.split('T')[1]).toISOString();
+    const existingISO = typeof sale.createdAt === 'string' ? sale.createdAt : (sale.createdAt?.toISOString?.() || null);
+    const timePart = existingISO && existingISO.includes('T') ? existingISO.split('T')[1] : '00:00:00.000Z';
+    sale.createdAt = new Date(`${newDate}T${timePart}`).toISOString();
     
     // Update linked debt record if exists
     const debts = window.debts || [];
@@ -570,3 +567,8 @@ window.resetSalesModal = resetSalesModal;
 window.focusDateInput = focusDateInput;
 window.openDatePicker = openDatePicker;
 window.editSaleDate = editSaleDate;
+// Ensure action handlers are available globally for onclick usage
+window.editSale = editSale;
+window.deleteSale = deleteSale;
+window.viewSaleDetails = viewSaleDetails;
+window.addSale = addSale;
