@@ -308,6 +308,12 @@ function updateDashboardStats() {
     .filter((s) => s.paymentMethod === "mpesa")
     .reduce((sum, sale) => sum + (sale.total || 0), 0);
 
+  // Show M-Pesa total on dashboard card (if present)
+  const mpesaTotalElement = document.getElementById("mpesa-total");
+  if (mpesaTotalElement) {
+    mpesaTotalElement.textContent = window.utils.formatCurrency(mpesaSales);
+  }
+
   // Today's debts
   const todaysDebts = debts
     .filter((d) => d.date === today && d.status === "pending")
