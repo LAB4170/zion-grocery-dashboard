@@ -447,7 +447,13 @@ function resetSalesModal() {
 
   // Set default date to today
   const saleDateInput = document.getElementById("saleDate");
-  if (saleDateInput) saleDateInput.value = new Date().toISOString().split("T")[0];
+  if (saleDateInput) {
+    const now = new Date();
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
+    saleDateInput.value = `${yyyy}-${mm}-${dd}`; // Local date (YYYY-MM-DD)
+  }
 
   // Hide customer info fields
   const customerInfoGroup = document.getElementById("customerInfoGroup");
