@@ -123,7 +123,14 @@ class ApiClient {
     try {
       console.log(`🔄 API Request: ${config.method} ${endpoint}`);
 
-      const response = await fetch(url, config);
+      let response = await fetch(url, config);
+
+      // Light retry once for GET requests if rate-limited (429)
+      if (response.status === 429 && (config.method || 'GET').toUpperCase() === 'GET') {
+        console.warn(`⏳ Rate limited (429) on ${endpoint}. Retrying once after 800ms...`);
+        await new Promise(r => setTimeout(r, 800));
+        response = await fetch(url, config);
+      }
 
       if (!response.ok) {
         let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
@@ -142,6 +149,11 @@ class ApiClient {
         } catch (parseError) {
           // Response body isn't JSON, use status text
           console.warn("Could not parse error response as JSON");
+        }
+
+        // Specific handling for 429
+        if (response.status === 429) {
+          throw new Error(`Rate limited (HTTP 429). Please wait a moment and try again.`);
         }
 
         // Provide specific guidance based on error type
@@ -207,6 +219,11 @@ class ApiClient {
         throw new Error(
           `Cannot connect to server at ${this.baseURL}. Please ensure the backend server is running on the correct port.`
         );
+      }
+
+      // Bubble up clear rate limit message
+      if (error.message.includes('Rate limited (HTTP 429)')) {
+        throw error;
       }
 
       // Handle timeout errors

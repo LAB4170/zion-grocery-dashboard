@@ -33,10 +33,7 @@ function initializeSalesPagination() {
 
     salesPaginationManager.init();
 
-    // Initial fetch for first page
-    if (typeof salesPaginationManager.fetchAndUpdate === 'function') {
-      salesPaginationManager.fetchAndUpdate();
-    }
+    // Avoid immediate fetch here to prevent duplicate bursts; outer flows will call loadSalesData()
   }
 }
 
