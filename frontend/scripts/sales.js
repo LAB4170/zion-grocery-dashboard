@@ -17,7 +17,26 @@ function initializeSalesPagination() {
       'sales', // Data key
       renderSalesTable // Render function
     );
+
+    // Enable server-side pagination for scalability
+    salesPaginationManager.enableServerMode(async ({ page, perPage }) => {
+      try {
+        const resp = await window.apiClient.getSalesPaginated({ page, perPage, sortBy: 'created_at', sortDir: 'desc' });
+        const items = Array.isArray(resp?.data) ? resp.data : [];
+        const total = resp?.meta?.total ?? items.length;
+        return { items, total };
+      } catch (e) {
+        console.error('Failed to fetch sales page:', e);
+        return { items: [], total: 0 };
+      }
+    });
+
     salesPaginationManager.init();
+
+    // Initial fetch for first page
+    if (typeof salesPaginationManager.fetchAndUpdate === 'function') {
+      salesPaginationManager.fetchAndUpdate();
+    }
   }
 }
 
@@ -202,17 +221,22 @@ async function addSale(event) {
 
 async function loadSalesData(filteredSales = null) {
   try {
-    // If no filtered sales provided, fetch from database
-    if (!filteredSales) {
-      console.log('📥 Loading sales from database...');
-      const result = await window.dataManager.getData("sales");
-      
-      if (result && result.data) {
-        window.sales = result.data;
-        console.log('✅ Sales loaded from database:', window.sales.length, 'items');
-      } else {
-        window.sales = [];
-        console.warn('⚠️ No sales data received from database');
+    // Server-side pagination mode: fetch current page
+    if (salesPaginationManager && salesPaginationManager.serverMode && typeof salesPaginationManager.fetchAndUpdate === 'function' && !filteredSales) {
+      await salesPaginationManager.fetchAndUpdate();
+    } else {
+      // Legacy path or filtered view: fall back to full load
+      if (!filteredSales) {
+        console.log('📥 Loading sales from database...');
+        const result = await window.dataManager.getData("sales");
+        
+        if (result && result.data) {
+          window.sales = result.data;
+          console.log('✅ Sales loaded from database:', window.sales.length, 'items');
+        } else {
+          window.sales = [];
+          console.warn('⚠️ No sales data received from database');
+        }
       }
     }
 
@@ -225,7 +249,12 @@ async function loadSalesData(filteredSales = null) {
 
     // Update pagination data
     if (salesPaginationManager) {
-      salesPaginationManager.updateData(salesToShow);
+      if (salesPaginationManager.serverMode && !filteredSales) {
+        // In server mode, updateData should not reset items; controls show from fetcher
+        // But keep window.sales for other consumers (dashboard)
+      } else {
+        salesPaginationManager.updateData(salesToShow);
+      }
     } else {
       // Fallback to original rendering if pagination not available
       renderSalesTable(salesToShow);

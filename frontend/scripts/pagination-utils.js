@@ -21,6 +21,10 @@ class PaginationManager {
     this.availablePageSizes = [10, 25, 50, 100, 250, 500, 1000];
     this.filteredData = [];
     this.originalData = [];
+    // Server-side mode
+    this.serverMode = false;
+    this.serverFetcher = null; // async ({ page, perPage }) => ({ items, total })
+    this.totalItems = 0;
   }
 
   // Initialize pagination controls
@@ -99,9 +103,18 @@ class PaginationManager {
 
   // Update data and refresh pagination
   updateData(filteredData = null) {
-    // Get fresh data from global variables
-    this.originalData = window[this.dataKey] || [];
-    this.filteredData = filteredData || this.originalData;
+    if (!this.serverMode) {
+      // Client-side mode: use local arrays
+      this.originalData = window[this.dataKey] || [];
+      this.filteredData = filteredData || this.originalData;
+      // Reset totalItems to local length
+      this.totalItems = this.filteredData.length;
+    } else {
+      // Server mode: filteredData should be current page items; do not touch totalItems here
+      if (Array.isArray(filteredData)) {
+        this.filteredData = filteredData;
+      }
+    }
     
     // Reset to first page if data changed significantly
     const totalPages = this.getTotalPages();
@@ -113,12 +126,31 @@ class PaginationManager {
     this.updatePaginationControls();
   }
 
+  // Enable server-side pagination
+  enableServerMode(fetcher) {
+    // fetcher: async ({ page, perPage }) => { items, total }
+    this.serverMode = true;
+    this.serverFetcher = fetcher;
+  }
+
+  // Update from server response
+  updateFromServer(items, total) {
+    this.filteredData = Array.isArray(items) ? items : [];
+    this.totalItems = typeof total === 'number' ? total : this.totalItems;
+    this.render();
+    this.updatePaginationControls();
+  }
+
   // Change items per page
   changePageSize(newSize) {
     this.itemsPerPage = parseInt(newSize);
     this.currentPage = 1; // Reset to first page
-    this.render();
-    this.updatePaginationControls();
+    if (this.serverMode && typeof this.serverFetcher === 'function') {
+      this.fetchAndUpdate();
+    } else {
+      this.render();
+      this.updatePaginationControls();
+    }
     
     // Save preference to localStorage
     localStorage.setItem(`${this.dataKey}_pageSize`, this.itemsPerPage);
@@ -137,16 +169,24 @@ class PaginationManager {
       }
     }
     
-    this.render();
-    this.updatePaginationControls();
+    if (this.serverMode && typeof this.serverFetcher === 'function') {
+      this.fetchAndUpdate();
+    } else {
+      this.render();
+      this.updatePaginationControls();
+    }
   }
 
   // Navigate to previous page
   previousPage() {
     if (this.currentPage > 1) {
       this.currentPage--;
-      this.render();
-      this.updatePaginationControls();
+      if (this.serverMode && typeof this.serverFetcher === 'function') {
+        this.fetchAndUpdate();
+      } else {
+        this.render();
+        this.updatePaginationControls();
+      }
     }
   }
 
@@ -155,18 +195,29 @@ class PaginationManager {
     const totalPages = this.getTotalPages();
     if (this.currentPage < totalPages) {
       this.currentPage++;
-      this.render();
-      this.updatePaginationControls();
+      if (this.serverMode && typeof this.serverFetcher === 'function') {
+        this.fetchAndUpdate();
+      } else {
+        this.render();
+        this.updatePaginationControls();
+      }
     }
   }
 
   // Get total number of pages
   getTotalPages() {
-    return Math.ceil(this.filteredData.length / this.itemsPerPage);
+    if (this.serverMode) {
+      return Math.ceil((this.totalItems || 0) / this.itemsPerPage) || 1;
+    }
+    return Math.ceil(this.filteredData.length / this.itemsPerPage) || 1;
   }
 
   // Get current page data
   getCurrentPageData() {
+    if (this.serverMode) {
+      // Already current page items
+      return this.filteredData;
+    }
     const startIndex = (this.currentPage - 1) * this.itemsPerPage;
     const endIndex = startIndex + this.itemsPerPage;
     return this.filteredData.slice(startIndex, endIndex);
@@ -184,7 +235,7 @@ class PaginationManager {
     if (!container) return;
 
     const totalPages = this.getTotalPages();
-    const totalItems = this.filteredData.length;
+    const totalItems = this.serverMode ? (this.totalItems || 0) : this.filteredData.length;
     const startItem = totalItems === 0 ? 0 : (this.currentPage - 1) * this.itemsPerPage + 1;
     const endItem = Math.min(this.currentPage * this.itemsPerPage, totalItems);
 
@@ -262,6 +313,19 @@ class PaginationManager {
     const savedPageSize = localStorage.getItem(`${this.dataKey}_pageSize`);
     if (savedPageSize && this.availablePageSizes.includes(parseInt(savedPageSize))) {
       this.itemsPerPage = parseInt(savedPageSize);
+    }
+  }
+
+  // Helper to fetch current page from server and update
+  async fetchAndUpdate() {
+    if (!this.serverMode || typeof this.serverFetcher !== 'function') return;
+    try {
+      const { items, total } = await this.serverFetcher({ page: this.currentPage, perPage: this.itemsPerPage });
+      this.updateFromServer(items, total);
+    } catch (e) {
+      console.error(`Failed to fetch ${this.dataKey} page`, e);
+      // Fallback to empty
+      this.updateFromServer([], 0);
     }
   }
 }

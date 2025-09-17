@@ -1,7 +1,6 @@
 let paymentChart, weeklyChart;
-
-// Use global variables for consistency - no redeclaration
-// Access global variables directly from window object
+// Week navigation state (Monday-based)
+let selectedWeekMonday = null; // Date object representing the Monday of the selected week
 
 // Utility function for currency formatting
 function formatCurrency(amount) {
@@ -516,23 +515,31 @@ function createWeeklyChart() {
     weeklyChart.destroy();
   }
 
-  // Get current week's dates (Monday to Sunday)
+  // Determine Monday for the selected week (or current week if not set)
   const currentWeekDates = [];
   const salesByDay = [];
+  const base = selectedWeekMonday ? new Date(selectedWeekMonday) : (function() {
+    const t = new Date();
+    const dow = t.getDay();
+    const offset = dow === 0 ? -6 : 1 - dow;
+    const m = new Date(t);
+    m.setDate(t.getDate() + offset);
+    return m;
+  })();
 
-  // Get current date
-  const today = new Date();
+  // Update week label if present
+  const weekLabelEl = document.getElementById('weekLabel');
+  if (weekLabelEl) {
+    const sunday = new Date(base);
+    sunday.setDate(base.getDate() + 6);
+    const fmt = (d) => d.toISOString().split('T')[0];
+    weekLabelEl.textContent = `Week: ${fmt(base)} → ${fmt(sunday)}`;
+  }
 
-  // Find Monday of current week
-  const currentDay = today.getDay(); // 0 = Sunday, 1 = Monday, etc.
-  const mondayOffset = currentDay === 0 ? -6 : 1 - currentDay; // If Sunday, go back 6 days
-  const monday = new Date(today);
-  monday.setDate(today.getDate() + mondayOffset);
-
-  // Generate current week's dates (Monday to Sunday)
+  // Generate selected week's dates (Monday to Sunday)
   for (let i = 0; i < 7; i++) {
-    const date = new Date(monday);
-    date.setDate(monday.getDate() + i);
+    const date = new Date(base);
+    date.setDate(base.getDate() + i);
     const dateString = date.toISOString().split("T")[0];
 
     // Format as "Mon 12/08" (day and date)
@@ -647,12 +654,47 @@ function createWeeklyChart() {
   });
 }
 
+// Week navigation controls
+function prevWeek() {
+  // Move selectedWeekMonday back by 7 days
+  if (!selectedWeekMonday) {
+    // Initialize to current week Monday first
+    const init = new Date();
+    const dow = init.getDay();
+    const offset = dow === 0 ? -6 : 1 - dow;
+    selectedWeekMonday = new Date(init);
+    selectedWeekMonday.setDate(init.getDate() + offset);
+  }
+  selectedWeekMonday = new Date(selectedWeekMonday.getFullYear(), selectedWeekMonday.getMonth(), selectedWeekMonday.getDate() - 7);
+  createWeeklyChart();
+}
+
+function nextWeek() {
+  if (!selectedWeekMonday) {
+    const init = new Date();
+    const dow = init.getDay();
+    const offset = dow === 0 ? -6 : 1 - dow;
+    selectedWeekMonday = new Date(init);
+    selectedWeekMonday.setDate(init.getDate() + offset);
+  }
+  selectedWeekMonday = new Date(selectedWeekMonday.getFullYear(), selectedWeekMonday.getMonth(), selectedWeekMonday.getDate() + 7);
+  createWeeklyChart();
+}
+
+function thisWeek() {
+  selectedWeekMonday = null;
+  createWeeklyChart();
+}
+
 // Export functions for global access
 window.updateDashboardStats = updateDashboardStats;
 window.updateInventoryOverview = updateInventoryOverview;
 window.updateDetailedInventory = updateDetailedInventory;
 window.fetchDashboardData = fetchDashboardData;
 window.loadDashboardData = loadDashboardData;
+window.prevWeek = prevWeek;
+window.nextWeek = nextWeek;
+window.thisWeek = thisWeek;
 
 // Initialize dashboard when DOM is ready
 document.addEventListener("DOMContentLoaded", function () {
