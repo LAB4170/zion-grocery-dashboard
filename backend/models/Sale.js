@@ -268,36 +268,143 @@ class Sale {
     };
   }
 
-  // Update sale
+  // Update sale (transactional with stock and debt consistency)
   static async update(id, updateData) {
-    const db = getDatabase();
-    const dbData = {
-      product_id: updateData.productId,
-      product_name: updateData.productName,
-      quantity: updateData.quantity,
-      unit_price: updateData.unitPrice,
-      total: updateData.total,
-      payment_method: updateData.paymentMethod,
-      customer_name: updateData.customerName,
-      customer_phone: updateData.customerPhone,
-      status: updateData.status,
-      mpesa_code: updateData.mpesaCode,
-      notes: updateData.notes,
-      date: updateData.date,
-      updated_at: new Date().toISOString()
-    };
-    
-    // If caller provided a specific createdAt (ISO string), persist it
-    if (updateData.createdAt || updateData.created_at) {
-      dbData.created_at = updateData.createdAt || updateData.created_at;
+    const dbx = getDatabase();
+    const trx = await dbx.transaction();
+
+    try {
+      // Load existing sale
+      const existing = await trx('sales').where('id', id).first();
+      if (!existing) {
+        throw new Error('Sale not found');
+      }
+
+      // Normalize incoming values
+      const nextProductId = updateData.productId;
+      const nextQuantity = parseInt(updateData.quantity);
+      const nextUnitPrice = parseFloat(updateData.unitPrice);
+      const nextTotal = parseFloat(updateData.total);
+      const nextPaymentMethod = updateData.paymentMethod;
+      const nextStatus = updateData.status;
+      const nextDate = updateData.date;
+      const nextNotes = updateData.notes;
+      const nextMpesaCode = updateData.mpesaCode;
+      const nextCustomerName = updateData.customerName || null;
+      const nextCustomerPhone = updateData.customerPhone || null;
+      const providedCreatedAt = updateData.createdAt || updateData.created_at || null;
+
+      // Compute stock adjustments if product or quantity changed
+      const productChanged = nextProductId && nextProductId !== existing.product_id;
+      const quantityChanged = typeof nextQuantity === 'number' && nextQuantity !== existing.quantity;
+
+      if (productChanged || quantityChanged) {
+        // If product changed, restore stock to old product fully
+        if (productChanged) {
+          await trx('products')
+            .where('id', existing.product_id)
+            .increment('stock_quantity', existing.quantity)
+            .update('updated_at', new Date().toISOString());
+
+          // Deduct from new product with availability check
+          const newProduct = await trx('products').where('id', nextProductId).first();
+          if (!newProduct) throw new Error('New product not found');
+          if (newProduct.stock_quantity < nextQuantity) throw new Error('Insufficient stock for new product');
+          await trx('products')
+            .where('id', nextProductId)
+            .decrement('stock_quantity', nextQuantity)
+            .update('updated_at', new Date().toISOString());
+        } else if (quantityChanged) {
+          // Same product, adjust by difference
+          const diff = nextQuantity - existing.quantity; // positive means need to deduct more
+          if (diff !== 0) {
+            if (diff > 0) {
+              // Need more stock
+              const product = await trx('products').where('id', existing.product_id).first();
+              if (!product) throw new Error('Product not found');
+              if (product.stock_quantity < diff) throw new Error('Insufficient stock for quantity increase');
+              await trx('products')
+                .where('id', existing.product_id)
+                .decrement('stock_quantity', diff)
+                .update('updated_at', new Date().toISOString());
+            } else {
+              // Return stock
+              await trx('products')
+                .where('id', existing.product_id)
+                .increment('stock_quantity', Math.abs(diff))
+                .update('updated_at', new Date().toISOString());
+            }
+          }
+        }
+      }
+
+      // Prepare sale DB data
+      const dbData = {
+        product_id: nextProductId ?? existing.product_id,
+        product_name: updateData.productName ?? existing.product_name,
+        quantity: nextQuantity ?? existing.quantity,
+        unit_price: isNaN(nextUnitPrice) ? existing.unit_price : nextUnitPrice,
+        total: isNaN(nextTotal) ? existing.total : nextTotal,
+        payment_method: nextPaymentMethod ?? existing.payment_method,
+        customer_name: nextCustomerName,
+        customer_phone: nextCustomerPhone,
+        status: nextStatus ?? existing.status,
+        mpesa_code: nextMpesaCode ?? existing.mpesa_code,
+        notes: nextNotes ?? existing.notes,
+        date: nextDate ?? existing.date,
+        updated_at: new Date().toISOString()
+      };
+
+      if (providedCreatedAt) {
+        dbData.created_at = providedCreatedAt;
+      }
+
+      // Update sale
+      const [updatedSale] = await trx('sales')
+        .where('id', id)
+        .update(dbData)
+        .returning('*');
+
+      // Keep linked debt consistent
+      const hadDebt = await trx('debts').where('sale_id', id).first();
+      const isDebtNow = (dbData.payment_method === 'debt');
+
+      if (hadDebt && !isDebtNow) {
+        // Payment changed from debt to non-debt → remove debt
+        await trx('debts').where('sale_id', id).del();
+      } else if (!hadDebt && isDebtNow) {
+        // Payment changed to debt → create debt
+        await trx('debts').insert({
+          id: uuidv4(),
+          sale_id: id,
+          customer_name: dbData.customer_name,
+          customer_phone: dbData.customer_phone,
+          amount: dbData.total,
+          status: 'pending',
+          notes: `Sale: ${dbData.product_name} (${dbData.quantity} units)`,
+          created_by: updatedSale.created_by || null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        });
+      } else if (hadDebt && isDebtNow) {
+        // Still a debt sale → update basic fields and amount
+        await trx('debts')
+          .where('sale_id', id)
+          .update({
+            customer_name: dbData.customer_name,
+            customer_phone: dbData.customer_phone,
+            amount: dbData.total,
+            notes: `Sale: ${dbData.product_name} (${dbData.quantity} units)`,
+            updated_at: new Date().toISOString()
+          });
+      }
+
+      await trx.commit();
+      return updatedSale;
+    } catch (error) {
+      await trx.rollback();
+      throw error;
     }
-    
-    const [updatedSale] = await db('sales')
-      .where('id', id)
-      .update(dbData)
-      .returning('*');
-    
-    return updatedSale;
   }
 
   // Delete sale

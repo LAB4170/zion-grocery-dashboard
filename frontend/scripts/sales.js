@@ -65,49 +65,21 @@ async function addSale(event) {
         return;
       }
 
-      // If product changed, restore stock to old product and deduct from new
+      // Validate new product stock only for user feedback (backend will enforce)
       if (productId !== existingSale.productId) {
-        // Restore stock to old product
-        const oldProduct = (window.products || []).find((p) => p.id === existingSale.productId);
-        if (oldProduct) {
-          oldProduct.stockQuantity += existingSale.quantity;
-          const updatedOld = await window.dataManager.updateData("products", oldProduct.id, oldProduct);
-          const oldIdx = window.products.findIndex(p => p.id === oldProduct.id);
-          if (oldIdx !== -1) window.products[oldIdx] = updatedOld.data || updatedOld;
-        }
-
-        // Validate new product stock
         if (quantity > product.stockQuantity) {
           showNotification("Insufficient stock available for the new product", "error");
           return;
         }
-
-        // Deduct from new product stock
-        product.stockQuantity -= quantity;
-        const updatedNew = await window.dataManager.updateData("products", product.id, product);
-        const newIdx = window.products.findIndex(p => p.id === product.id);
-        if (newIdx !== -1) window.products[newIdx] = updatedNew.data || updatedNew;
       } else {
-        // Same product, compute stock difference
         const quantityDifference = quantity - existingSale.quantity;
-        if (quantityDifference > 0) {
-          if (quantityDifference > product.stockQuantity) {
-            showNotification(
-              "Insufficient stock available for this update",
-              "error"
-            );
-            return;
-          }
-          product.stockQuantity -= quantityDifference;
-          await window.dataManager.updateData("products", product.id, product);
-        } else if (quantityDifference < 0) {
-          // Returning stock when quantity reduced
-          product.stockQuantity += Math.abs(quantityDifference);
-          await window.dataManager.updateData("products", product.id, product);
+        if (quantityDifference > 0 && quantityDifference > product.stockQuantity) {
+          showNotification("Insufficient stock available for this update", "error");
+          return;
         }
       }
 
-      // Update sale record
+      // Update sale record (backend will adjust stock/debt transactionally)
       existingSale.productId = productId;
       existingSale.productName = product.name;
       existingSale.quantity = quantity;
@@ -122,6 +94,15 @@ async function addSale(event) {
       existingSale.createdAt = new Date(saleDate + 'T' + new Date().toTimeString().split(' ')[0]).toISOString();
 
       await window.dataManager.updateData("sales", saleId, existingSale);
+
+      // Refresh products from backend to reflect updated stock
+      try {
+        const refreshed = await window.dataManager.getData("products");
+        window.products = (refreshed && refreshed.data) ? refreshed.data : (window.products || []);
+      } catch (e) {
+        console.warn('Product refresh failed after sale update:', e.message);
+      }
+
       showNotification("Sale updated successfully!");
 
       // Refresh dashboard charts if currently viewing dashboard
@@ -147,7 +128,6 @@ async function addSale(event) {
       const createdAt = new Date(saleDate + 'T' + new Date().toTimeString().split(' ')[0]).toISOString();
 
       const sale = {
-        id: window.utils.generateId(), // Generate UUID for primary key
         productId: product.id,
         productName: product.name,
         quantity: quantity,
@@ -339,21 +319,16 @@ async function deleteSale(saleId) {
     return;
   }
 
-  const sales = window.sales || [];
-  const sale = sales.find((s) => s.id === saleId);
-  if (sale) {
-    // Restore stock to the product
-    const product = (window.products || []).find(
-      (p) => p.id === sale.productId
-    );
-    if (product) {
-      product.stockQuantity += sale.quantity;
-      await window.dataManager.updateData("products", product.id, product);
-    }
-  }
-
-  window.sales = sales.filter((s) => s.id !== saleId);
+  window.sales = (window.sales || []).filter((s) => s.id !== saleId);
   await window.dataManager.deleteData("sales", saleId);
+
+  // Refresh products to reflect backend stock restoration
+  try {
+    const refreshed = await window.dataManager.getData("products");
+    window.products = (refreshed && refreshed.data) ? refreshed.data : (window.products || []);
+  } catch (e) {
+    console.warn('Product refresh failed after sale delete:', e.message);
+  }
 
   loadSalesData();
   showNotification("Sale deleted successfully!");
