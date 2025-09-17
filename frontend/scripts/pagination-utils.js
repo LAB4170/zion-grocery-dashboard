@@ -18,7 +18,7 @@ class PaginationManager {
     this.renderFunction = renderFunction;
     this.currentPage = 1;
     this.itemsPerPage = 10; // Default
-    this.availablePageSizes = [10, 25, 50, 75, 100];
+    this.availablePageSizes = [10, 25, 50, 100, 250, 500, 1000];
     this.filteredData = [];
     this.originalData = [];
   }

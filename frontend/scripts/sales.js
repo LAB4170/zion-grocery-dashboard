@@ -65,20 +65,47 @@ async function addSale(event) {
         return;
       }
 
-      // Calculate stock difference
-      const quantityDifference = quantity - existingSale.quantity;
+      // If product changed, restore stock to old product and deduct from new
+      if (productId !== existingSale.productId) {
+        // Restore stock to old product
+        const oldProduct = (window.products || []).find((p) => p.id === existingSale.productId);
+        if (oldProduct) {
+          oldProduct.stockQuantity += existingSale.quantity;
+          const updatedOld = await window.dataManager.updateData("products", oldProduct.id, oldProduct);
+          const oldIdx = window.products.findIndex(p => p.id === oldProduct.id);
+          if (oldIdx !== -1) window.products[oldIdx] = updatedOld.data || updatedOld;
+        }
 
-      if (quantityDifference > product.stockQuantity) {
-        showNotification(
-          "Insufficient stock available for this update",
-          "error"
-        );
-        return;
+        // Validate new product stock
+        if (quantity > product.stockQuantity) {
+          showNotification("Insufficient stock available for the new product", "error");
+          return;
+        }
+
+        // Deduct from new product stock
+        product.stockQuantity -= quantity;
+        const updatedNew = await window.dataManager.updateData("products", product.id, product);
+        const newIdx = window.products.findIndex(p => p.id === product.id);
+        if (newIdx !== -1) window.products[newIdx] = updatedNew.data || updatedNew;
+      } else {
+        // Same product, compute stock difference
+        const quantityDifference = quantity - existingSale.quantity;
+        if (quantityDifference > 0) {
+          if (quantityDifference > product.stockQuantity) {
+            showNotification(
+              "Insufficient stock available for this update",
+              "error"
+            );
+            return;
+          }
+          product.stockQuantity -= quantityDifference;
+          await window.dataManager.updateData("products", product.id, product);
+        } else if (quantityDifference < 0) {
+          // Returning stock when quantity reduced
+          product.stockQuantity += Math.abs(quantityDifference);
+          await window.dataManager.updateData("products", product.id, product);
+        }
       }
-
-      // Update product stock
-      product.stockQuantity -= quantityDifference;
-      await window.dataManager.updateData("products", product.id, product);
 
       // Update sale record
       existingSale.productId = productId;
@@ -87,10 +114,11 @@ async function addSale(event) {
       existingSale.unitPrice = product.price;
       existingSale.total = product.price * quantity;
       existingSale.paymentMethod = paymentMethod;
-      existingSale.customerName = paymentMethod === "cash" ? "" : customerName;
-      existingSale.customerPhone = paymentMethod === "cash" ? "" : customerPhone;
+      existingSale.customerName = paymentMethod === "debt" ? customerName : null;
+      existingSale.customerPhone = paymentMethod === "debt" ? customerPhone : null;
       existingSale.status = paymentMethod === "debt" ? "pending" : "completed";
       existingSale.date = saleDate;
+      // Keep createdAt aligned with the chosen sale date (preserve time component if it exists)
       existingSale.createdAt = new Date(saleDate + 'T' + new Date().toTimeString().split(' ')[0]).toISOString();
 
       await window.dataManager.updateData("sales", saleId, existingSale);
@@ -116,23 +144,24 @@ async function addSale(event) {
       }
 
       const total = product.price * quantity;
+      const createdAt = new Date(saleDate + 'T' + new Date().toTimeString().split(' ')[0]).toISOString();
 
       const sale = {
         id: window.utils.generateId(), // Generate UUID for primary key
         productId: product.id,
         productName: product.name,
         quantity: quantity,
-        unitPrice: parseFloat(product.price),  // Convert to number, not string
+        unitPrice: parseFloat(product.price),
         total: parseFloat(product.price) * quantity,
         paymentMethod: paymentMethod,
-        customerName: (paymentMethod === "debt") ? customerName : null,  // Use null instead of empty string
-        customerPhone: (paymentMethod === "debt") ? customerPhone : null, // Use null instead of empty string
+        customerName: (paymentMethod === "debt") ? customerName : null,
+        customerPhone: (paymentMethod === "debt") ? customerPhone : null,
         status: paymentMethod === "debt" ? "pending" : "completed",
-        mpesaCode: null, // Always null - no M-Pesa code tracking
+        mpesaCode: null,
         notes: document.getElementById('saleNotes')?.value || null,
-        date: saleDate,  // Add date field for dashboard compatibility
-        createdBy: null, // FIX: Use null instead of 'system' string to avoid UUID error
-        createdAt: new Date().toISOString()  // Single timestamp field only
+        date: saleDate,
+        createdBy: null,
+        createdAt: createdAt
       };
 
       // DATABASE-FIRST OPERATION: Send to database first, then update cache

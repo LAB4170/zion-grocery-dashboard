@@ -72,6 +72,47 @@ class Product {
     }));
   }
 
+  // New: server-side pagination with filters and sorting
+  static async findPaginated({ category, search } = {}, { page = 1, perPage = 25, sortBy = 'name', sortDir = 'asc' } = {}) {
+    const dbx = getDatabase();
+    let base = dbx('products');
+
+    if (category) base = base.where('category', category);
+    if (search) base = base.where('name', 'ilike', `%${search}%`);
+
+    const [{ count }] = await base.clone().count('* as count');
+    const total = parseInt(count) || 0;
+
+    const safePerPage = Math.min(Math.max(parseInt(perPage) || 25, 1), 1000);
+    const safePage = Math.max(parseInt(page) || 1, 1);
+    const offset = (safePage - 1) * safePerPage;
+
+    const rows = await base
+      .clone()
+      .select('*')
+      .orderBy(sortBy, sortDir.toLowerCase() === 'desc' ? 'desc' : 'asc')
+      .limit(safePerPage)
+      .offset(offset);
+
+    const items = rows.map(product => ({
+      id: product.id,
+      name: product.name,
+      category: product.category,
+      price: product.price,
+      stockQuantity: product.stock_quantity,
+      createdAt: product.created_at,
+      updatedAt: product.updated_at
+    }));
+
+    return {
+      items,
+      total,
+      page: safePage,
+      perPage: safePerPage,
+      totalPages: Math.max(Math.ceil(total / safePerPage), 1)
+    };
+  }
+
   // Get product by ID
   static async findById(id) {
     const db = getDatabase();

@@ -3,7 +3,7 @@ const router = express.Router();
 const Sale = require('../models/Sale');
 const { catchAsync, AppError } = require('../middleware/errorHandler');
 
-// GET /api/sales - Get all sales
+// GET /api/sales - Get all sales (supports pagination and filters)
 router.get('/', catchAsync(async (req, res) => {
   const filters = {
     date_from: req.query.date_from,
@@ -13,6 +13,35 @@ router.get('/', catchAsync(async (req, res) => {
     customer_name: req.query.customer_name
   };
 
+  const page = req.query.page ? parseInt(req.query.page) : null;
+  const perPage = req.query.perPage ? parseInt(req.query.perPage) : (req.query.per_page ? parseInt(req.query.per_page) : null);
+  const sortBy = req.query.sortBy || req.query.sort_by || 'created_at';
+  const sortDir = req.query.sortDir || req.query.sort_dir || 'desc';
+
+  // If page/perPage provided, return paginated response
+  if (page || perPage) {
+    const result = await Sale.findPaginated(filters, {
+      page: page || 1,
+      perPage: perPage || 25,
+      sortBy,
+      sortDir
+    });
+
+    return res.json({
+      success: true,
+      data: result.items,
+      meta: {
+        total: result.total,
+        page: result.page,
+        perPage: result.perPage,
+        totalPages: result.totalPages,
+        sortBy,
+        sortDir
+      }
+    });
+  }
+
+  // Backward compatible: return full list if no pagination requested
   const sales = await Sale.findAll(filters);
   
   res.json({

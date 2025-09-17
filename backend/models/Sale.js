@@ -115,7 +115,9 @@ class Sale {
     }
     
     if (filters.date_to) {
-      query = query.where('created_at', '<=', filters.date_to);
+      // Make date_to inclusive for whole day if only a YYYY-MM-DD is provided
+      const to = filters.date_to.length === 10 ? filters.date_to + 'T23:59:59.999Z' : filters.date_to;
+      query = query.where('created_at', '<=', to);
     }
     
     if (filters.payment_method) {
@@ -147,6 +149,78 @@ class Sale {
       createdAt: sale.created_at,
       updatedAt: sale.updated_at
     }));
+  }
+
+  // New: Server-side pagination with filters and sorting
+  static async findPaginated({
+    date_from,
+    date_to,
+    payment_method,
+    status,
+    customer_name
+  } = {}, {
+    page = 1,
+    perPage = 25,
+    sortBy = 'created_at',
+    sortDir = 'desc'
+  } = {}) {
+    const dbx = getDatabase();
+
+    // Base query with filters
+    let base = dbx('sales');
+
+    if (date_from) base = base.where('created_at', '>=', date_from);
+    if (date_to) {
+      const to = date_to.length === 10 ? date_to + 'T23:59:59.999Z' : date_to;
+      base = base.where('created_at', '<=', to);
+    }
+    if (payment_method) base = base.where('payment_method', payment_method);
+    if (status) base = base.where('status', status);
+    if (customer_name) base = base.where('customer_name', 'ilike', `%${customer_name}%`);
+
+    // Total count (before pagination)
+    const [{ count }] = await base.clone().count('* as count');
+    const total = parseInt(count) || 0;
+
+    // Clamp perPage and page
+    const safePerPage = Math.min(Math.max(parseInt(perPage) || 25, 1), 1000);
+    const safePage = Math.max(parseInt(page) || 1, 1);
+    const offset = (safePage - 1) * safePerPage;
+
+    // Fetch page items
+    const rows = await base
+      .clone()
+      .select('*')
+      .orderBy(sortBy, sortDir.toLowerCase() === 'asc' ? 'asc' : 'desc')
+      .limit(safePerPage)
+      .offset(offset);
+
+    const items = rows.map(sale => ({
+      id: sale.id,
+      productId: sale.product_id,
+      productName: sale.product_name,
+      quantity: sale.quantity,
+      unitPrice: sale.unit_price,
+      total: sale.total,
+      paymentMethod: sale.payment_method,
+      customerName: sale.customer_name,
+      customerPhone: sale.customer_phone,
+      status: sale.status,
+      mpesaCode: sale.mpesa_code,
+      notes: sale.notes,
+      date: sale.date || (sale.created_at ? sale.created_at.split('T')[0] : new Date().toISOString().split('T')[0]),
+      createdBy: sale.created_by,
+      createdAt: sale.created_at,
+      updatedAt: sale.updated_at
+    }));
+
+    return {
+      items,
+      total,
+      page: safePage,
+      perPage: safePerPage,
+      totalPages: Math.max(Math.ceil(total / safePerPage), 1)
+    };
   }
 
   // Get sale by ID

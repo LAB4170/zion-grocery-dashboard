@@ -3,13 +3,40 @@ const router = express.Router();
 const Product = require('../models/Product');
 const { catchAsync, AppError } = require('../middleware/errorHandler');
 
-// GET /api/products - Get all products
+// GET /api/products - Get all products (supports pagination and filters)
 router.get('/', catchAsync(async (req, res) => {
   const filters = {
     category: req.query.category,
     low_stock: req.query.low_stock === 'true',
     search: req.query.search
   };
+
+  const page = req.query.page ? parseInt(req.query.page) : null;
+  const perPage = req.query.perPage ? parseInt(req.query.perPage) : (req.query.per_page ? parseInt(req.query.per_page) : null);
+  const sortBy = req.query.sortBy || req.query.sort_by || 'name';
+  const sortDir = req.query.sortDir || req.query.sort_dir || 'asc';
+
+  if (page || perPage) {
+    const result = await Product.findPaginated({ category: filters.category, search: filters.search }, {
+      page: page || 1,
+      perPage: perPage || 25,
+      sortBy,
+      sortDir
+    });
+
+    return res.json({
+      success: true,
+      data: result.items,
+      meta: {
+        total: result.total,
+        page: result.page,
+        perPage: result.perPage,
+        totalPages: result.totalPages,
+        sortBy,
+        sortDir
+      }
+    });
+  }
 
   const products = await Product.findAll(filters);
   

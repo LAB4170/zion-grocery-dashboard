@@ -9,6 +9,14 @@ class ApiClient {
     this.setupConnectionMonitoring();
   }
 
+  // Helper: build query string from params
+  buildQuery(params = {}) {
+    const entries = Object.entries(params)
+      .filter(([, v]) => v !== undefined && v !== null && v !== "")
+      .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`);
+    return entries.length ? `?${entries.join("&")}` : "";
+  }
+
   async initialize() {
     // Wait for config to be ready
     await this.waitForConfig();
@@ -234,6 +242,19 @@ class ApiClient {
     return this.makeRequest("/products");
   }
 
+  // New: products with pagination and filters
+  async getProductsPaginated({
+    page = 1,
+    perPage = 25,
+    sortBy = "name",
+    sortDir = "asc",
+    category,
+    search
+  } = {}) {
+    const qs = this.buildQuery({ page, perPage, sortBy, sortDir, category, search });
+    return this.makeRequest(`/products${qs}`);
+  }
+
   async createProduct(product) {
     return this.makeRequest("/products", {
       method: "POST",
@@ -257,6 +278,22 @@ class ApiClient {
   // Sales API
   async getSales() {
     return this.makeRequest("/sales");
+  }
+
+  // New: sales with pagination and filters
+  async getSalesPaginated({
+    page = 1,
+    perPage = 25,
+    sortBy = "created_at",
+    sortDir = "desc",
+    date_from,
+    date_to,
+    payment_method,
+    status,
+    customer_name
+  } = {}) {
+    const qs = this.buildQuery({ page, perPage, sortBy, sortDir, date_from, date_to, payment_method, status, customer_name });
+    return this.makeRequest(`/sales${qs}`);
   }
 
   async createSale(sale) {
