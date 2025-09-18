@@ -138,9 +138,18 @@ class Product {
       name: updateData.name,
       category: updateData.category,
       price: parseFloat(updateData.price),
-      stock_quantity: parseFloat(updateData.stockQuantity || updateData.stock_quantity),
       updated_at: new Date().toISOString()
     };
+
+    // Allow stock updates when explicitly provided; validate non-negative number
+    if (updateData.hasOwnProperty('stockQuantity') || updateData.hasOwnProperty('stock_quantity')) {
+      const rawStock = updateData.stockQuantity ?? updateData.stock_quantity;
+      const parsed = parseFloat(rawStock);
+      if (isNaN(parsed) || parsed < 0) {
+        throw new Error('Invalid stock quantity. It must be a non-negative number.');
+      }
+      dbData.stock_quantity = parsed;
+    }
     
     const [updatedProduct] = await db('products')
       .where('id', id)

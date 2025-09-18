@@ -515,143 +515,114 @@ function createWeeklyChart() {
     weeklyChart.destroy();
   }
 
-  // Determine Monday for the selected week (or current week if not set)
-  const currentWeekDates = [];
-  const salesByDay = [];
-  const base = selectedWeekMonday ? new Date(selectedWeekMonday) : (function() {
-    const t = new Date();
-    const dow = t.getDay();
-    const offset = dow === 0 ? -6 : 1 - dow;
-    const m = new Date(t);
-    m.setDate(t.getDate() + offset);
-    return m;
+  (async () => {
+    try {
+      // Fetch weekly data from backend (Mon–Sun, zero-filled)
+      const resp = await window.apiClient.getSalesWeekly();
+      const weekly = resp && resp.data ? resp.data : null;
+      if (!weekly || !Array.isArray(weekly.days)) {
+        console.warn('Weekly sales endpoint returned unexpected payload:', resp);
+        return;
+      }
+
+      // Update week label if present
+      const weekLabelEl = document.getElementById('weekLabel');
+      if (weekLabelEl && weekly.week) {
+        weekLabelEl.textContent = `Week: ${weekly.week.start} → ${weekly.week.end}`;
+      }
+
+      // Build labels like "Mon 12/08" and data from server days
+      const currentWeekDates = weekly.days.map(d => {
+        const dateObj = new Date(d.date + 'T00:00:00');
+        const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'short' });
+        const dateFormat = dateObj.toLocaleDateString('en-US', { day: '2-digit', month: '2-digit' });
+        return `${dayName} ${dateFormat}`;
+      });
+
+      const salesByDay = weekly.days.map(d => parseFloat(d.total_revenue) || 0);
+
+      // Find maximum sales value to set appropriate scale
+      const maxSales = Math.max(...salesByDay, 0);
+      const yAxisMax = Math.ceil(maxSales / 100) * 100 + 100; // Round up to next 100
+
+      // Prevent multiple chart instances overlapping
+      if (typeof weeklyChart !== 'undefined' && weeklyChart) {
+        try { weeklyChart.destroy(); } catch (e) { console.warn('Chart destroy failed:', e); }
+      }
+
+      weeklyChart = new Chart(ctx, {
+        type: "line",
+        data: {
+          labels: currentWeekDates,
+          datasets: [
+            {
+              label: "Daily Sales (KSh)",
+              data: salesByDay,
+              borderColor: "#4CAF50",
+              backgroundColor: "rgba(76, 175, 80, 0.1)",
+              tension: 0.4,
+              fill: true,
+              pointBackgroundColor: "#4CAF50",
+              pointBorderColor: "#ffffff",
+              pointBorderWidth: 2,
+              pointRadius: 5,
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              beginAtZero: true,
+              max: yAxisMax,
+              ticks: {
+                stepSize: 100,
+                color: "white",
+                callback: function (value) {
+                  return "KSh " + value.toLocaleString();
+                },
+              },
+              grid: {
+                color: "rgba(255, 255, 255, 0.1)",
+              },
+            },
+            x: {
+              ticks: {
+                color: "white",
+                maxRotation: 45,
+                minRotation: 45,
+              },
+              grid: {
+                color: "rgba(255, 255, 255, 0.1)",
+              },
+            },
+          },
+          plugins: {
+            legend: {
+              labels: {
+                color: "white",
+              },
+            },
+            tooltip: {
+              callbacks: {
+                label: function (context) {
+                  return "Sales: KSh " + context.parsed.y.toLocaleString();
+                },
+              },
+            },
+          },
+          elements: {
+            line: {
+              borderWidth: 3,
+            },
+          },
+        },
+      });
+    } catch (e) {
+      console.error('Failed to create weekly chart:', e);
+    }
   })();
-
-  // Update week label if present
-  const weekLabelEl = document.getElementById('weekLabel');
-  if (weekLabelEl) {
-    const sunday = new Date(base);
-    sunday.setDate(base.getDate() + 6);
-    const fmt = (d) => d.toISOString().split('T')[0];
-    weekLabelEl.textContent = `Week: ${fmt(base)} → ${fmt(sunday)}`;
-  }
-
-  // Generate selected week's dates (Monday to Sunday)
-  for (let i = 0; i < 7; i++) {
-    const date = new Date(base);
-    date.setDate(base.getDate() + i);
-    const dateString = date.toISOString().split("T")[0];
-
-    // Format as "Mon 12/08" (day and date)
-    const dayName = date.toLocaleDateString("en-US", { weekday: "short" });
-    const dateFormat = date.toLocaleDateString("en-US", {
-      day: "2-digit",
-      month: "2-digit",
-    });
-    currentWeekDates.push(`${dayName} ${dateFormat}`);
-
-    // Calculate daily sales for this date - FIX: Use consistent global variable access
-    const sales = window.sales || [];
-    const dailySales = sales
-      .filter((s) => {
-        // Try multiple date fields with better fallback
-        const dateValue = s.date || s.createdAt || s.created_at;
-        if (!dateValue) {
-          console.warn("Skipping sale with no date field:", s);
-          return false;
-        }
-        
-        const saleDate = new Date(dateValue);
-        // Check if the date is valid before using toISOString()
-        if (isNaN(saleDate.getTime())) {
-          console.warn("Skipping sale with invalid date:", dateValue, s);
-          return false;
-        }
-        return saleDate.toISOString().split("T")[0] === dateString;
-      })
-      .reduce((sum, sale) => sum + (sale.total || 0), 0);
-
-    salesByDay.push(dailySales);
-  }
-
-  // Find maximum sales value to set appropriate scale
-  const maxSales = Math.max(...salesByDay, 0);
-  const yAxisMax = Math.ceil(maxSales / 100) * 100 + 100; // Round up to next 100
-
-  // Prevent multiple chart instances overlapping
-  if (typeof weeklyChart !== 'undefined' && weeklyChart) {
-    try { weeklyChart.destroy(); } catch (e) { console.warn('Chart destroy failed:', e); }
-  }
-
-  weeklyChart = new Chart(ctx, {
-    type: "line",
-    data: {
-      labels: currentWeekDates,
-      datasets: [
-        {
-          label: "Daily Sales (KSh)",
-          data: salesByDay,
-          borderColor: "#4CAF50",
-          backgroundColor: "rgba(76, 175, 80, 0.1)",
-          tension: 0.4,
-          fill: true,
-          pointBackgroundColor: "#4CAF50",
-          pointBorderColor: "#ffffff",
-          pointBorderWidth: 2,
-          pointRadius: 5,
-        },
-      ],
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      scales: {
-        y: {
-          beginAtZero: true,
-          max: yAxisMax,
-          ticks: {
-            stepSize: 100,
-            color: "white",
-            callback: function (value) {
-              return "KSh " + value.toLocaleString();
-            },
-          },
-          grid: {
-            color: "rgba(255, 255, 255, 0.1)",
-          },
-        },
-        x: {
-          ticks: {
-            color: "white",
-            maxRotation: 45,
-            minRotation: 45,
-          },
-          grid: {
-            color: "rgba(255, 255, 255, 0.1)",
-          },
-        },
-      },
-      plugins: {
-        legend: {
-          labels: {
-            color: "white",
-          },
-        },
-        tooltip: {
-          callbacks: {
-            label: function (context) {
-              return "Sales: KSh " + context.parsed.y.toLocaleString();
-            },
-          },
-        },
-      },
-      elements: {
-        line: {
-          borderWidth: 3,
-        },
-      },
-    },
-  });
 }
 
 // Week navigation controls

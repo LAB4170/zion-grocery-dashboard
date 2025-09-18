@@ -612,6 +612,63 @@ class Sale {
     }));
   }
 
+  // Get weekly sales for the current week (Monday–Sunday), zero-filled
+  static async getWeeklySales() {
+    const dbx = getDatabase();
+
+    // Compute Monday of current week based on local time
+    const today = new Date();
+    const day = today.getDay(); // 0=Sun,1=Mon,...
+    // Calculate offset to Monday (1). If Sunday (0), we go back 6 days
+    const diffToMonday = (day === 0) ? -6 : (1 - day);
+    const monday = new Date(today);
+    monday.setDate(today.getDate() + diffToMonday);
+    monday.setHours(0, 0, 0, 0);
+
+    // Build array of dates Mon..Sun in YYYY-MM-DD
+    const days = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(monday);
+      d.setDate(monday.getDate() + i);
+      return d.toISOString().split('T')[0];
+    });
+
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    sunday.setHours(23, 59, 59, 999);
+
+    // Query aggregated sums within the week range by sales.date
+    const rows = await dbx('sales')
+      .where('date', '>=', days[0])
+      .andWhere('date', '<=', days[6])
+      .select('date')
+      .sum({ total_revenue: 'total' })
+      .count({ total_sales: '*' })
+      .groupBy('date');
+
+    const byDate = new Map();
+    for (const r of rows) {
+      byDate.set(r.date, {
+        total_sales: parseInt(r.total_sales) || 0,
+        total_revenue: parseFloat(r.total_revenue) || 0
+      });
+    }
+
+    // Zero-fill and order Mon..Sun
+    const result = days.map(d => ({
+      date: d,
+      total_sales: byDate.get(d)?.total_sales || 0,
+      total_revenue: byDate.get(d)?.total_revenue || 0
+    }));
+
+    return {
+      week: {
+        start: days[0],
+        end: days[6]
+      },
+      days: result
+    };
+  }
+
   // Get top products by quantity sold
   static async getTopProducts(limit = 10) {
     const dbx = getDatabase();

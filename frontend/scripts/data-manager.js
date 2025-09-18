@@ -189,7 +189,7 @@ class DataManager {
     }
   }
 
-  async updateData(table, id, data) {
+  async updateData(table, id, data, options = {}) {
     try {
       if (!window.apiClient) {
         throw new Error("API Client not available");
@@ -198,6 +198,17 @@ class DataManager {
       // Transform frontend data to backend format
       const backendData = this.transformToBackend(table, data);
       console.log(`📝 Updating ${table} with ID ${id}:`, backendData);
+
+      // SAFETY: Prevent unintended product stock updates from non-product flows
+      if (table === 'products') {
+        const allowStockUpdate = options && options.allowStockUpdate === true;
+        const hasStockField = Object.prototype.hasOwnProperty.call(backendData, 'stockQuantity') || Object.prototype.hasOwnProperty.call(backendData, 'stock_quantity');
+        if (hasStockField && !allowStockUpdate) {
+          console.warn('⚠️ Stripping stockQuantity from product update (no allowStockUpdate flag). Caller stack:', new Error().stack);
+          delete backendData.stockQuantity;
+          delete backendData.stock_quantity;
+        }
+      }
 
       // Use the specific method for each table type
       let result;

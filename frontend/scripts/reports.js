@@ -1,10 +1,38 @@
 // Reports generation and management - FIXED VERSION
 
-function generateDailyReport() {
-  const today = new Date().toISOString().split("T")[0];
-  const sales = window.sales || [];
-  const expenses = window.expenses || [];
-  const debts = window.debts || [];
+// Use Nairobi timezone (EAT) for "today" to match how sales dates are stored/displayed
+function getNairobiDateString(d = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Africa/Nairobi',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(d);
+  const map = Object.fromEntries(parts.map(p => [p.type, p.value]));
+  return `${map.year}-${map.month}-${map.day}`;
+}
+
+async function generateDailyReport() {
+  // Ensure backend data is loaded before generating
+  try {
+    if (window.dataManager) {
+      const [salesRes, expensesRes, debtsRes] = await Promise.all([
+        window.dataManager.getData("sales"),
+        window.dataManager.getData("expenses"),
+        window.dataManager.getData("debts")
+      ]);
+      window.sales = Array.isArray(salesRes?.data) ? salesRes.data : (window.sales || []);
+      window.expenses = Array.isArray(expensesRes?.data) ? expensesRes.data : (window.expenses || []);
+      window.debts = Array.isArray(debtsRes?.data) ? debtsRes.data : (window.debts || []);
+    }
+  } catch (e) {
+    console.warn('Daily report: failed to refresh data from backend:', e?.message || e);
+  }
+
+  const today = getNairobiDateString();
+  const sales = Array.isArray(window.sales) ? window.sales : [];
+  const expenses = Array.isArray(window.expenses) ? window.expenses : [];
+  const debts = Array.isArray(window.debts) ? window.debts : [];
 
   const todaySales = sales.filter((s) => s.date === today);
   const todayExpenses = expenses.filter((e) => e.date === today);

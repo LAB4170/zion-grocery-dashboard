@@ -413,6 +413,12 @@ class ApiClient {
     return deletePromise;
   }
 
+  async getSalesWeekly() {
+    const url = `${this.baseURL}/sales/weekly`;
+    console.log('🔄 API Request: GET /sales/weekly');
+    return this.makeRequest(url.replace(this.baseURL, '/sales/weekly'));
+  }
+
   // Expenses API
   async getExpenses() {
     return this.makeRequest("/expenses");

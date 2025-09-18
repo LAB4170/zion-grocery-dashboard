@@ -80,6 +80,15 @@ router.get('/daily', catchAsync(async (req, res) => {
   });
 }));
 
+// GET /api/sales/weekly - Get weekly sales (Mon–Sun)
+router.get('/weekly', catchAsync(async (req, res) => {
+  if (typeof Sale.getWeeklySales !== 'function') {
+    return res.status(501).json({ success: false, message: 'Sales weekly endpoint not implemented' });
+  }
+  const weekly = await Sale.getWeeklySales();
+  res.json({ success: true, data: weekly });
+}));
+
 // GET /api/sales/top-products - Get top selling products
 router.get('/top-products', catchAsync(async (req, res) => {
   const limit = parseInt(req.query.limit) || 10;

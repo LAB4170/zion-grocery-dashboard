@@ -187,7 +187,31 @@ function loadSectionData(sectionId) {
         window.loadGroupedDebtsData();
       }
     },
-    "sales-reports": () => console.log("Reports section loaded"),
+    "sales-reports": async () => {
+      try {
+        // Ensure data is loaded from backend first
+        if (window.dataManager) {
+          const [salesRes, debtsRes, expensesRes, productsRes] = await Promise.all([
+            window.dataManager.getData("sales"),
+            window.dataManager.getData("debts"),
+            window.dataManager.getData("expenses"),
+            window.dataManager.getData("products")
+          ]);
+          window.sales = Array.isArray(salesRes?.data) ? salesRes.data : (window.sales || []);
+          window.debts = Array.isArray(debtsRes?.data) ? debtsRes.data : (window.debts || []);
+          window.expenses = Array.isArray(expensesRes?.data) ? expensesRes.data : (window.expenses || []);
+          window.products = Array.isArray(productsRes?.data) ? productsRes.data : (window.products || []);
+        }
+        // Show the daily report by default
+        if (typeof window.generateDailyReport === 'function') {
+          await window.generateDailyReport();
+        } else if (typeof generateDailyReport === 'function') {
+          await generateDailyReport();
+        }
+      } catch (e) {
+        console.warn('Failed to initialize reports section:', e?.message || e);
+      }
+    },
   };
 
   const loader = sectionLoaders[sectionId];
