@@ -331,13 +331,15 @@ class ApiClient {
 
   async deleteSale(id) {
     // Prevent duplicate DELETE calls for the same sale id
-    if (this._inFlightDeletes.has(`sales:${id}`)) {
-      return this._inFlightDeletes.get(`sales:${id}`);
+    const key = `sales:${id}`;
+    if (this._inFlightDeletes.has(key)) {
+      return this._inFlightDeletes.get(key);
     }
 
     const p = this.makeRequest(`/sales/${id}`, { method: "DELETE" })
-      .finally(() => this._inFlightDeletes.delete(`sales:${id}`));
-    this._inFlightDeletes.set(`sales:${id}`, p);
+      .finally(() => this._inFlightDeletes.delete(key)); // Ensure removal on completion (resolve or reject)
+
+    this._inFlightDeletes.set(key, p);
     return p;
   }
 
