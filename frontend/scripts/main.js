@@ -78,9 +78,17 @@ window.deleteExpense = deleteExpense;
 window.markDebtPaid = markDebtPaid;
 window.deleteDebt = deleteDebt;
 
-window.generateDailyReport = generateDailyReport;
-window.generateWeeklyReport = generateWeeklyReport;
-window.generateMonthlyReport = generateMonthlyReport;
+// Guarded exports for report generators to avoid ReferenceErrors if reports.js isn't loaded yet
+if (typeof generateDailyReport === 'function') {
+  window.generateDailyReport = generateDailyReport;
+}
+if (typeof generateWeeklyReport === 'function') {
+  window.generateWeeklyReport = generateWeeklyReport;
+}
+if (typeof generateMonthlyReport === 'function') {
+  window.generateMonthlyReport = generateMonthlyReport;
+}
+
 window.safeUpdateElement = safeUpdateElement;
 window.loadProductsData = loadProductsData;
 window.loadSalesData = loadSalesData;

@@ -55,7 +55,6 @@ async function generateDailyReport() {
     0
   );
 
-  const reportContent = document.getElementById("reportContent");
   if (!reportContent) return;
 
   reportContent.innerHTML = `
