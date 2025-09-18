@@ -1,4 +1,5 @@
 let salesPaginationManager;
+let __saleOpInProgress = false; // prevent duplicate operations
 
 // Simple fallback for notifications if utils not loaded yet
 function showNotification(message, type = 'success') {
@@ -39,6 +40,20 @@ function initializeSalesPagination() {
 
 async function addSale(event) {
   event.preventDefault();
+
+  if (__saleOpInProgress) {
+    console.log('⚠️ Sale operation already in progress');
+    return;
+  }
+
+  // Disable submit button to avoid double submits
+  const submitBtn = document.getElementById('salesModalSubmit');
+  const prevBtnText = submitBtn ? submitBtn.textContent : '';
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.textContent = (submitBtn.textContent || 'Saving...').includes('Update') ? 'Updating…' : 'Saving…';
+  }
+  __saleOpInProgress = true;
 
   try {
     const productInput = document.getElementById("saleProductInput").value.trim();
@@ -213,6 +228,13 @@ async function addSale(event) {
     }
     
     showNotification(errorMessage, "error");
+  } finally {
+    // Re-enable submit button
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.textContent = prevBtnText || 'Add Sale';
+    }
+    __saleOpInProgress = false;
   }
 }
 
@@ -345,6 +367,12 @@ async function deleteSale(saleId) {
     return;
   }
 
+  if (__saleOpInProgress) {
+    console.log('⚠️ Delete already in progress');
+    return;
+  }
+  __saleOpInProgress = true;
+
   try {
     // Call backend to delete (backend restores stock transactionally)
     await window.dataManager.deleteData("sales", saleId);
@@ -381,6 +409,8 @@ async function deleteSale(saleId) {
   } catch (err) {
     console.error('Delete sale failed:', err);
     showNotification('Failed to delete sale. Please try again.', 'error');
+  } finally {
+    __saleOpInProgress = false;
   }
 }
 
