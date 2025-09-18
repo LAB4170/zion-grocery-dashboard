@@ -428,68 +428,71 @@ class Sale {
       // Log the sale being deleted for debugging
       console.log(`🗑️ Deleting sale ${id}: Product ${sale.product_id}, Quantity ${sale.quantity}, Payment: ${sale.payment_method}`);
 
-      // 2) Lock the product row and get current state
+      // 2) Delete the sale FIRST and return the deleted row to enforce idempotency
+      const [deletedSale] = await trx('sales')
+        .where('id', id)
+        .del()
+        .returning('*');
+
+      if (!deletedSale) {
+        await trx.rollback();
+        console.warn(`⚠️ No sale rows were deleted for id ${id} - possible race condition`);
+        throw new Error('Sale deletion failed - no rows affected');
+      }
+
+      // 3) Lock the product row and get current state
       const productRow = await trx('products')
-        .where('id', sale.product_id)
+        .where('id', deletedSale.product_id)
         .forUpdate()
         .first();
 
       if (productRow) {
         const currentStock = Number(productRow.stock_quantity);
-        
+
         // Log current state before restoration
-        console.log(`📦 Product ${sale.product_id} (${productRow.name}) current stock: ${currentStock}, restoring ${sale.quantity} units`);
-        
-        // Add validation to prevent negative stock scenarios
-        if (Number(sale.quantity) <= 0) {
-          console.warn(`⚠️ Invalid sale quantity (${sale.quantity}) for sale ${id} - skipping stock restoration`);
+        console.log(`📦 Product ${deletedSale.product_id} (${productRow.name}) current stock: ${currentStock}, restoring ${deletedSale.quantity} units`);
+
+        // Add validation to prevent negative/invalid scenarios
+        if (Number(deletedSale.quantity) <= 0) {
+          console.warn(`⚠️ Invalid sale quantity (${deletedSale.quantity}) for sale ${id} - skipping stock restoration`);
         } else {
           // Restore the stock that was deducted for this sale
           await trx('products')
-            .where('id', sale.product_id)
-            .increment('stock_quantity', Number(sale.quantity))
+            .where('id', deletedSale.product_id)
+            .increment('stock_quantity', Number(deletedSale.quantity))
             .update('updated_at', new Date().toISOString());
-            
-          const newStock = currentStock + Number(sale.quantity);
-          console.log(`✅ Stock restored: Product ${sale.product_id} now has ${newStock} units (was ${currentStock}, added ${sale.quantity})`);
+
+          const newStock = currentStock + Number(deletedSale.quantity);
+          console.log(`✅ Stock restored: Product ${deletedSale.product_id} now has ${newStock} units (was ${currentStock}, added ${deletedSale.quantity})`);
         }
       } else {
-        console.warn(`⚠️ Product ${sale.product_id} not found - cannot restore stock for deleted sale ${id}`);
+        console.warn(`⚠️ Product ${deletedSale.product_id} not found - cannot restore stock for deleted sale ${id}`);
       }
 
-      // 3) Remove any associated debts for this sale
+      // 4) Remove any associated debts for this sale
       const deletedDebts = await trx('debts').where('sale_id', id).del();
       if (deletedDebts > 0) {
         console.log(`💳 Deleted ${deletedDebts} debt record(s) associated with sale ${id}`);
       }
 
-      // 4) Delete the sale AFTER stock has been restored
-      const deletedSales = await trx('sales').where('id', id).del();
-      
-      if (deletedSales === 0) {
-        // This shouldn't happen since we found the sale above, but just in case
-        console.warn(`⚠️ No sale rows were deleted for id ${id} - possible race condition`);
-        throw new Error('Sale deletion failed - no rows affected');
-      }
-
       // 5) Read back product for response (may be null if product missing)
       const updatedProduct = productRow
-        ? await trx('products').where('id', sale.product_id).first()
+        ? await trx('products').where('id', deletedSale.product_id).first()
         : null;
 
       await trx.commit();
-      
+
       console.log(`🎉 Successfully deleted sale ${id} and restored stock`);
-      return { 
+      return {
         product: updatedProduct,
         deletedSale: {
-          id: sale.id,
-          productId: sale.product_id,
-          quantity: sale.quantity,
-          total: sale.total
+          id: deletedSale.id,
+          productId: deletedSale.product_id,
+          quantity: deletedSale.quantity,
+          total: deletedSale.total
         }
       };
-      
+
     } catch (error) {
       await trx.rollback();
       console.error(`❌ Failed to delete sale ${id}:`, error.message);
