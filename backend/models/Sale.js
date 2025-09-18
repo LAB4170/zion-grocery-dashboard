@@ -50,7 +50,7 @@ class Sale {
         throw new Error('Product not found');
       }
       
-      if (product.stock_quantity < sale.quantity) {
+      if (product.stock_quantity < Number(sale.quantity)) {
         throw new Error('Insufficient stock');
       }
       
@@ -79,7 +79,7 @@ class Sale {
       // Update product stock
       await trx('products')
         .where('id', sale.productId)
-        .decrement('stock_quantity', sale.quantity)
+        .decrement('stock_quantity', Number(sale.quantity))
         .update('updated_at', new Date().toISOString());
       
       // If payment method is debt, create simple debt record
@@ -435,22 +435,22 @@ class Sale {
         .first();
 
       if (productRow) {
-        const currentStock = productRow.stock_quantity;
+        const currentStock = Number(productRow.stock_quantity);
         
         // Log current state before restoration
         console.log(`📦 Product ${sale.product_id} (${productRow.name}) current stock: ${currentStock}, restoring ${sale.quantity} units`);
         
         // Add validation to prevent negative stock scenarios
-        if (sale.quantity <= 0) {
+        if (Number(sale.quantity) <= 0) {
           console.warn(`⚠️ Invalid sale quantity (${sale.quantity}) for sale ${id} - skipping stock restoration`);
         } else {
           // Restore the stock that was deducted for this sale
           await trx('products')
             .where('id', sale.product_id)
-            .increment('stock_quantity', sale.quantity)
+            .increment('stock_quantity', Number(sale.quantity))
             .update('updated_at', new Date().toISOString());
             
-          const newStock = currentStock + sale.quantity;
+          const newStock = currentStock + Number(sale.quantity);
           console.log(`✅ Stock restored: Product ${sale.product_id} now has ${newStock} units (was ${currentStock}, added ${sale.quantity})`);
         }
       } else {
