@@ -588,6 +588,51 @@ class Sale {
     }
   }
 
+  // Get daily sales aggregates for the last N days (inclusive)
+  static async getDailySales(days = 7) {
+    const dbx = getDatabase();
+    const n = Math.max(parseInt(days) || 7, 1);
+    const since = new Date(Date.now() - (n - 1) * 24 * 60 * 60 * 1000)
+      .toISOString()
+      .split('T')[0];
+
+    const rows = await dbx('sales')
+      .where('date', '>=', since)
+      .select('date')
+      .sum({ total_revenue: 'total' })
+      .count({ total_sales: '*' })
+      .groupBy('date')
+      .orderBy('date', 'asc');
+
+    // Normalize numeric types
+    return rows.map(r => ({
+      date: r.date,
+      total_sales: parseInt(r.total_sales) || 0,
+      total_revenue: parseFloat(r.total_revenue) || 0
+    }));
+  }
+
+  // Get top products by quantity sold
+  static async getTopProducts(limit = 10) {
+    const dbx = getDatabase();
+    const lim = Math.max(Math.min(parseInt(limit) || 10, 100), 1);
+
+    const rows = await dbx('sales')
+      .select('product_id', 'product_name')
+      .sum({ quantity_sold: 'quantity' })
+      .sum({ revenue: 'total' })
+      .groupBy('product_id', 'product_name')
+      .orderBy([{ column: 'quantity_sold', order: 'desc' }, { column: 'revenue', order: 'desc' }])
+      .limit(lim);
+
+    return rows.map(r => ({
+      productId: r.product_id,
+      productName: r.product_name,
+      quantity_sold: parseInt(r.quantity_sold) || 0,
+      revenue: parseFloat(r.revenue) || 0
+    }));
+  }
+
   // Get basic sales summary for dashboard
   static async getSummary(filters = {}) {
     let query = getDatabase()('sales');
@@ -623,28 +668,28 @@ class Sale {
   static validate(data) {
     const errors = [];
     
-    if (!data.productId && !data.product_id) {
+    if ((!data.productId && !data.product_id)) {
       errors.push('Product ID is required');
     }
     
-    if (!data.quantity || isNaN(parseInt(data.quantity)) || parseInt(data.quantity) <= 0) {
+    if ((!data.quantity) || isNaN(parseInt(data.quantity)) || parseInt(data.quantity) <= 0) {
       errors.push('Valid quantity is required');
     }
     
-    if (!data.unitPrice && !data.unit_price || isNaN(parseFloat(data.unitPrice || data.unit_price)) || parseFloat(data.unitPrice || data.unit_price) <= 0) {
+    if (((!data.unitPrice && !data.unit_price)) || isNaN(parseFloat(data.unitPrice || data.unit_price)) || parseFloat(data.unitPrice || data.unit_price) <= 0) {
       errors.push('Valid unit price is required');
     }
     
-    if (!data.paymentMethod && !data.payment_method || !['cash', 'mpesa', 'debt'].includes(data.paymentMethod || data.payment_method)) {
+    if (((!data.paymentMethod && !data.payment_method)) || !['cash', 'mpesa', 'debt'].includes(data.paymentMethod || data.payment_method)) {
       errors.push('Valid payment method is required (cash, mpesa, or debt)');
     }
     
     if ((data.paymentMethod === 'debt' || data.payment_method === 'debt')) {
-      if (!data.customerName && !data.customer_name || (data.customerName || data.customer_name || '').trim().length === 0) {
+      if (((!data.customerName && !data.customer_name) || ((data.customerName || data.customer_name || '').trim().length === 0))) {
         errors.push('Customer name is required for debt payments');
       }
       
-      if (!data.customerPhone && !data.customer_phone || (data.customerPhone || data.customer_phone || '').trim().length === 0) {
+      if (((!data.customerPhone && !data.customer_phone) || ((data.customerPhone || data.customer_phone || '').trim().length === 0))) {
         errors.push('Customer phone is required for debt payments');
       }
     }

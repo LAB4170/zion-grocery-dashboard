@@ -69,6 +69,9 @@ router.get('/summary', catchAsync(async (req, res) => {
 // GET /api/sales/daily - Get daily sales
 router.get('/daily', catchAsync(async (req, res) => {
   const days = parseInt(req.query.days) || 7;
+  if (typeof Sale.getDailySales !== 'function') {
+    return res.status(501).json({ success: false, message: 'Sales daily stats endpoint not implemented' });
+  }
   const dailySales = await Sale.getDailySales(days);
   
   res.json({
@@ -80,6 +83,9 @@ router.get('/daily', catchAsync(async (req, res) => {
 // GET /api/sales/top-products - Get top selling products
 router.get('/top-products', catchAsync(async (req, res) => {
   const limit = parseInt(req.query.limit) || 10;
+  if (typeof Sale.getTopProducts !== 'function') {
+    return res.status(501).json({ success: false, message: 'Sales top-products endpoint not implemented' });
+  }
   const topProducts = await Sale.getTopProducts(limit);
   
   res.json({

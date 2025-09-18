@@ -20,6 +20,10 @@ class Expense {
     this.createdBy = data.createdBy || data.created_by || 'system';
     this.createdAt = data.createdAt || data.created_at || new Date().toISOString();
     this.updatedAt = data.updatedAt || data.updated_at;
+    // Optional fields (may not exist in schema yet)
+    this.status = data.status || 'pending';
+    this.approvedBy = data.approvedBy || data.approved_by || null;
+    this.approvedAt = data.approvedAt || data.approved_at || null;
   }
 
   // Create new expense
@@ -71,7 +75,10 @@ class Expense {
       category: expense.category,
       createdBy: expense.created_by,
       createdAt: expense.created_at,
-      updatedAt: expense.updated_at
+      updatedAt: expense.updated_at,
+      status: expense.status,
+      approvedBy: expense.approved_by,
+      approvedAt: expense.approved_at
     }));
   }
 
@@ -88,7 +95,10 @@ class Expense {
       category: expense.category,
       createdBy: expense.created_by,
       createdAt: expense.created_at,
-      updatedAt: expense.updated_at
+      updatedAt: expense.updated_at,
+      status: expense.status,
+      approvedBy: expense.approved_by,
+      approvedAt: expense.approved_at
     };
   }
 
@@ -108,6 +118,53 @@ class Expense {
       .returning('*');
     
     return updatedExpense;
+  }
+
+  // Approve an expense (requires status/approved_by/approved_at columns)
+  static async approve(id, user = 'system') {
+    const dbx = getDatabase();
+    // Check required columns exist to avoid runtime errors
+    const hasStatus = await dbx.schema.hasColumn('expenses', 'status');
+    const hasApprovedBy = await dbx.schema.hasColumn('expenses', 'approved_by');
+    const hasApprovedAt = await dbx.schema.hasColumn('expenses', 'approved_at');
+    if (!hasStatus || !hasApprovedBy || !hasApprovedAt) {
+      throw new Error("Expenses approval fields are missing. Add columns: status (text), approved_by (text), approved_at (timestamp). Create a migration (e.g., 1001_add_expense_status.js) and run it.");
+    }
+
+    const [updated] = await dbx('expenses')
+      .where('id', id)
+      .update({
+        status: 'approved',
+        approved_by: user,
+        approved_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .returning('*');
+
+    return updated;
+  }
+
+  // Reject an expense (requires status/approved_by/approved_at columns)
+  static async reject(id, user = 'system') {
+    const dbx = getDatabase();
+    const hasStatus = await dbx.schema.hasColumn('expenses', 'status');
+    const hasApprovedBy = await dbx.schema.hasColumn('expenses', 'approved_by');
+    const hasApprovedAt = await dbx.schema.hasColumn('expenses', 'approved_at');
+    if (!hasStatus || !hasApprovedBy || !hasApprovedAt) {
+      throw new Error("Expenses approval fields are missing. Add columns: status (text), approved_by (text), approved_at (timestamp). Create a migration (e.g., 1001_add_expense_status.js) and run it.");
+    }
+
+    const [updated] = await dbx('expenses')
+      .where('id', id)
+      .update({
+        status: 'rejected',
+        approved_by: user,
+        approved_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .returning('*');
+
+    return updated;
   }
 
   // Delete expense
@@ -138,6 +195,32 @@ class Expense {
       total_expenses: parseInt(summary.total_expenses) || 0,
       total_amount: parseFloat(summary.total_amount) || 0
     };
+  }
+
+  // Get monthly aggregates for the last N months, grouped by month (YYYY-MM)
+  static async getMonthlyExpenses(months = 12) {
+    const dbx = getDatabase();
+    const m = Math.max(parseInt(months) || 12, 1);
+
+    // Compute start month in YYYY-MM-01
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth() - (m - 1), 1);
+    const startISO = start.toISOString().split('T')[0];
+
+    // Use date_trunc for monthly buckets
+    const rows = await dbx('expenses')
+      .where('created_at', '>=', startISO)
+      .select(dbx.raw("to_char(date_trunc('month', created_at), 'YYYY-MM') as month"))
+      .sum({ total_amount: 'amount' })
+      .count({ total_expenses: '*' })
+      .groupBy('month')
+      .orderBy('month', 'asc');
+
+    return rows.map(r => ({
+      month: r.month,
+      total_expenses: parseInt(r.total_expenses) || 0,
+      total_amount: parseFloat(r.total_amount) || 0
+    }));
   }
 
   // Get expenses by category

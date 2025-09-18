@@ -28,7 +28,6 @@ async function addExpense(event) {
     }
 
     const expense = {
-      id: window.utils.generateId(),
       description: description.trim(),
       category: category,
       amount: amount,
@@ -42,7 +41,7 @@ async function addExpense(event) {
     
     // Update global variable only after successful database save
     window.expenses = window.expenses || [];
-    window.expenses.push(savedExpense);
+    window.expenses.push(savedExpense?.data || savedExpense);
 
     // Close modal and refresh data
     closeModal("expenseModal");

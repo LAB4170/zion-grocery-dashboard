@@ -51,7 +51,6 @@ async function addDebt(event) {
     }
 
     const debt = {
-      id: window.utils.generateId(),
       customerName: customerName.trim(),
       customerPhone: customerPhone.trim(),
       amount: amount,
@@ -67,7 +66,7 @@ async function addDebt(event) {
     
     // Update global variable only after successful database save
     window.debts = window.debts || [];
-    window.debts.push(savedDebt);
+    window.debts.push(savedDebt?.data || savedDebt);
 
     // Close modal and refresh data
     closeModal("debtModal");
@@ -103,7 +102,6 @@ async function addDebt(event) {
 async function addDebtFromSale(sale) {
   // Create debt object with proper field mapping for backend
   const debt = {
-    id: window.utils.generateId(),
     customerName: sale.customerName || sale.customer_name,
     customerPhone: sale.customerPhone || sale.customer_phone,
     amount: sale.total,
@@ -112,12 +110,7 @@ async function addDebtFromSale(sale) {
     saleId: sale.id,
     createdBy: 'system',
     createdAt: sale.createdAt || sale.created_at,
-    // Keep frontend-compatible fields for local cache
-    customerName: sale.customerName || sale.customer_name,
-    customerPhone: sale.customerPhone || sale.customer_phone,
-    dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
     date: sale.date,
-    saleId: sale.id,
   };
 
   // DATABASE-FIRST OPERATION: Send to database first, then update cache
@@ -126,7 +119,7 @@ async function addDebtFromSale(sale) {
     
     // Update global variable only after successful database save
     window.debts = window.debts || [];
-    window.debts.push(savedDebt);
+    window.debts.push(savedDebt?.data || savedDebt);
   } catch (error) {
     console.error("Failed to save debt to database:", error);
     window.utils.showNotification("Failed to save debt. Please try again.", "error");

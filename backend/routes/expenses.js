@@ -39,6 +39,9 @@ router.get('/summary', catchAsync(async (req, res) => {
 
 // GET /api/expenses/categories - Get expenses by category
 router.get('/categories', catchAsync(async (req, res) => {
+  if (typeof Expense.getByCategory !== 'function') {
+    return res.status(501).json({ success: false, message: 'Expenses categories endpoint not implemented' });
+  }
   const categories = await Expense.getByCategory();
   
   res.json({
@@ -50,6 +53,9 @@ router.get('/categories', catchAsync(async (req, res) => {
 // GET /api/expenses/monthly - Get monthly expenses
 router.get('/monthly', catchAsync(async (req, res) => {
   const months = parseInt(req.query.months) || 12;
+  if (typeof Expense.getMonthlyExpenses !== 'function') {
+    return res.status(501).json({ success: false, message: 'Expenses monthly endpoint not implemented' });
+  }
   const monthlyExpenses = await Expense.getMonthlyExpenses(months);
   
   res.json({
@@ -123,10 +129,9 @@ router.patch('/:id/approve', catchAsync(async (req, res) => {
     throw new AppError('Expense not found', 404);
   }
 
-  if (expense.status === 'approved') {
-    throw new AppError('Expense is already approved', 400);
+  if (typeof Expense.approve !== 'function') {
+    return res.status(501).json({ success: false, message: 'Expense approve endpoint not implemented' });
   }
-
   const approvedExpense = await Expense.approve(req.params.id, 'system');
   
   res.json({
@@ -143,10 +148,9 @@ router.patch('/:id/reject', catchAsync(async (req, res) => {
     throw new AppError('Expense not found', 404);
   }
 
-  if (expense.status === 'rejected') {
-    throw new AppError('Expense is already rejected', 400);
+  if (typeof Expense.reject !== 'function') {
+    return res.status(501).json({ success: false, message: 'Expense reject endpoint not implemented' });
   }
-
   const rejectedExpense = await Expense.reject(req.params.id, 'system');
   
   res.json({

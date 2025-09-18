@@ -182,6 +182,129 @@ class Debt {
     };
   }
 
+  // Group debts by customer (name + phone) with aggregates
+  static async getGroupedByCustomer() {
+    const dbx = getDatabase();
+    const rows = await dbx('debts')
+      .select('customer_name', 'customer_phone')
+      .sum({ total_amount: 'amount' })
+      .sum({ total_paid: 'amount_paid' })
+      .sum({ total_balance: 'balance' })
+      .count({ count: '*' })
+      .groupBy('customer_name', 'customer_phone')
+      .orderBy('customer_name', 'asc');
+
+    return rows.map(r => ({
+      customerName: r.customer_name,
+      customerPhone: r.customer_phone,
+      total_amount: parseFloat(r.total_amount) || 0,
+      total_paid: parseFloat(r.total_paid) || 0,
+      total_balance: parseFloat(r.total_balance) || 0,
+      count: parseInt(r.count) || 0
+    }));
+  }
+
+  // Get overdue debts (due_date < today and not paid)
+  static async getOverdue() {
+    const dbx = getDatabase();
+    const today = new Date().toISOString().split('T')[0];
+    const rows = await dbx('debts')
+      .where('status', '!=', 'paid')
+      .andWhereNotNull('due_date')
+      .andWhere('due_date', '<', today)
+      .orderBy('due_date', 'asc');
+
+    return rows.map(debt => ({
+      id: debt.id,
+      saleId: debt.sale_id,
+      customerName: debt.customer_name,
+      customerPhone: debt.customer_phone,
+      amount: parseFloat(debt.amount) || 0,
+      amountPaid: parseFloat(debt.amount_paid) || 0,
+      balance: parseFloat(debt.balance) || 0,
+      status: debt.status,
+      dueDate: debt.due_date,
+      notes: debt.notes,
+      createdBy: debt.created_by,
+      createdAt: debt.created_at,
+      updatedAt: debt.updated_at
+    }));
+  }
+
+  // Get payment history for a debt
+  static async getPaymentHistory(debtId) {
+    const dbx = getDatabase();
+    const rows = await dbx('debt_payments')
+      .where('debt_id', debtId)
+      .orderBy('created_at', 'desc');
+
+    return rows.map(p => ({
+      id: p.id,
+      debtId: p.debt_id,
+      amount: parseFloat(p.amount) || 0,
+      payment_method: p.payment_method,
+      mpesa_code: p.mpesa_code,
+      notes: p.notes,
+      created_by: p.created_by,
+      created_at: p.created_at,
+      updated_at: p.updated_at
+    }));
+  }
+
+  // Make a payment towards a debt (transactional)
+  static async makePayment(debtId, amount, payment_method) {
+    const dbx = getDatabase();
+    const trx = await dbx.transaction();
+    try {
+      const amt = parseFloat(amount);
+      if (!amt || isNaN(amt) || amt <= 0) {
+        throw new Error('Valid payment amount is required');
+      }
+
+      // Lock the debt row
+      const debt = await trx('debts').where('id', debtId).forUpdate().first();
+      if (!debt) throw new Error('Debt not found');
+
+      // Insert payment
+      const [payment] = await trx('debt_payments')
+        .insert({
+          id: uuidv4(),
+          debt_id: debtId,
+          amount: amt,
+          payment_method,
+          created_by: debt.created_by || 'system',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .returning('*');
+
+      // Update debt totals
+      const newAmountPaid = parseFloat(debt.amount_paid || 0) + amt;
+      const newBalance = Math.max(parseFloat(debt.amount || 0) - newAmountPaid, 0);
+      const newStatus = newBalance <= 0 ? 'paid' : 'pending';
+
+      const [updatedDebt] = await trx('debts')
+        .where('id', debtId)
+        .update({
+          amount_paid: newAmountPaid,
+          balance: newBalance,
+          status: newStatus,
+          updated_at: new Date().toISOString()
+        })
+        .returning('*');
+
+      await trx.commit();
+
+      return {
+        payment,
+        debt: updatedDebt
+      };
+    } catch (err) {
+      await trx.rollback();
+      throw err;
+    }
+  }
+
   // Simple validation matching frontend
   static validate(data) {
     const errors = [];
