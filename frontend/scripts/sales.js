@@ -415,40 +415,12 @@ async function deleteSale(saleId) {
     // Remove from local cache (UI responsiveness)
     window.sales = (window.sales || []).filter((s) => s.id !== saleId);
 
-    // If backend returned the updated product, apply it directly (no math)
-    const updatedProduct = resp && (resp.data?.product || resp.product);
-    if (updatedProduct && updatedProduct.id) {
-      const idx = (window.products || []).findIndex(p => p.id === updatedProduct.id);
-      if (idx !== -1) {
-        // Map snake_case -> camelCase minimally for fields we need
-        const patched = {
-          ...window.products[idx],
-          stockQuantity: typeof updatedProduct.stockQuantity !== 'undefined'
-            ? parseFloat(updatedProduct.stockQuantity)
-            : parseFloat(updatedProduct.stock_quantity),
-          updatedAt: updatedProduct.updated_at || updatedProduct.updatedAt || new Date().toISOString()
-        };
-        window.products[idx] = patched;
-      } else {
-        // If not found locally, push a mapped version
-        window.products = window.products || [];
-        window.products.push({
-          id: updatedProduct.id,
-          name: updatedProduct.name,
-          category: updatedProduct.category,
-          price: updatedProduct.price,
-          stockQuantity: parseFloat(updatedProduct.stock_quantity),
-          updatedAt: updatedProduct.updated_at
-        });
-      }
-    } else {
-      // Fallback: refresh products from backend to reflect restored stock
-      try {
-        const refreshed = await window.dataManager.getData("products");
-        window.products = (refreshed && refreshed.data) ? refreshed.data : (window.products || []);
-      } catch (e) {
-        console.warn('Product refresh failed after sale delete:', e.message);
-      }
+    // Authoritative refresh: always reload products from backend to avoid any local patching inconsistencies
+    try {
+      const refreshed = await window.dataManager.getData("products");
+      window.products = (refreshed && refreshed.data) ? refreshed.data : (window.products || []);
+    } catch (e) {
+      console.warn('Product refresh failed after sale delete:', e.message);
     }
 
     // If using server-side pagination, refresh current page; else reload table
