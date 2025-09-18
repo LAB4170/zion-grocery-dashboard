@@ -114,7 +114,7 @@ router.post('/', catchAsync(async (req, res) => {
   const saleData = {
     ...req.body,
     // Don't override total if already calculated correctly in frontend
-    total: req.body.total || (parseFloat(req.body.unit_price) * parseInt(req.body.quantity))
+    total: req.body.total || (parseFloat(req.body.unit_price) * parseFloat(req.body.quantity))
   };
 
   const sale = await Sale.create(saleData);

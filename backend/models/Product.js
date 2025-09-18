@@ -17,7 +17,7 @@ class Product {
     this.name = data.name;
     this.category = data.category;
     this.price = parseFloat(data.price);
-    this.stockQuantity = parseInt(data.stockQuantity || data.stock_quantity || 0);
+    this.stockQuantity = parseFloat(data.stockQuantity || data.stock_quantity || 0);
     this.createdAt = data.createdAt || data.created_at || new Date().toISOString();
     this.updatedAt = data.updatedAt || data.updated_at;
   }
@@ -30,7 +30,7 @@ class Product {
       name: productData.name,
       category: productData.category,
       price: parseFloat(productData.price),
-      stock_quantity: parseInt(productData.stockQuantity || productData.stock_quantity || 0),
+      stock_quantity: parseFloat(productData.stockQuantity || productData.stock_quantity || 0),
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
@@ -66,7 +66,7 @@ class Product {
       name: product.name,
       category: product.category,
       price: product.price,
-      stockQuantity: product.stock_quantity,
+      stockQuantity: parseFloat(product.stock_quantity),
       createdAt: product.created_at,
       updatedAt: product.updated_at
     }));
@@ -99,7 +99,7 @@ class Product {
       name: product.name,
       category: product.category,
       price: product.price,
-      stockQuantity: product.stock_quantity,
+      stockQuantity: parseFloat(product.stock_quantity),
       createdAt: product.created_at,
       updatedAt: product.updated_at
     }));
@@ -125,7 +125,7 @@ class Product {
       name: product.name,
       category: product.category,
       price: product.price,
-      stockQuantity: product.stock_quantity,
+      stockQuantity: parseFloat(product.stock_quantity),
       createdAt: product.created_at,
       updatedAt: product.updated_at
     };
@@ -138,7 +138,7 @@ class Product {
       name: updateData.name,
       category: updateData.category,
       price: parseFloat(updateData.price),
-      stock_quantity: parseInt(updateData.stockQuantity || updateData.stock_quantity),
+      stock_quantity: parseFloat(updateData.stockQuantity || updateData.stock_quantity),
       updated_at: new Date().toISOString()
     };
     
@@ -220,7 +220,7 @@ class Product {
       errors.push('Valid price is required');
     }
     
-    if (data.stockQuantity === undefined || isNaN(parseInt(data.stockQuantity)) || parseInt(data.stockQuantity) < 0) {
+    if (data.stockQuantity === undefined || isNaN(parseFloat(data.stockQuantity)) || parseFloat(data.stockQuantity) < 0) {
       errors.push('Valid stock quantity is required');
     }
     

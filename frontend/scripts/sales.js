@@ -404,6 +404,10 @@ async function deleteSale(saleId) {
   }
   __saleOpInProgress = true;
 
+  // Disable all delete buttons temporarily to prevent double actions
+  const deleteButtons = Array.from(document.querySelectorAll('.btn-danger'));
+  deleteButtons.forEach(btn => btn.disabled = true);
+
   try {
     // Call backend to delete (backend restores stock transactionally)
     const resp = await window.dataManager.deleteData("sales", saleId);
@@ -420,8 +424,8 @@ async function deleteSale(saleId) {
         const patched = {
           ...window.products[idx],
           stockQuantity: typeof updatedProduct.stockQuantity !== 'undefined'
-            ? updatedProduct.stockQuantity
-            : updatedProduct.stock_quantity,
+            ? parseFloat(updatedProduct.stockQuantity)
+            : parseFloat(updatedProduct.stock_quantity),
           updatedAt: updatedProduct.updated_at || updatedProduct.updatedAt || new Date().toISOString()
         };
         window.products[idx] = patched;
@@ -433,7 +437,7 @@ async function deleteSale(saleId) {
           name: updatedProduct.name,
           category: updatedProduct.category,
           price: updatedProduct.price,
-          stockQuantity: updatedProduct.stock_quantity,
+          stockQuantity: parseFloat(updatedProduct.stock_quantity),
           updatedAt: updatedProduct.updated_at
         });
       }
@@ -469,6 +473,7 @@ async function deleteSale(saleId) {
     console.error('Delete sale failed:', err);
     showNotification('Failed to delete sale. Please try again.', 'error');
   } finally {
+    deleteButtons.forEach(btn => btn.disabled = false);
     __saleOpInProgress = false;
   }
 }

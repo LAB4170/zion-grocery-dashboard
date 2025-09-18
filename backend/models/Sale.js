@@ -418,11 +418,13 @@ class Sale {
         throw new Error('Sale not found');
       }
       
-      // Restore product stock
+      // Restore product stock and fetch updated product in one txn
       await trx('products')
         .where('id', sale.product_id)
         .increment('stock_quantity', sale.quantity)
         .update('updated_at', new Date().toISOString());
+
+      const updatedProduct = await trx('products').where('id', sale.product_id).first();
       
       // Delete associated debt if exists
       await trx('debts').where('sale_id', id).del();
@@ -431,7 +433,7 @@ class Sale {
       await trx('sales').where('id', id).del();
       
       await trx.commit();
-      return true;
+      return { product: updatedProduct };
     } catch (error) {
       await trx.rollback();
       throw error;
