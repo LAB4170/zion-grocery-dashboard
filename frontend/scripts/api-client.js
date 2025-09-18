@@ -414,9 +414,9 @@ class ApiClient {
   }
 
   async getSalesWeekly() {
-    const url = `${this.baseURL}/sales/weekly`;
+    // Call relative endpoint; makeRequest will prepend baseURL
     console.log('🔄 API Request: GET /sales/weekly');
-    return this.makeRequest(url.replace(this.baseURL, '/sales/weekly'));
+    return this.makeRequest('/sales/weekly');
   }
 
   // Expenses API
