@@ -202,6 +202,10 @@ function loadSectionData(sectionId) {
           window.expenses = Array.isArray(expensesRes?.data) ? expensesRes.data : (window.expenses || []);
           window.products = Array.isArray(productsRes?.data) ? productsRes.data : (window.products || []);
         }
+        // Populate year selector and other controls
+        if (typeof window.initReportsControls === 'function') {
+          window.initReportsControls();
+        }
         // Show the daily report by default
         if (typeof window.generateDailyReport === 'function') {
           await window.generateDailyReport();
