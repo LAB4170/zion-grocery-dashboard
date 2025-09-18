@@ -71,7 +71,9 @@ function showSection(sectionId, isInitialLoad = false) {
           }
           break;
         case "dashboard":
-          if (typeof window.updateDashboardStats === "function") {
+          if (typeof window.fetchDashboardData === "function") {
+            window.fetchDashboardData();
+          } else if (typeof window.updateDashboardStats === "function") {
             window.updateDashboardStats();
           }
           break;
@@ -137,8 +139,8 @@ function loadSectionData(sectionId) {
 
   const sectionLoaders = {
     dashboard: () => {
-      if (typeof window.loadDashboardData === "function") {
-        window.loadDashboardData();
+      if (typeof window.fetchDashboardData === "function") {
+        window.fetchDashboardData();
       } else if (typeof window.updateDashboardStats === "function") {
         window.updateDashboardStats();
       }

@@ -225,23 +225,15 @@ async function loadDashboardData() {
   }
 
   try {
-    console.log('📥 Loading dashboard data from database...');
-    
-    // Fetch all data from database in parallel
-    const [salesResult, debtsResult, expensesResult, productsResult] = await Promise.all([
-      window.dataManager.getData("sales"),
-      window.dataManager.getData("debts"),
-      window.dataManager.getData("expenses"),
-      window.dataManager.getData("products")
-    ]);
+    console.log('📥 Rendering dashboard using existing in-memory data (no network calls)...');
 
-    // Update global variables with fresh data
-    window.sales = (salesResult && salesResult.data) ? salesResult.data : [];
-    window.debts = (debtsResult && debtsResult.data) ? debtsResult.data : [];
-    window.expenses = (expensesResult && expensesResult.data) ? expensesResult.data : [];
-    window.products = (productsResult && productsResult.data) ? productsResult.data : [];
+    // Ensure globals are arrays (defensive)
+    window.sales = Array.isArray(window.sales) ? window.sales : [];
+    window.debts = Array.isArray(window.debts) ? window.debts : [];
+    window.expenses = Array.isArray(window.expenses) ? window.expenses : [];
+    window.products = Array.isArray(window.products) ? window.products : [];
 
-    console.log('✅ Dashboard data loaded:', {
+    console.log('✅ Dashboard data (from memory):', {
       sales: window.sales.length,
       debts: window.debts.length,
       expenses: window.expenses.length,
@@ -253,8 +245,8 @@ async function loadDashboardData() {
     updateDetailedInventory();
     createCharts();
   } catch (error) {
-    console.error('❌ Failed to load dashboard data:', error);
-    
+    console.error('❌ Failed to render dashboard:', error);
+
     // Fallback to empty arrays to prevent crashes
     window.sales = window.sales || [];
     window.debts = window.debts || [];
