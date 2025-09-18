@@ -9,6 +9,9 @@ class ApiClient {
     this.setupConnectionMonitoring();
     // Guard against duplicate DELETE requests for the same resource (e.g., sales)
     this._inFlightDeletes = new Map();
+    // Enhanced guards against duplicate operations
+    this._inFlightOperations = new Map();
+    this._operationHistory = new Map(); // Track recent operations
   }
 
   // Helper: build query string from params
@@ -106,6 +109,31 @@ class ApiClient {
     if (window.utils && window.utils.showNotification) {
       window.utils.showNotification("Back online - data synced", "success");
     }
+  }
+
+  // Enhanced operation tracking to prevent duplicates
+  _trackOperation(operationType, resourceId) {
+    const key = `${operationType}:${resourceId}`;
+    const now = Date.now();
+    
+    // Clean old operations (older than 30 seconds)
+    for (const [historyKey, timestamp] of this._operationHistory.entries()) {
+      if (now - timestamp > 30000) {
+        this._operationHistory.delete(historyKey);
+      }
+    }
+    
+    // Check if this operation happened recently
+    if (this._operationHistory.has(key)) {
+      const lastOperation = this._operationHistory.get(key);
+      if (now - lastOperation < 2000) { // 2 seconds
+        console.warn(`⚠️ Duplicate ${operationType} operation detected for ${resourceId} - skipping`);
+        return false;
+      }
+    }
+    
+    this._operationHistory.set(key, now);
+    return true;
   }
 
   async makeRequest(endpoint, options = {}) {
@@ -289,9 +317,28 @@ class ApiClient {
   }
 
   async deleteProduct(id) {
-    return this.makeRequest(`/products/${id}`, {
+    // Enhanced delete with duplicate prevention
+    const operationKey = `deleteProduct:${id}`;
+    
+    // Check for recent duplicate operations
+    if (!this._trackOperation('deleteProduct', id)) {
+      throw new Error('Duplicate delete operation detected - please wait before retrying');
+    }
+    
+    // Prevent concurrent deletes for the same product
+    if (this._inFlightDeletes.has(operationKey)) {
+      console.warn(`🔄 Product delete already in progress for ${id}`);
+      return this._inFlightDeletes.get(operationKey);
+    }
+
+    const deletePromise = this.makeRequest(`/products/${id}`, {
       method: "DELETE",
+    }).finally(() => {
+      this._inFlightDeletes.delete(operationKey);
     });
+    
+    this._inFlightDeletes.set(operationKey, deletePromise);
+    return deletePromise;
   }
 
   // Sales API
@@ -330,17 +377,40 @@ class ApiClient {
   }
 
   async deleteSale(id) {
-    // Prevent duplicate DELETE calls for the same sale id
-    const key = `sales:${id}`;
-    if (this._inFlightDeletes.has(key)) {
-      return this._inFlightDeletes.get(key);
+    const operationKey = `deleteSale:${id}`;
+    
+    // Enhanced duplicate prevention with operation tracking
+    if (!this._trackOperation('deleteSale', id)) {
+      console.warn(`⚠️ Duplicate sale delete operation detected for ${id} - skipping`);
+      throw new Error('Duplicate delete operation detected - please wait before retrying');
+    }
+    
+    // Prevent concurrent DELETE calls for the same sale id
+    if (this._inFlightDeletes.has(operationKey)) {
+      console.warn(`🔄 Sale delete already in progress for ${id}`);
+      return this._inFlightDeletes.get(operationKey);
     }
 
-    const p = this.makeRequest(`/sales/${id}`, { method: "DELETE" })
-      .finally(() => this._inFlightDeletes.delete(key)); // Ensure removal on completion (resolve or reject)
-
-    this._inFlightDeletes.set(key, p);
-    return p;
+    console.log(`🗑️ Initiating delete for sale ${id}`);
+    
+    const deletePromise = this.makeRequest(`/sales/${id}`, { 
+      method: "DELETE" 
+    })
+    .then(result => {
+      console.log(`✅ Successfully deleted sale ${id}`, result);
+      return result;
+    })
+    .catch(error => {
+      console.error(`❌ Failed to delete sale ${id}:`, error.message);
+      throw error;
+    })
+    .finally(() => {
+      this._inFlightDeletes.delete(operationKey);
+      console.log(`🏁 Delete operation completed for sale ${id}`);
+    });
+    
+    this._inFlightDeletes.set(operationKey, deletePromise);
+    return deletePromise;
   }
 
   // Expenses API
@@ -363,9 +433,23 @@ class ApiClient {
   }
 
   async deleteExpense(id) {
-    return this.makeRequest(`/expenses/${id}`, {
+    // Enhanced delete with duplicate prevention
+    const operationKey = `deleteExpense:${id}`;
+    
+    if (!this._trackOperation('deleteExpense', id)) {
+      throw new Error('Duplicate delete operation detected - please wait before retrying');
+    }
+    
+    if (this._inFlightDeletes.has(operationKey)) {
+      return this._inFlightDeletes.get(operationKey);
+    }
+
+    const deletePromise = this.makeRequest(`/expenses/${id}`, {
       method: "DELETE",
-    });
+    }).finally(() => this._inFlightDeletes.delete(operationKey));
+    
+    this._inFlightDeletes.set(operationKey, deletePromise);
+    return deletePromise;
   }
 
   // Debts API
@@ -388,9 +472,23 @@ class ApiClient {
   }
 
   async deleteDebt(id) {
-    return this.makeRequest(`/debts/${id}`, {
+    // Enhanced delete with duplicate prevention
+    const operationKey = `deleteDebt:${id}`;
+    
+    if (!this._trackOperation('deleteDebt', id)) {
+      throw new Error('Duplicate delete operation detected - please wait before retrying');
+    }
+    
+    if (this._inFlightDeletes.has(operationKey)) {
+      return this._inFlightDeletes.get(operationKey);
+    }
+
+    const deletePromise = this.makeRequest(`/debts/${id}`, {
       method: 'DELETE'
-    });
+    }).finally(() => this._inFlightDeletes.delete(operationKey));
+    
+    this._inFlightDeletes.set(operationKey, deletePromise);
+    return deletePromise;
   }
 
   // System operations
@@ -456,6 +554,34 @@ class ApiClient {
         return false;
       }
     }
+  }
+
+  // New: Stock validation methods
+  async validateProductStock(productId) {
+    return this.makeRequest(`/products/${productId}/validate-stock`);
+  }
+
+  async detectStockInconsistencies() {
+    return this.makeRequest('/system/stock-inconsistencies');
+  }
+
+  // Helper method to clear operation history (useful for debugging)
+  clearOperationHistory() {
+    this._operationHistory.clear();
+    this._inFlightDeletes.clear();
+    this._inFlightOperations.clear();
+    console.log("🧹 Operation history cleared");
+  }
+
+  // Get operation statistics (useful for debugging)
+  getOperationStats() {
+    return {
+      inFlightDeletes: this._inFlightDeletes.size,
+      operationHistorySize: this._operationHistory.size,
+      recentOperations: Array.from(this._operationHistory.entries())
+        .map(([key, timestamp]) => ({ key, timestamp, age: Date.now() - timestamp }))
+        .sort((a, b) => b.timestamp - a.timestamp)
+    };
   }
 }
 

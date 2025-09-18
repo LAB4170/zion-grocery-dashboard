@@ -407,7 +407,7 @@ class Sale {
     }
   }
 
-  // Delete sale
+  // Delete sale - ENHANCED VERSION with better safeguards and logging
   static async delete(id) {
     const dbx = getDatabase();
     const trx = await dbx.transaction();
@@ -425,24 +425,52 @@ class Sale {
         throw new Error('Sale not found');
       }
 
-      // 2) Lock the product row and restore stock atomically if product exists
+      // Log the sale being deleted for debugging
+      console.log(`🗑️ Deleting sale ${id}: Product ${sale.product_id}, Quantity ${sale.quantity}, Payment: ${sale.payment_method}`);
+
+      // 2) Lock the product row and get current state
       const productRow = await trx('products')
         .where('id', sale.product_id)
         .forUpdate()
         .first();
 
       if (productRow) {
-        await trx('products')
-          .where('id', sale.product_id)
-          .increment('stock_quantity', sale.quantity)
-          .update('updated_at', new Date().toISOString());
+        const currentStock = productRow.stock_quantity;
+        
+        // Log current state before restoration
+        console.log(`📦 Product ${sale.product_id} (${productRow.name}) current stock: ${currentStock}, restoring ${sale.quantity} units`);
+        
+        // Add validation to prevent negative stock scenarios
+        if (sale.quantity <= 0) {
+          console.warn(`⚠️ Invalid sale quantity (${sale.quantity}) for sale ${id} - skipping stock restoration`);
+        } else {
+          // Restore the stock that was deducted for this sale
+          await trx('products')
+            .where('id', sale.product_id)
+            .increment('stock_quantity', sale.quantity)
+            .update('updated_at', new Date().toISOString());
+            
+          const newStock = currentStock + sale.quantity;
+          console.log(`✅ Stock restored: Product ${sale.product_id} now has ${newStock} units (was ${currentStock}, added ${sale.quantity})`);
+        }
+      } else {
+        console.warn(`⚠️ Product ${sale.product_id} not found - cannot restore stock for deleted sale ${id}`);
       }
 
       // 3) Remove any associated debts for this sale
-      await trx('debts').where('sale_id', id).del();
+      const deletedDebts = await trx('debts').where('sale_id', id).del();
+      if (deletedDebts > 0) {
+        console.log(`💳 Deleted ${deletedDebts} debt record(s) associated with sale ${id}`);
+      }
 
       // 4) Delete the sale AFTER stock has been restored
-      await trx('sales').where('id', id).del();
+      const deletedSales = await trx('sales').where('id', id).del();
+      
+      if (deletedSales === 0) {
+        // This shouldn't happen since we found the sale above, but just in case
+        console.warn(`⚠️ No sale rows were deleted for id ${id} - possible race condition`);
+        throw new Error('Sale deletion failed - no rows affected');
+      }
 
       // 5) Read back product for response (may be null if product missing)
       const updatedProduct = productRow
@@ -450,9 +478,109 @@ class Sale {
         : null;
 
       await trx.commit();
-      return { product: updatedProduct };
+      
+      console.log(`🎉 Successfully deleted sale ${id} and restored stock`);
+      return { 
+        product: updatedProduct,
+        deletedSale: {
+          id: sale.id,
+          productId: sale.product_id,
+          quantity: sale.quantity,
+          total: sale.total
+        }
+      };
+      
     } catch (error) {
       await trx.rollback();
+      console.error(`❌ Failed to delete sale ${id}:`, error.message);
+      throw error;
+    }
+  }
+
+  // Additional helper method to check for potential stock inconsistencies
+  static async validateStockConsistency(productId) {
+    const dbx = getDatabase();
+    
+    try {
+      // Get product current stock
+      const product = await dbx('products').where('id', productId).first();
+      if (!product) {
+        return { valid: false, error: 'Product not found' };
+      }
+      
+      // Calculate total quantity sold for this product
+      const salesResult = await dbx('sales')
+        .where('product_id', productId)
+        .sum('quantity as total_sold');
+      
+      const totalSold = parseInt(salesResult[0]?.total_sold || 0);
+      
+      // Get total sales count
+      const salesCount = await dbx('sales')
+        .where('product_id', productId)
+        .count('* as count');
+      
+      const totalSalesCount = parseInt(salesCount[0]?.count || 0);
+      
+      return {
+        valid: true,
+        productId,
+        productName: product.name,
+        currentStock: product.stock_quantity,
+        totalSold,
+        totalSalesCount,
+        lastUpdated: product.updated_at
+      };
+    } catch (error) {
+      return { valid: false, error: error.message };
+    }
+  }
+
+  // Method to detect and fix potential stock inconsistencies (use with caution)
+  static async detectStockInconsistencies() {
+    const dbx = getDatabase();
+    
+    try {
+      // Get all products with their sales totals
+      const results = await dbx('products as p')
+        .leftJoin('sales as s', 'p.id', 's.product_id')
+        .select(
+          'p.id',
+          'p.name',
+          'p.stock_quantity',
+          'p.updated_at'
+        )
+        .sum('s.quantity as total_sold')
+        .count('s.id as sales_count')
+        .groupBy('p.id', 'p.name', 'p.stock_quantity', 'p.updated_at')
+        .orderBy('p.name');
+      
+      const inconsistencies = [];
+      
+      for (const row of results) {
+        const totalSold = parseInt(row.total_sold || 0);
+        const salesCount = parseInt(row.sales_count || 0);
+        
+        // Flag products that might have inconsistencies
+        if (totalSold > 0 && row.stock_quantity < 0) {
+          inconsistencies.push({
+            productId: row.id,
+            productName: row.name,
+            currentStock: row.stock_quantity,
+            totalSold,
+            salesCount,
+            issue: 'Negative stock with sales history'
+          });
+        }
+      }
+      
+      return {
+        totalProducts: results.length,
+        inconsistencies,
+        timestamp: new Date().toISOString()
+      };
+    } catch (error) {
+      console.error('Error detecting stock inconsistencies:', error);
       throw error;
     }
   }
