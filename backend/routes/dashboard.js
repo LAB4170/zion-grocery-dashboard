@@ -75,8 +75,13 @@ router.get('/stats', catchAsync(async (req, res) => {
       date_to: today
     });
     
-    // Get low stock products count
-    const lowStockProducts = await Product.getLowStock();
+    // Get low stock products count (guard against missing method)
+    let lowStockProducts = [];
+    if (Product && typeof Product.getLowStock === 'function') {
+      lowStockProducts = await Product.getLowStock();
+    } else {
+      console.warn('dashboard.stats: Product.getLowStock() not available, defaulting to empty list');
+    }
     
     stats = {
       sales: {
