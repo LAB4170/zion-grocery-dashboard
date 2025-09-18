@@ -409,33 +409,46 @@ class Sale {
 
   // Delete sale
   static async delete(id) {
-    const trx = await getDatabase().transaction();
-    
+    const dbx = getDatabase();
+    const trx = await dbx.transaction();
+
     try {
-      const deletedRows = await trx('sales')
+      // 1) Lock the sale row first to serialize concurrent deletes
+      const sale = await trx('sales')
         .where('id', id)
         .forUpdate()
-        .del()
-        .returning('*');
+        .first();
 
-      const sale = deletedRows && deletedRows[0];
       if (!sale) {
-        // Already deleted by a concurrent request → nothing to restore
+        // Already deleted (or never existed) → nothing to restore
         await trx.rollback();
         throw new Error('Sale not found');
       }
 
-      // Restore product stock using the values from the deleted row
-      await trx('products')
+      // 2) Lock the product row and restore stock atomically if product exists
+      const productRow = await trx('products')
         .where('id', sale.product_id)
-        .increment('stock_quantity', sale.quantity)
-        .update('updated_at', new Date().toISOString());
+        .forUpdate()
+        .first();
 
-      const updatedProduct = await trx('products').where('id', sale.product_id).first();
+      if (productRow) {
+        await trx('products')
+          .where('id', sale.product_id)
+          .increment('stock_quantity', sale.quantity)
+          .update('updated_at', new Date().toISOString());
+      }
 
-      // Delete associated debt if exists (safe: sale already deleted)
+      // 3) Remove any associated debts for this sale
       await trx('debts').where('sale_id', id).del();
-       
+
+      // 4) Delete the sale AFTER stock has been restored
+      await trx('sales').where('id', id).del();
+
+      // 5) Read back product for response (may be null if product missing)
+      const updatedProduct = productRow
+        ? await trx('products').where('id', sale.product_id).first()
+        : null;
+
       await trx.commit();
       return { product: updatedProduct };
     } catch (error) {

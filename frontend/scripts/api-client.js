@@ -7,6 +7,8 @@ class ApiClient {
     this.isOnline = navigator.onLine;
     this.initializationPromise = this.initialize();
     this.setupConnectionMonitoring();
+    // Guard against duplicate DELETE requests for the same resource (e.g., sales)
+    this._inFlightDeletes = new Map();
   }
 
   // Helper: build query string from params
@@ -328,9 +330,15 @@ class ApiClient {
   }
 
   async deleteSale(id) {
-    return this.makeRequest(`/sales/${id}`, {
-      method: "DELETE",
-    });
+    // Prevent duplicate DELETE calls for the same sale id
+    if (this._inFlightDeletes.has(`sales:${id}`)) {
+      return this._inFlightDeletes.get(`sales:${id}`);
+    }
+
+    const p = this.makeRequest(`/sales/${id}`, { method: "DELETE" })
+      .finally(() => this._inFlightDeletes.delete(`sales:${id}`));
+    this._inFlightDeletes.set(`sales:${id}`, p);
+    return p;
   }
 
   // Expenses API
