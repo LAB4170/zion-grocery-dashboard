@@ -1,6 +1,30 @@
 let salesPaginationManager;
 let __saleOpInProgress = false; // prevent duplicate operations
 
+// Timezone helpers for Africa/Nairobi (EAT, UTC+03:00, no DST)
+function getNairobiDateString(d = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Africa/Nairobi',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(d);
+  const map = Object.fromEntries(parts.map(p => [p.type, p.value]));
+  return `${map.year}-${map.month}-${map.day}`;
+}
+
+function getNairobiTimeString(d = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Africa/Nairobi',
+    hour12: false,
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  }).formatToParts(d);
+  const map = Object.fromEntries(parts.map(p => [p.type, p.value]));
+  return `${map.hour || '00'}:${map.minute || '00'}:${map.second || '00'}`;
+}
+
 // Simple fallback for notifications if utils not loaded yet
 function showNotification(message, type = 'success') {
   if (window.utils && window.utils.showNotification) {
@@ -121,8 +145,13 @@ async function addSale(event) {
       existingSale.customerPhone = paymentMethod === "debt" ? customerPhone : null;
       existingSale.status = paymentMethod === "debt" ? "pending" : "completed";
       existingSale.date = saleDate;
-      // Keep createdAt aligned with the chosen sale date (preserve time component if it exists)
-      existingSale.createdAt = new Date(saleDate + 'T' + new Date().toTimeString().split(' ')[0]).toISOString();
+      // Keep createdAt aligned with the chosen sale date in EAT (UTC+03:00)
+      // Preserve time if it exists, else use current Nairobi time
+      const existingISO = typeof existingSale.createdAt === 'string' ? existingSale.createdAt : (existingSale.createdAt?.toISOString?.() || null);
+      const preservedTime = (existingISO && existingISO.includes('T')) ? (existingISO.split('T')[1].replace('Z','').substring(0,8)) : getNairobiTimeString();
+      // Build an ISO string by explicitly setting +03:00 offset
+      const eatIso = new Date(`${saleDate}T${preservedTime}+03:00`).toISOString();
+      existingSale.createdAt = eatIso;
 
       await window.dataManager.updateData("sales", saleId, existingSale);
 
@@ -156,7 +185,9 @@ async function addSale(event) {
       }
 
       const total = product.price * quantity;
-      const createdAt = new Date(saleDate + 'T' + new Date().toTimeString().split(' ')[0]).toISOString();
+      // Use current Nairobi time for createdAt, tied to selected saleDate
+      const eatTime = getNairobiTimeString();
+      const createdAt = new Date(`${saleDate}T${eatTime}+03:00`).toISOString();
 
       const sale = {
         productId: product.id,
@@ -517,14 +548,10 @@ function resetSalesModal() {
   if (modal) modal.dataset.saleId = "";
   if (form) form.reset();
 
-  // Set default date to today
+  // Set default date to today in EAT
   const saleDateInput = document.getElementById("saleDate");
   if (saleDateInput) {
-    const now = new Date();
-    const yyyy = now.getFullYear();
-    const mm = String(now.getMonth() + 1).padStart(2, '0');
-    const dd = String(now.getDate()).padStart(2, '0');
-    saleDateInput.value = `${yyyy}-${mm}-${dd}`; // Local date (YYYY-MM-DD)
+    saleDateInput.value = getNairobiDateString(); // EAT date (YYYY-MM-DD)
   }
 
   // Hide customer info fields
@@ -600,8 +627,9 @@ async function editSaleDate(saleId) {
     // Update sale record
     sale.date = newDate;
     const existingISO = typeof sale.createdAt === 'string' ? sale.createdAt : (sale.createdAt?.toISOString?.() || null);
-    const timePart = existingISO && existingISO.includes('T') ? existingISO.split('T')[1] : '00:00:00.000Z';
-    sale.createdAt = new Date(`${newDate}T${timePart}`).toISOString();
+    const preservedTime = (existingISO && existingISO.includes('T')) ? (existingISO.split('T')[1].replace('Z','').substring(0,8)) : getNairobiTimeString();
+    // Build EAT (+03:00) timestamp, then convert to canonical ISO (UTC)
+    sale.createdAt = new Date(`${newDate}T${preservedTime}+03:00`).toISOString();
     
     // Update linked debt record if exists
     const debts = window.debts || [];
