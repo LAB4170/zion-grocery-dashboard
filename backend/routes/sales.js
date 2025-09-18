@@ -172,12 +172,15 @@ router.delete('/:id', catchAsync(async (req, res) => {
     throw new AppError('Sale not found', 404);
   }
 
-  await Sale.delete(req.params.id);
-  
-  res.json({
-    success: true,
-    message: 'Sale deleted successfully'
-  });
+  const result = await Sale.delete(req.params.id);
+   
+   res.json({
+     success: true,
+     message: 'Sale deleted successfully',
+     data: {
+       product: result && result.product ? result.product : null
+     }
+   });
 }));
 
 module.exports = router;

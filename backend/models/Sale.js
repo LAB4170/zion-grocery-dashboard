@@ -412,8 +412,8 @@ class Sale {
     const trx = await getDatabase().transaction();
     
     try {
-      // Get sale details
-      const sale = await trx('sales').where('id', id).first();
+      // Lock the sale row to prevent concurrent double increments
+      const sale = await trx('sales').where('id', id).forUpdate().first();
       if (!sale) {
         throw new Error('Sale not found');
       }
