@@ -515,6 +515,10 @@ class ApiClient {
     return this.makeRequest("/dashboard/stats");
   }
 
+  async getWeeklyExpenses() {
+    return this.makeRequest("/dashboard/weekly-expenses");
+  }
+
   // Health check with improved error handling
   async checkHealth() {
     try {

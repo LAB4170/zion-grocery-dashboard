@@ -223,6 +223,53 @@ class Expense {
     }));
   }
 
+  // Get weekly expenses for the current week (Monday–Sunday), zero-filled
+  static async getWeeklyExpenses() {
+    const dbx = getDatabase();
+
+    // Compute Monday of current week (local server time)
+    const today = new Date();
+    const day = today.getDay(); // 0=Sun,1=Mon
+    const diffToMonday = (day === 0) ? -6 : (1 - day);
+    const monday = new Date(today);
+    monday.setDate(today.getDate() + diffToMonday);
+    monday.setHours(0, 0, 0, 0);
+
+    const days = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(monday);
+      d.setDate(monday.getDate() + i);
+      return d.toISOString().split('T')[0];
+    });
+
+    // Aggregate by DATE(created_at)
+    const rows = await dbx('expenses')
+      .where('created_at', '>=', days[0])
+      .andWhere('created_at', '<=', days[6] + 'T23:59:59.999Z')
+      .select(dbx.raw("to_char(created_at::date, 'YYYY-MM-DD') as date"))
+      .sum({ total_amount: 'amount' })
+      .count({ total_expenses: '*' })
+      .groupBy('date');
+
+    const byDate = new Map();
+    for (const r of rows) {
+      byDate.set(r.date, {
+        total_expenses: parseInt(r.total_expenses) || 0,
+        total_amount: parseFloat(r.total_amount) || 0
+      });
+    }
+
+    const result = days.map(d => ({
+      date: d,
+      total_expenses: byDate.get(d)?.total_expenses || 0,
+      total_amount: byDate.get(d)?.total_amount || 0
+    }));
+
+    return {
+      week: { start: days[0], end: days[6] },
+      days: result
+    };
+  }
+
   // Get expenses by category
   static async getByCategory() {
     const categories = await getDatabase()('expenses')

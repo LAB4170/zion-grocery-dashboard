@@ -160,6 +160,15 @@ router.get('/charts', catchAsync(async (req, res) => {
   });
 }));
 
+// GET /api/dashboard/weekly-expenses - Get weekly expenses (Mon–Sun)
+router.get('/weekly-expenses', catchAsync(async (req, res) => {
+  if (typeof Expense.getWeeklyExpenses !== 'function') {
+    return res.status(501).json({ success: false, message: 'Weekly expenses not implemented' });
+  }
+  const weekly = await Expense.getWeeklyExpenses();
+  res.json({ success: true, data: weekly });
+}));
+
 // GET /api/dashboard/recent-activities - Get recent activities
 router.get('/recent-activities', catchAsync(async (req, res) => {
   const limit = parseInt(req.query.limit) || 10;

@@ -268,7 +268,7 @@ async function loadDashboardData() {
   }
 }
 
-function updateDashboardStats() {
+async function updateDashboardStats() {
   const today = new Date().toISOString().split("T")[0];
   const currentMonth = new Date().getMonth();
   const currentYear = new Date().getFullYear();
@@ -287,6 +287,60 @@ function updateDashboardStats() {
   // Additional debug info
   console.log("🔍 Debug - Final sales array:", sales);
   console.log("🔍 Debug - Sales length:", sales.length);
+
+  // Preferred path: fetch counters from backend dashboard stats
+  try {
+    if (window.apiClient && typeof window.apiClient.getDashboardStats === 'function') {
+      const resp = await window.apiClient.getDashboardStats();
+      const stats = resp && resp.data ? resp.data : null;
+      if (stats && stats.sales && stats.expenses && stats.debts) {
+        // Total sales (revenue)
+        const totalSalesElement = document.getElementById("total-sales");
+        if (totalSalesElement)
+          totalSalesElement.textContent = window.utils.formatCurrency(stats.sales.total_revenue || 0);
+
+        // Cash total (label retained for backward-compat; this shows cash revenue all-time)
+        const cashTotalElement = document.getElementById("cash-total");
+        if (cashTotalElement)
+          cashTotalElement.textContent = window.utils.formatCurrency(stats.sales.cash_sales || 0);
+
+        // M-Pesa total (if present on UI)
+        const mpesaTotalElement = document.getElementById("mpesa-total");
+        if (mpesaTotalElement)
+          mpesaTotalElement.textContent = window.utils.formatCurrency(stats.sales.mpesa_sales || 0);
+
+        // Today's debts amount
+        const todaysDebtsElement = document.getElementById("todays-debts");
+        if (todaysDebtsElement)
+          todaysDebtsElement.textContent = window.utils.formatCurrency(stats.debts.today_debts || 0);
+
+        // Today's expenses
+        const dailyExpensesElement = document.getElementById("daily-expenses");
+        if (dailyExpensesElement)
+          dailyExpensesElement.textContent = window.utils.formatCurrency(stats.expenses.today_expenses || 0);
+
+        // Monthly sales (revenue)
+        const monthlySalesElement = document.getElementById("monthly-sales");
+        if (monthlySalesElement)
+          monthlySalesElement.textContent = window.utils.formatCurrency(stats.sales.monthly_revenue || 0);
+
+        // Monthly expenses
+        const monthlyExpensesElement = document.getElementById("monthly-expenses");
+        if (monthlyExpensesElement)
+          monthlyExpensesElement.textContent = window.utils.formatCurrency(stats.expenses.monthly_expenses || 0);
+
+        // Outstanding debt (pending)
+        const outstandingDebtElement = document.getElementById("outstanding-debt");
+        if (outstandingDebtElement)
+          outstandingDebtElement.textContent = window.utils.formatCurrency(stats.debts.total_outstanding || 0);
+
+        // Done with server-provided stats
+        return;
+      }
+    }
+  } catch (e) {
+    console.warn('Falling back to client-side dashboard stats due to error:', e?.message || e);
+  }
 
   // Total sales
   const totalSales = sales.reduce((sum, sale) => sum + (sale.total || 0), 0);

@@ -131,106 +131,55 @@ async function generateDailyReport() {
     `;
 }
 
-function generateWeeklyReport() {
-  const endDate = new Date();
-  const startDate = new Date();
-  startDate.setDate(endDate.getDate() - 6);
-  startDate.setHours(0, 0, 0, 0);
-  endDate.setHours(23, 59, 59, 999);
-
-  const sales = window.sales || [];
-  const expenses = window.expenses || [];
-
-  const weekSales = sales.filter((s) => {
-    const saleDate = new Date(s.createdAt);
-    saleDate.setHours(0, 0, 0, 0);
-    return saleDate >= startDate && saleDate <= endDate;
-  });
-
-  const weekExpenses = expenses.filter((e) => {
-    const expenseDate = new Date(e.createdAt);
-    expenseDate.setHours(0, 0, 0, 0);
-    return expenseDate >= startDate && expenseDate <= endDate;
-  });
-
-  const totalSales = weekSales.reduce(
-    (sum, sale) => sum + (sale.total || 0),
-    0
-  );
-  const totalExpenses = weekExpenses.reduce(
-    (sum, expense) => sum + (expense.amount || 0),
-    0
-  );
-
-  // Group sales by day
-  const salesByDay = {};
-  for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
-    const dateString = d.toISOString().split("T")[0];
-    salesByDay[dateString] = weekSales
-      .filter((s) => s.date === dateString)
-      .reduce((sum, s) => sum + (s.total || 0), 0);
-  }
-
+async function generateWeeklyReport() {
   const reportContent = document.getElementById("reportContent");
   if (!reportContent) return;
 
-  reportContent.innerHTML = `
-        <div class="report">
-            <h3>Weekly Report - ${window.utils.formatDate(
-              startDate
-            )} to ${window.utils.formatDate(endDate)}</h3>
-            <div class="report-stats">
-                <div class="report-stat">
-                    <h4>Sales Summary</h4>
-                    <p>Total Sales: ${window.utils.formatCurrency(
-                      totalSales
-                    )}</p>
-                    <p>Average Daily Sales: ${window.utils.formatCurrency(
-                      totalSales / 7
-                    )}</p>
-                    <p>Number of Transactions: ${weekSales.length}</p>
-                </div>
-                <div class="report-stat">
-                    <h4>Expenses Summary</h4>
-                    <p>Total Expenses: ${window.utils.formatCurrency(
-                      totalExpenses
-                    )}</p>
-                    <p>Average Daily Expenses: ${window.utils.formatCurrency(
-                      totalExpenses / 7
-                    )}</p>
-                </div>
-                <div class="report-stat">
-                    <h4>Net Profit</h4>
-                    <p>Weekly Net Profit: ${window.utils.formatCurrency(
-                      totalSales - totalExpenses
-                    )}</p>
-                </div>
-            </div>
-            <div class="report-details">
-                <h4>Daily Breakdown</h4>
-                <table class="table">
-                    <thead>
-                        <tr>
-                            <th>Date</th>
-                            <th>Sales</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${Object.entries(salesByDay)
-                          .map(
-                            ([date, amount]) => `
-                            <tr>
-                                <td>${window.utils.formatDate(date)}</td>
-                                <td>${window.utils.formatCurrency(amount)}</td>
-                            </tr>
-                        `
-                          )
-                          .join("")}
-                    </tbody>
-                </table>
-            </div>
+  try {
+    const resp = await window.apiClient.getSalesWeekly();
+    const weekly = resp && resp.data ? resp.data : null;
+    if (!weekly || !Array.isArray(weekly.days)) {
+      throw new Error('Unexpected weekly payload');
+    }
+
+    const totalSales = weekly.days.reduce((sum, d) => sum + (parseFloat(d.total_revenue) || 0), 0);
+
+    reportContent.innerHTML = `
+      <div class="report">
+        <h3>Weekly Report - ${window.utils.formatDate(weekly.week.start)} to ${window.utils.formatDate(weekly.week.end)}</h3>
+        <div class="report-stats">
+          <div class="report-stat">
+            <h4>Sales Summary</h4>
+            <p>Total Sales: ${window.utils.formatCurrency(totalSales)}</p>
+            <p>Average Daily Sales: ${window.utils.formatCurrency(totalSales / 7)}</p>
+            <p>Number of Days: 7</p>
+          </div>
         </div>
+        <div class="report-details">
+          <h4>Daily Breakdown</h4>
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Sales</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${weekly.days.map(d => `
+                <tr>
+                  <td>${window.utils.formatDate(d.date)}</td>
+                  <td>${window.utils.formatCurrency(parseFloat(d.total_revenue) || 0)}</td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        </div>
+      </div>
     `;
+  } catch (e) {
+    console.error('Failed to generate weekly report:', e?.message || e);
+    reportContent.innerHTML = `<p style="color:white;">Failed to load weekly report.</p>`;
+  }
 }
 
 function generateMonthlyReport() {
