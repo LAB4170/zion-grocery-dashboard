@@ -412,26 +412,30 @@ class Sale {
     const trx = await getDatabase().transaction();
     
     try {
-      // Lock the sale row to prevent concurrent double increments
-      const sale = await trx('sales').where('id', id).forUpdate().first();
+      const deletedRows = await trx('sales')
+        .where('id', id)
+        .forUpdate()
+        .del()
+        .returning('*');
+
+      const sale = deletedRows && deletedRows[0];
       if (!sale) {
+        // Already deleted by a concurrent request → nothing to restore
+        await trx.rollback();
         throw new Error('Sale not found');
       }
-      
-      // Restore product stock and fetch updated product in one txn
+
+      // Restore product stock using the values from the deleted row
       await trx('products')
         .where('id', sale.product_id)
         .increment('stock_quantity', sale.quantity)
         .update('updated_at', new Date().toISOString());
 
       const updatedProduct = await trx('products').where('id', sale.product_id).first();
-      
-      // Delete associated debt if exists
+
+      // Delete associated debt if exists (safe: sale already deleted)
       await trx('debts').where('sale_id', id).del();
-      
-      // Delete sale
-      await trx('sales').where('id', id).del();
-      
+       
       await trx.commit();
       return { product: updatedProduct };
     } catch (error) {

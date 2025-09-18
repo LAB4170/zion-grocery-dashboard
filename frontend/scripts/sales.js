@@ -394,15 +394,18 @@ function getStatusBadge(status) {
 }
 
 async function deleteSale(saleId) {
-  if (!confirm("Are you sure you want to delete this sale?")) {
-    return;
-  }
-
+  // Guard first to avoid double triggers before/around confirm dialog
   if (__saleOpInProgress) {
     console.log('⚠️ Delete already in progress');
     return;
   }
   __saleOpInProgress = true;
+
+  // Ask for confirmation; if cancelled, release the lock and exit
+  if (!confirm("Are you sure you want to delete this sale?")) {
+    __saleOpInProgress = false;
+    return;
+  }
 
   // Disable all delete buttons temporarily to prevent double actions
   const deleteButtons = Array.from(document.querySelectorAll('.btn-danger'));
