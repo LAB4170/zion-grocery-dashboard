@@ -126,7 +126,14 @@ async function loadProductsData(filteredProducts = null) {
       const result = await window.dataManager.getData("products");
       
       if (result && result.data) {
-        window.products = result.data;
+        // Deduplicate by id to avoid accidental duplicate rows in UI
+        const seen = new Set();
+        window.products = result.data.filter(p => {
+          if (!p || !p.id) return false;
+          if (seen.has(p.id)) return false;
+          seen.add(p.id);
+          return true;
+        });
         console.log('✅ Products loaded from database:', window.products.length, 'items');
       } else {
         window.products = [];
@@ -134,7 +141,15 @@ async function loadProductsData(filteredProducts = null) {
       }
     }
 
-    const productsToShow = filteredProducts || window.products || [];
+    // Ensure no duplicates are rendered
+    const map = new Map();
+    const source = filteredProducts || window.products || [];
+    const productsToShow = source.filter(p => {
+      if (!p || !p.id) return false;
+      if (map.has(p.id)) return false;
+      map.set(p.id, true);
+      return true;
+    });
 
     if (productsPaginationManager) {
       productsPaginationManager.updateData(productsToShow);
@@ -161,7 +176,16 @@ function renderProductsTable(productsToShow) {
 
   // Sync with global variables - use window.products consistently
   const products = window.products || [];
-  const dataToRender = productsToShow || products;
+
+  // Deduplicate by id before rendering
+  const base = productsToShow || products;
+  const byId = new Map();
+  const dataToRender = base.filter(p => {
+    if (!p || !p.id) return false;
+    if (byId.has(p.id)) return false;
+    byId.set(p.id, true);
+    return true;
+  });
 
   tbody.innerHTML = dataToRender
     .map((product) => {
