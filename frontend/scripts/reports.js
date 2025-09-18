@@ -38,9 +38,28 @@ async function generateDailyReport() {
   const expenses = Array.isArray(window.expenses) ? window.expenses : [];
   const debts = Array.isArray(window.debts) ? window.debts : [];
 
-  const todaySales = sales.filter((s) => s.date === today);
-  const todayExpenses = expenses.filter((e) => e.date === today);
-  const todayDebts = debts.filter((d) => d.date === today);
+  // Robust date comparison that tolerates different fields and types
+  const isSameDay = (value, yyyyMmDd) => {
+    if (!value) return false;
+    try {
+      if (value instanceof Date) {
+        return getNairobiDateString(value) === yyyyMmDd;
+      }
+      // value may be 'YYYY-MM-DD' or full ISO; normalize to date-only
+      const str = String(value);
+      const dateOnly = str.length >= 10 ? str.slice(0, 10) : str;
+      return dateOnly === yyyyMmDd;
+    } catch {
+      return false;
+    }
+  };
+
+  const todaySales = sales.filter((s) => {
+    const v = s.date ?? s.createdAt ?? s.created_at;
+    return isSameDay(v, today);
+  });
+  const todayExpenses = expenses.filter((e) => isSameDay(e.date ?? e.createdAt ?? e.created_at, today));
+  const todayDebts = debts.filter((d) => isSameDay(d.date ?? d.createdAt ?? d.created_at, today));
 
   const totalSales = todaySales.reduce(
     (sum, sale) => sum + (sale.total || 0),
@@ -144,19 +163,51 @@ async function generateWeeklyReport() {
   reportContent.innerHTML = '<div style="color:white;">Loading weekly report…</div>';
 
   try {
-    const [salesResp, expensesResp] = await Promise.all([
-      window.apiClient.getSalesWeekly(),
-      typeof window.apiClient.getWeeklyExpenses === 'function' ? window.apiClient.getWeeklyExpenses() : Promise.resolve({ data: null })
-    ]);
+    let weekly = null;
 
-    const weekly = salesResp && salesResp.data ? salesResp.data : null;
+    if (window.apiClient && typeof window.apiClient.getSalesWeekly === 'function') {
+      const salesResp = await window.apiClient.getSalesWeekly();
+      weekly = salesResp && salesResp.data ? salesResp.data : null;
+    }
+
+    // Fallback: compute last 7 days from loaded sales if API not available
+    if (!weekly) {
+      const sales = Array.isArray(window.sales) ? window.sales : [];
+      const today = new Date();
+      const days = [];
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date(today);
+        d.setDate(today.getDate() - i);
+        const key = getNairobiDateString(d);
+        const total_revenue = sales
+          .filter(s => {
+            const v = s.date ?? s.createdAt ?? s.created_at;
+            if (!v) return false;
+            const str = v instanceof Date ? getNairobiDateString(v) : String(v).slice(0,10);
+            return str === key;
+          })
+          .reduce((sum, s) => sum + (parseFloat(s.total) || 0), 0);
+        days.push({ date: key, total_revenue });
+      }
+      weekly = {
+        week: { start: days[0].date, end: days[6].date },
+        days
+      };
+    }
+
     if (!weekly || !Array.isArray(weekly.days)) {
       throw new Error('Unexpected weekly payload');
     }
 
     const totalSales = weekly.days.reduce((sum, d) => sum + (parseFloat(d.total_revenue) || 0), 0);
 
-    const weeklyExp = expensesResp && expensesResp.data ? expensesResp.data : null;
+    // Try to get weekly expenses if available; otherwise compute a simple fallback of 0s
+    let weeklyExp = null;
+    if (window.apiClient && typeof window.apiClient.getWeeklyExpenses === 'function') {
+      const expensesResp = await window.apiClient.getWeeklyExpenses();
+      weeklyExp = expensesResp && expensesResp.data ? expensesResp.data : null;
+    }
+
     const totalExpenses = Array.isArray(weeklyExp?.days)
       ? weeklyExp.days.reduce((sum, d) => sum + (parseFloat(d.total_amount) || 0), 0)
       : 0;
@@ -289,7 +340,6 @@ function generateMonthlyReport() {
 
   const monthName = new Date(selectedYear, selectedMonth, 1).toLocaleDateString("en-KE", { month: "long", year: "numeric" });
 
-  const reportContent = document.getElementById("reportContent");
   if (!reportContent) return;
 
   reportContent.innerHTML = `
