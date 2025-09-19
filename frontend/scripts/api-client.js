@@ -12,6 +12,8 @@ class ApiClient {
     // Enhanced guards against duplicate operations
     this._inFlightOperations = new Map();
     this._operationHistory = new Map(); // Track recent operations
+    // New: de-duplicate concurrent GETs to same endpoint
+    this._inFlightGets = new Map();
   }
 
   // Helper: build query string from params
@@ -150,149 +152,212 @@ class ApiClient {
       ...options,
     };
 
-    try {
-      console.log(`🔄 API Request: ${config.method} ${endpoint}`);
+    const method = (config.method || 'GET').toUpperCase();
 
-      let response = await fetch(url, config);
+    // De-duplicate concurrent GETs for same URL+method+body signature
+    const inflightKey = method === 'GET' ? `${method}:${url}` : null;
+    if (inflightKey && this._inFlightGets.has(inflightKey)) {
+      return this._inFlightGets.get(inflightKey);
+    }
 
-      // Light retry once for GET requests if rate-limited (429)
-      if (response.status === 429 && (config.method || 'GET').toUpperCase() === 'GET') {
-        console.warn(`⏳ Rate limited (429) on ${endpoint}. Retrying once after 800ms...`);
-        await new Promise(r => setTimeout(r, 800));
-        response = await fetch(url, config);
-      }
+    const exec = (async () => {
+      try {
+        console.log(`🔄 API Request: ${config.method} ${endpoint}`);
 
-      if (!response.ok) {
-        let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
-        let errorDetails = null;
+        const maxAttempts = method === 'GET' ? 3 : 1; // only GET retries
+        let attempt = 0;
+        let response;
+        while (true) {
+          response = await fetch(url, config);
 
-        // Try to get more specific error info from response
-        try {
-          const errorData = await response.json();
-          if (errorData.message) {
-            errorDetails = errorData.message;
-            errorMessage += ` - ${errorData.message}`;
+          if (response.status === 429 && attempt < maxAttempts - 1) {
+            // Respect Retry-After header if present
+            const retryAfterHeader = response.headers.get('Retry-After');
+            let delayMs = 0;
+            if (retryAfterHeader) {
+              const seconds = parseInt(retryAfterHeader, 10);
+              if (!Number.isNaN(seconds)) {
+                delayMs = Math.min(seconds * 1000, 15000);
+              }
+            }
+            if (!delayMs) {
+              // Exponential backoff: 800ms, 1600ms ... capped
+              delayMs = Math.min(800 * Math.pow(2, attempt), 5000);
+            }
+            attempt += 1;
+            console.warn(`⏳ Rate limited (429) on ${endpoint}. Backing off ${delayMs}ms (attempt ${attempt}/${maxAttempts})...`);
+            await new Promise(r => setTimeout(r, delayMs));
+            continue; // retry
           }
-          if (errorData.error) {
-            errorMessage += ` (${errorData.error})`;
-          }
-        } catch (parseError) {
-          // Response body isn't JSON, use status text
-          console.warn("Could not parse error response as JSON");
+          break; // not 429 or out of attempts
         }
 
-        // Specific handling for 429
-        if (response.status === 429) {
-          throw new Error(`Rate limited (HTTP 429). Please wait a moment and try again.`);
-        }
+        if (!response.ok) {
+          let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+          let errorDetails = null;
 
-        // Provide specific guidance based on error type
-        if (response.status === 500) {
-          console.error("❌ Server Error Details:", {
-            endpoint,
-            status: response.status,
-            statusText: response.statusText,
-            errorDetails,
-            timestamp: new Date().toISOString(),
-          });
+          // Try to get more specific error info from response
+          try {
+            const ct = response.headers.get('content-type') || '';
+            if (ct.includes('application/json')) {
+              const errorData = await response.json();
+              if (errorData && typeof errorData === 'object') {
+                if (errorData.message) {
+                  errorDetails = errorData.message;
+                  errorMessage += ` - ${errorData.message}`;
+                }
+                if (errorData.error) {
+                  errorMessage += ` (${errorData.error})`;
+                }
+              }
+            } else {
+              // Non-JSON error body (e.g., HTML); ignore body parsing
+              console.warn("Could not parse error response as JSON");
+            }
+          } catch (parseError) {
+            console.warn("Could not parse error response as JSON");
+          }
 
-          // Check if it's a database connection issue
-          if (
-            errorDetails &&
-            (errorDetails.includes("database") ||
-              errorDetails.includes("connection") ||
-              errorDetails.includes("ECONNREFUSED") ||
-              errorDetails.includes("timeout"))
-          ) {
+          // Specific handling for 429
+          if (response.status === 429) {
+            const retryAfterHeader = response.headers.get('Retry-After');
+            const extra = retryAfterHeader ? ` Retry-After: ${retryAfterHeader}s.` : '';
+            throw new Error(`Rate limited (HTTP 429). Please wait a moment and try again.${extra}`);
+          }
+
+          // Provide specific guidance based on error type
+          if (response.status === 500) {
+            console.error("❌ Server Error Details:", {
+              endpoint,
+              status: response.status,
+              statusText: response.statusText,
+              errorDetails,
+              timestamp: new Date().toISOString(),
+            });
+
+            // Check if it's a database connection issue
+            if (
+              errorDetails &&
+              (errorDetails.includes("database") ||
+                errorDetails.includes("connection") ||
+                errorDetails.includes("ECONNREFUSED") ||
+                errorDetails.includes("timeout"))
+            ) {
+              throw new Error(
+                `Database connection error: ${errorDetails}. Please run 'check-database-status.bat' to diagnose the issue.`
+              );
+            } else {
+              throw new Error(
+                `Server error occurred. Please check if the database is running and try again. Run 'check-database-status.bat' for diagnostics. Details: ${errorMessage}`
+              );
+            }
+          } else if (response.status === 404) {
             throw new Error(
-              `Database connection error: ${errorDetails}. Please run 'check-database-status.bat' to diagnose the issue.`
+              `API endpoint not found: ${endpoint}. Please check if the backend server is running.`
+            );
+          } else if (response.status === 400) {
+            throw new Error(
+              `Bad request: ${
+                errorDetails || "Invalid data sent to server"
+              }. Please check your input and try again.`
+            );
+          } else if (response.status === 401) {
+            throw new Error(
+              `Unauthorized access. Please check your login credentials.`
+            );
+          } else if (response.status === 403) {
+            throw new Error(
+              `Access forbidden. You don't have permission to perform this action.`
             );
           } else {
-            throw new Error(
-              `Server error occurred. Please check if the database is running and try again. Run 'check-database-status.bat' for diagnostics. Details: ${errorMessage}`
-            );
+            throw new Error(errorMessage);
           }
-        } else if (response.status === 404) {
-          throw new Error(
-            `API endpoint not found: ${endpoint}. Please check if the backend server is running.`
-          );
-        } else if (response.status === 400) {
-          throw new Error(
-            `Bad request: ${
-              errorDetails || "Invalid data sent to server"
-            }. Please check your input and try again.`
-          );
-        } else if (response.status === 401) {
-          throw new Error(
-            `Unauthorized access. Please check your login credentials.`
-          );
-        } else if (response.status === 403) {
-          throw new Error(
-            `Access forbidden. You don't have permission to perform this action.`
-          );
+        }
+
+        // Safely parse JSON when available, otherwise return text or null
+        let data = null;
+        const contentType = response.headers.get('content-type') || '';
+        if (response.status === 204 || response.status === 205) {
+          data = null;
+        } else if (contentType.includes('application/json')) {
+          data = await response.json();
         } else {
-          throw new Error(errorMessage);
+          // Non-JSON success; return text body
+          try {
+            data = await response.text();
+          } catch (e) {
+            data = null;
+          }
+        }
+
+        console.log(`✅ API Request successful: ${endpoint}`, data);
+        return data;
+      } catch (error) {
+        console.error(`❌ API Request failed: ${endpoint}`, error);
+
+        // Handle network errors (server not running)
+        if (
+          error.message.includes("Failed to fetch") ||
+          error.message.includes("fetch")
+        ) {
+          throw new Error(
+            `Cannot connect to server at ${this.baseURL}. Please ensure the backend server is running on the correct port.`
+          );
+        }
+
+        // Bubble up clear rate limit message
+        if (error.message.includes('Rate limited (HTTP 429)')) {
+          throw error;
+        }
+
+        // Handle timeout errors
+        if (
+          error.message.includes("timeout") ||
+          error.message.includes("AbortError")
+        ) {
+          throw new Error(
+            `Request timeout. The server may be overloaded or the database connection is slow. Please try again.`
+          );
+        }
+
+        // Important: Preserve common 4xx client errors (validation/auth/route) without
+        // converting them into misleading database connection errors
+        if (
+          error.message.startsWith('Bad request') ||
+          error.message.includes('API endpoint not found') ||
+          error.message.includes('Unauthorized') ||
+          error.message.includes("Access forbidden")
+        ) {
+          throw error;
+        }
+
+        // Re-throw enhanced errors or create generic database error
+        if (
+          error.message.includes("Database connection error") ||
+          error.message.includes("Server error occurred") ||
+          error.message.includes("Cannot connect to server")
+        ) {
+          throw error;
+        }
+
+        // Generic fallback with database guidance
+        throw new Error(
+          `Database connection required. Backend API unavailable: ${
+            error.message || error
+          }. Run 'check-database-status.bat' to diagnose database issues.`
+        );
+      } finally {
+        if (inflightKey) {
+          // Clear inflight cache entry
+          this._inFlightGets.delete(inflightKey);
         }
       }
+    })();
 
-      const data = await response.json();
-      console.log(`✅ API Request successful: ${endpoint}`, data);
-      return data;
-    } catch (error) {
-      console.error(`❌ API Request failed: ${endpoint}`, error);
-
-      // Handle network errors (server not running)
-      if (
-        error.message.includes("Failed to fetch") ||
-        error.message.includes("fetch")
-      ) {
-        throw new Error(
-          `Cannot connect to server at ${this.baseURL}. Please ensure the backend server is running on the correct port.`
-        );
-      }
-
-      // Bubble up clear rate limit message
-      if (error.message.includes('Rate limited (HTTP 429)')) {
-        throw error;
-      }
-
-      // Handle timeout errors
-      if (
-        error.message.includes("timeout") ||
-        error.message.includes("AbortError")
-      ) {
-        throw new Error(
-          `Request timeout. The server may be overloaded or the database connection is slow. Please try again.`
-        );
-      }
-
-      // Important: Preserve common 4xx client errors (validation/auth/route) without
-      // converting them into misleading database connection errors
-      if (
-        error.message.startsWith('Bad request') ||
-        error.message.includes('API endpoint not found') ||
-        error.message.includes('Unauthorized') ||
-        error.message.includes("Access forbidden")
-      ) {
-        throw error;
-      }
-
-      // Re-throw enhanced errors or create generic database error
-      if (
-        error.message.includes("Database connection error") ||
-        error.message.includes("Server error occurred") ||
-        error.message.includes("Cannot connect to server")
-      ) {
-        throw error;
-      }
-
-      // Generic fallback with database guidance
-      throw new Error(
-        `Database connection required. Backend API unavailable: ${
-          error.message || error
-        }. Run 'check-database-status.bat' to diagnose database issues.`
-      );
+    if (inflightKey) {
+      this._inFlightGets.set(inflightKey, exec);
     }
+    return exec;
   }
 
   // Products API

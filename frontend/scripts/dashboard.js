@@ -280,10 +280,46 @@ async function updateDashboardStats() {
   console.log("🔍 Debug - Final sales array:", sales);
   console.log("🔍 Debug - Sales length:", sales.length);
 
+  // Preferred path: use cache first if fresh to avoid initial burst, then refresh in background
+  const now = Date.now();
+  const cacheFresh = _statsCache.data && (now - _statsCache.ts) < DASHBOARD_STATS_CACHE_TTL_MS;
+  if (cacheFresh) {
+    const stats = _statsCache.data;
+    const totalSalesElement = document.getElementById("total-sales");
+    if (totalSalesElement)
+      totalSalesElement.textContent = window.utils.formatCurrency(stats.sales?.total_revenue || 0);
+    const cashTotalElement = document.getElementById("cash-total");
+    if (cashTotalElement)
+      cashTotalElement.textContent = window.utils.formatCurrency(stats.sales?.cash_sales || 0);
+    const mpesaTotalElement = document.getElementById("mpesa-total");
+    if (mpesaTotalElement)
+      mpesaTotalElement.textContent = window.utils.formatCurrency(stats.sales?.mpesa_sales || 0);
+    const todaysDebtsElement = document.getElementById("todays-debts");
+    if (todaysDebtsElement)
+      todaysDebtsElement.textContent = window.utils.formatCurrency(stats.debts?.today_debts || 0);
+    const dailyExpensesElement = document.getElementById("daily-expenses");
+    if (dailyExpensesElement)
+      dailyExpensesElement.textContent = window.utils.formatCurrency(stats.expenses?.today_expenses || 0);
+    const monthlySalesElement = document.getElementById("monthly-sales");
+    if (monthlySalesElement)
+      monthlySalesElement.textContent = window.utils.formatCurrency(stats.sales?.monthly_revenue || 0);
+    const monthlyExpensesElement = document.getElementById("monthly-expenses");
+    if (monthlyExpensesElement)
+      monthlyExpensesElement.textContent = window.utils.formatCurrency(stats.expenses?.monthly_expenses || 0);
+    const outstandingDebtElement = document.getElementById("outstanding-debt");
+    if (outstandingDebtElement)
+      outstandingDebtElement.textContent = window.utils.formatCurrency(stats.debts?.total_outstanding || 0);
+
+    // Trigger a background refresh that respects throttling (no await)
+    getDashboardStatsThrottled().catch(e => console.warn('Stats background refresh skipped:', e?.message || e));
+    return; // we already rendered from cache
+  }
+
   // Preferred path: fetch counters from backend dashboard stats
   try {
     if (window.apiClient && typeof window.apiClient.getDashboardStats === 'function') {
-      const resp = await window.apiClient.getDashboardStats();
+      // Use throttled stats fetch
+      const resp = await getDashboardStatsThrottled();
       const stats = resp && resp.data ? resp.data : null;
       if (stats && stats.sales && stats.expenses && stats.debts) {
         // Total sales (revenue)
@@ -564,7 +600,7 @@ function createWeeklyChart() {
   (async () => {
     try {
       // Fetch weekly data from backend (Mon–Sun, zero-filled)
-      const resp = await window.apiClient.getSalesWeekly();
+      const resp = await getWeeklySalesThrottled();
       const weekly = resp && resp.data ? resp.data : null;
       if (!weekly || !Array.isArray(weekly.days)) {
         console.warn('Weekly sales endpoint returned unexpected payload:', resp);
@@ -669,6 +705,58 @@ function createWeeklyChart() {
       console.error('Failed to create weekly chart:', e);
     }
   })();
+}
+
+// Throttling controls for dashboard API calls (configurable via CONFIG)
+const DASHBOARD_THROTTLE_MS = (window.CONFIG && window.CONFIG.DASHBOARD_THROTTLE_MS) ? window.CONFIG.DASHBOARD_THROTTLE_MS : 15000; // default 15s
+const WEEKLY_THROTTLE_MS = (window.CONFIG && window.CONFIG.WEEKLY_THROTTLE_MS) ? window.CONFIG.WEEKLY_THROTTLE_MS : 15000; // default 15s
+let _lastStatsFetchAt = 0;
+let _lastWeeklyFetchAt = 0;
+let _statsInFlight = null;
+let _weeklyInFlight = null;
+
+// Small in-memory cache for last successful dashboard stats (60s TTL)
+const DASHBOARD_STATS_CACHE_TTL_MS = 60000; // 60 seconds
+let _statsCache = { data: null, ts: 0 };
+
+async function getDashboardStatsThrottled() {
+  const now = Date.now();
+  if (_statsInFlight) {
+    return _statsInFlight;
+  }
+  if (now - _lastStatsFetchAt < DASHBOARD_THROTTLE_MS) {
+    return Promise.reject(new Error('Throttled: dashboard stats requested too frequently'));
+  }
+  _lastStatsFetchAt = now;
+  _statsInFlight = window.apiClient.getDashboardStats()
+    .then(resp => {
+      // Update cache on successful fetch
+      const stats = resp && resp.data ? resp.data : null;
+      if (stats) {
+        _statsCache = { data: stats, ts: Date.now() };
+      }
+      return resp;
+    })
+    .finally(() => {
+      _statsInFlight = null;
+    });
+  return _statsInFlight;
+}
+
+async function getWeeklySalesThrottled() {
+  const now = Date.now();
+  if (_weeklyInFlight) {
+    return _weeklyInFlight;
+  }
+  if (now - _lastWeeklyFetchAt < WEEKLY_THROTTLE_MS) {
+    return Promise.reject(new Error('Throttled: weekly sales requested too frequently'));
+  }
+  _lastWeeklyFetchAt = now;
+  _weeklyInFlight = window.apiClient.getSalesWeekly()
+    .finally(() => {
+      _weeklyInFlight = null;
+    });
+  return _weeklyInFlight;
 }
 
 // Week navigation controls
