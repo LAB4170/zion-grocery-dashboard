@@ -94,6 +94,14 @@ async function generateDailyReport(targetYmd = null) {
     }
   }
 
+  // Reflect the selected date in the toolbar (date picker + label)
+  try {
+    const dp = document.getElementById('dailyDatePicker');
+    if (dp) dp.value = reportYmd;
+    const disp = document.getElementById('dailyDateDisplay');
+    if (disp) disp.textContent = `Selected: ${window.utils.formatDate(reportYmd)}`;
+  } catch (_) {}
+
   const totalSales = todaySales.reduce((sum, s) => sum + reportGetTotal(s), 0);
   const totalExpenses = todayExpenses.reduce(
     (sum, expense) => sum + (expense.amount || 0),

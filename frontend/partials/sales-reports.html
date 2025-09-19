@@ -4,7 +4,14 @@
         <h2 style="color: white;">Business Reports & Analytics</h2>
         <div class="report-controls">
             <div class="report-type-buttons">
-                <button class="btn report-btn" onclick="generateDailyReport()">Daily Report</button>
+                <button class="btn report-btn" onclick="(function(){
+                  try {
+                    var today = (typeof window.getNairobiDateString==='function') ? window.getNairobiDateString() : new Date().toISOString().slice(0,10);
+                    var dp = document.getElementById('dailyDatePicker');
+                    if (dp) dp.value = today;
+                    if (typeof window.generateDailyReport==='function') window.generateDailyReport(today);
+                  } catch(_) { if (typeof window.generateDailyReport==='function') window.generateDailyReport(); }
+                })()">Daily Report</button>
                 <button class="btn report-btn" onclick="generateWeeklyReport()">Weekly Report</button>
                 <button class="btn report-btn" onclick="generateMonthlyReport()">Monthly Report</button>
                 <button class="btn report-btn" onclick="generateAnnualReport()">Annual Report</button>
@@ -17,6 +24,7 @@
                   var ymd=el && el.value ? el.value : '';
                   if (typeof window.generateDailyReport==='function') window.generateDailyReport(ymd);
                 })()">Go</button>
+                <span id="dailyDateDisplay" style="color:#fff;opacity:0.85;margin-left:8px;"></span>
                 <select id="monthSelector" class="form-control" onchange="generateMonthlyReport()">
                     <option value="">Select Month</option>
                     <option value="0">January</option>

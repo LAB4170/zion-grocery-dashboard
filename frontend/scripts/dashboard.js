@@ -327,6 +327,29 @@ async function updateDashboardStats() {
     if (outstandingDebtElement)
       outstandingDebtElement.textContent = window.utils.formatCurrency(stats.debts?.total_outstanding || 0);
 
+    // OVERRIDE: Show TODAY's Cash and M‑Pesa on the tiles (reset at 00:00 EAT)
+    try {
+      const salesArr = Array.isArray(window.sales) ? window.sales : [];
+      const sameDay = (v) => {
+        if (!v) return false;
+        if (v instanceof Date) return `${map.year}-${map.month}-${map.day}` === new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Nairobi', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(v).reduce((o,p)=>{o[p.type]=p.value;return o;},{}); // not used
+        const s = String(v);
+        return s.slice(0,10) === today;
+      };
+      let cashToday = 0, mpesaToday = 0;
+      for (const s of salesArr) {
+        const dateVal = s.date ?? s.createdAt ?? s.created_at;
+        const dOnly = typeof dateVal === 'string' ? dateVal.slice(0,10) : (dateVal instanceof Date ? today : null);
+        if (dOnly !== today) continue;
+        const amt = Number(s.total ?? s.total_amount ?? s.amount ?? 0) || 0;
+        const pm = (s.paymentMethod || s.payment_method || s.payment || s.method || '').toString().toLowerCase();
+        if (pm === 'cash') cashToday += amt;
+        else if (pm === 'mpesa') mpesaToday += amt;
+      }
+      if (cashTotalElement) cashTotalElement.textContent = window.utils.formatCurrency(cashToday);
+      if (mpesaTotalElement) mpesaTotalElement.textContent = window.utils.formatCurrency(mpesaToday);
+    } catch (_) {}
+
     // Trigger a background refresh that respects throttling (no await)
     getDashboardStatsThrottled().catch(e => console.warn('Stats background refresh skipped:', e?.message || e));
     return; // we already rendered from cache
@@ -379,6 +402,29 @@ async function updateDashboardStats() {
         if (outstandingDebtElement)
           outstandingDebtElement.textContent = window.utils.formatCurrency(stats.debts.total_outstanding || 0);
 
+        // OVERRIDE: Show TODAY's Cash and M‑Pesa on the tiles (reset at 00:00 EAT)
+        try {
+          const salesArr = Array.isArray(window.sales) ? window.sales : [];
+          const sameDay = (v) => {
+            if (!v) return false;
+            if (v instanceof Date) return `${map.year}-${map.month}-${map.day}` === new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Nairobi', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(v).reduce((o,p)=>{o[p.type]=p.value;return o;},{}); // not used
+            const s = String(v);
+            return s.slice(0,10) === today;
+          };
+          let cashToday = 0, mpesaToday = 0;
+          for (const s of salesArr) {
+            const dateVal = s.date ?? s.createdAt ?? s.created_at;
+            const dOnly = typeof dateVal === 'string' ? dateVal.slice(0,10) : (dateVal instanceof Date ? today : null);
+            if (dOnly !== today) continue;
+            const amt = Number(s.total ?? s.total_amount ?? s.amount ?? 0) || 0;
+            const pm = (s.paymentMethod || s.payment_method || s.payment || s.method || '').toString().toLowerCase();
+            if (pm === 'cash') cashToday += amt;
+            else if (pm === 'mpesa') mpesaToday += amt;
+          }
+          if (cashTotalElement) cashTotalElement.textContent = window.utils.formatCurrency(cashToday);
+          if (mpesaTotalElement) mpesaTotalElement.textContent = window.utils.formatCurrency(mpesaToday);
+        } catch (_) {}
+
         // Done with server-provided stats
         return;
       }
@@ -386,6 +432,27 @@ async function updateDashboardStats() {
   } catch (e) {
     console.warn('Falling back to client-side dashboard stats due to error:', e?.message || e);
   }
+
+  // Fallback path (no server stats): ensure TODAY's Cash and M‑Pesa are shown
+  try {
+    const cashEl = document.getElementById('cash-total');
+    const mpesaEl = document.getElementById('mpesa-total');
+    if (cashEl || mpesaEl) {
+      const salesArr = Array.isArray(window.sales) ? window.sales : [];
+      let cashToday = 0, mpesaToday = 0;
+      for (const s of salesArr) {
+        const v = s.date ?? s.createdAt ?? s.created_at;
+        const dOnly = typeof v === 'string' ? v.slice(0,10) : (v instanceof Date ? today : null);
+        if (dOnly !== today) continue;
+        const amt = Number(s.total ?? s.total_amount ?? s.amount ?? 0) || 0;
+        const pm = (s.paymentMethod || s.payment_method || s.payment || s.method || '').toString().toLowerCase();
+        if (pm === 'cash') cashToday += amt;
+        else if (pm === 'mpesa') mpesaToday += amt;
+      }
+      if (cashEl) cashEl.textContent = window.utils.formatCurrency(cashToday);
+      if (mpesaEl) mpesaEl.textContent = window.utils.formatCurrency(mpesaToday);
+    }
+  } catch (_) {}
 
   // Total sales
   const totalSales = sales.reduce((sum, sale) => sum + (sale.total || 0), 0);
@@ -665,7 +732,7 @@ function createWeeklyChart() {
     if (v instanceof Date) {
       date = dateKey(v);
     } else if (typeof v === 'string') {
-      date = v.slice(0, 10);
+      date = v.slice(0,10);
     }
     if (!date) continue;
     const idx = indexByDate.get(date);
