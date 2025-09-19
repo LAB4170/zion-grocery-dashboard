@@ -163,12 +163,17 @@ async function addSale(event) {
         console.warn('Product refresh failed after sale update:', e.message);
       }
 
+      // Force next dashboard stats fetch to bypass throttle/cache
+      window.forceStatsNext = true;
+
       showNotification("Sale updated successfully!");
 
       // Refresh dashboard charts if currently viewing dashboard
       if (typeof window.loadDashboardData === "function" && window.currentSection === "dashboard") {
         window.loadDashboardData();
       }
+      // Also update stats immediately
+      if (typeof window.updateDashboardStats === 'function') window.updateDashboardStats();
     } else {
       // Adding a new sale
       if (quantity > product.stockQuantity) {
@@ -222,7 +227,8 @@ async function addSale(event) {
         console.warn('Product refresh failed after sale create:', e.message);
       }
 
-      // Debt record is created in backend transaction when paymentMethod === 'debt'
+      // Force next dashboard stats fetch to bypass throttle/cache
+      window.forceStatsNext = true;
 
       showNotification("Sale recorded successfully!");
 
@@ -257,6 +263,8 @@ async function addSale(event) {
 
     // Update dashboard
     if (typeof window.updateDashboardStats === "function") {
+      // Immediate client-side refresh to avoid any visible lag
+      if (typeof window.recalcDashboardFromClient === 'function') window.recalcDashboardFromClient();
       window.updateDashboardStats();
     }
 
@@ -443,6 +451,9 @@ async function deleteSale(saleId) {
       console.warn('Product refresh failed after sale delete:', e.message);
     }
 
+    // Force next dashboard stats fetch to bypass throttle/cache
+    window.forceStatsNext = true;
+
     // If using server-side pagination, refresh current page; else reload table
     if (salesPaginationManager && salesPaginationManager.serverMode && typeof salesPaginationManager.fetchAndUpdate === 'function') {
       await salesPaginationManager.fetchAndUpdate();
@@ -454,12 +465,8 @@ async function deleteSale(saleId) {
 
     // Update dashboard
     if (typeof window.updateDashboardStats === "function") {
+      if (typeof window.recalcDashboardFromClient === 'function') window.recalcDashboardFromClient();
       window.updateDashboardStats();
-    }
-
-    // Refresh dashboard charts if currently viewing dashboard
-    if (typeof window.loadDashboardData === "function" && window.currentSection === "dashboard") {
-      window.loadDashboardData();
     }
   } catch (err) {
     console.error('Delete sale failed:', err);
@@ -647,6 +654,7 @@ async function editSaleDate(saleId) {
     
     // Update dashboard if visible
     if (typeof window.updateDashboardStats === "function") {
+      if (typeof window.recalcDashboardFromClient === 'function') window.recalcDashboardFromClient();
       window.updateDashboardStats();
     }
   }
@@ -704,3 +712,45 @@ window.editSale = editSale;
 window.deleteSale = deleteSale;
 window.viewSaleDetails = viewSaleDetails;
 window.addSale = addSale;
+// Expose normalizer for reports and other modules
+window.normalizeSale = normalizeSale;
+
+// Immediate client-side dashboard recompute (Nairobi time)
+window.recalcDashboardFromClient = function recalcDashboardFromClient() {
+  try {
+    const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Nairobi', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date());
+    const map = Object.fromEntries(parts.map(p => [p.type, p.value]));
+    const today = `${map.year}-${map.month}-${map.day}`;
+    const now = new Date(`${today}T00:00:00+03:00`);
+    const curMonth = now.getMonth();
+    const curYear = now.getFullYear();
+
+    const sales = Array.isArray(window.sales) ? window.sales : [];
+    let totalAll = 0, monthly = 0, cashToday = 0, mpesaToday = 0;
+    for (const s of sales) {
+      const amt = Number(s.total ?? s.total_amount ?? s.amount ?? 0) || 0;
+      totalAll += amt;
+      const dstr = typeof s.date === 'string' ? s.date.slice(0,10) : (typeof s.createdAt === 'string' ? s.createdAt.slice(0,10) : (typeof s.created_at === 'string' ? s.created_at.slice(0,10) : null));
+      if (dstr) {
+        const d = new Date(`${dstr}T00:00:00+03:00`);
+        if (d.getFullYear() === curYear && d.getMonth() === curMonth) monthly += amt;
+        if (dstr === today) {
+          const pm = (s.paymentMethod || s.payment_method || s.payment || s.method || '').toString().toLowerCase();
+          if (pm === 'cash') cashToday += amt;
+          else if (pm === 'mpesa') mpesaToday += amt;
+        }
+      }
+    }
+
+    const elTotal = document.getElementById('total-sales');
+    const elMonthly = document.getElementById('monthly-sales');
+    const elCash = document.getElementById('cash-total');
+    const elMpesa = document.getElementById('mpesa-total');
+    if (elTotal) elTotal.textContent = window.utils.formatCurrency(totalAll);
+    if (elMonthly) elMonthly.textContent = window.utils.formatCurrency(monthly);
+    if (elCash) elCash.textContent = window.utils.formatCurrency(cashToday);
+    if (elMpesa) elMpesa.textContent = window.utils.formatCurrency(mpesaToday);
+  } catch (e) {
+    console.warn('Client dashboard quick recalc failed:', e?.message || e);
+  }
+};

@@ -358,8 +358,12 @@ async function updateDashboardStats() {
   // Preferred path: fetch counters from backend dashboard stats
   try {
     if (window.apiClient && typeof window.apiClient.getDashboardStats === 'function') {
-      // Use throttled stats fetch
-      const resp = await getDashboardStatsThrottled();
+      // Use UNTHROTTLED fetch if a force flag is set (e.g., right after CRUD), else throttled fetch
+      const resp = (window.forceStatsNext === true)
+        ? await window.apiClient.getDashboardStats()
+        : await getDashboardStatsThrottled();
+      // Clear the force flag after using it once
+      if (window.forceStatsNext === true) window.forceStatsNext = false;
       const stats = resp && resp.data ? resp.data : null;
       if (stats && stats.sales && stats.expenses && stats.debts) {
         // Total sales (revenue)
@@ -994,3 +998,58 @@ document.addEventListener("DOMContentLoaded", function () {
     "📊 Dashboard loaded - auto-refresh disabled to prevent frequent requests"
   );
 });
+
+// ==== Auto-refresh at Nairobi midnight (EAT) ====
+(function setupMidnightEATScheduler() {
+  if (window.__midnightEATSchedulerInitialized) return;
+  window.__midnightEATSchedulerInitialized = true;
+
+  function getNairobiYMD(d = new Date()) {
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Africa/Nairobi', year: 'numeric', month: '2-digit', day: '2-digit'
+    }).formatToParts(d);
+    const m = Object.fromEntries(parts.map(p => [p.type, p.value]));
+    return `${m.year}-${m.month}-${m.day}`;
+  }
+
+  function msUntilNextMidnightEAT() {
+    const todayYMD = getNairobiYMD();
+    const next = new Date(`${todayYMD}T00:00:00+03:00`);
+    // If already past today's midnight, move to next day midnight
+    const now = new Date();
+    while (next <= now) {
+      next.setUTCDate(next.getUTCDate() + 1);
+    }
+    return next.getTime() - now.getTime();
+  }
+
+  function refreshDashboardNow() {
+    try {
+      if (typeof window.updateDashboardStats === 'function') window.updateDashboardStats();
+      if (window.currentSection === 'dashboard') {
+        if (typeof window.createPaymentChart === 'function') window.createPaymentChart();
+        if (typeof window.createWeeklyChart === 'function') window.createWeeklyChart();
+      }
+    } catch (e) {
+      console.warn('Midnight EAT refresh failed:', e?.message || e);
+    }
+  }
+
+  function scheduleNext() {
+    const wait = msUntilNextMidnightEAT();
+    // Safety cap: if calculation is weird, default to 1 hour
+    const delay = Number.isFinite(wait) && wait > 0 ? wait : 60 * 60 * 1000;
+    setTimeout(() => {
+      refreshDashboardNow();
+      // After first tick, repeat every 24h
+      setInterval(refreshDashboardNow, 24 * 60 * 60 * 1000);
+    }, delay);
+  }
+
+  if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    scheduleNext();
+  } else {
+    window.addEventListener('load', scheduleNext, { once: true });
+  }
+})();
+// ==== End midnight scheduler ====

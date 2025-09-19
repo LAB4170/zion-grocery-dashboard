@@ -98,8 +98,11 @@ async function addDebt(event) {
     loadDebtsData();
     
     // Update dashboard if visible
-    if (typeof updateDashboardStats === "function") {
-      updateDashboardStats();
+    window.forceStatsNext = true;
+    if (typeof window.updateDashboardStats === 'function') window.updateDashboardStats();
+    if (window.currentSection === 'dashboard') {
+      if (typeof window.createPaymentChart === 'function') window.createPaymentChart();
+      if (typeof window.createWeeklyChart === 'function') window.createWeeklyChart();
     }
 
     window.utils.showNotification("Debt added successfully!");
@@ -331,12 +334,16 @@ async function markDebtPaid(debtId) {
     }
 
     loadDebtsData();
+    window.forceStatsNext = true;
+    if (typeof window.updateDashboardStats === 'function') window.updateDashboardStats();
+    if (window.currentSection === 'dashboard') {
+      if (typeof window.createPaymentChart === 'function') window.createPaymentChart();
+      if (typeof window.createWeeklyChart === 'function') window.createWeeklyChart();
+    }
+
     window.utils.showNotification("Debt marked as paid! Sale record updated.");
 
-    // Update dashboard and sales table if visible
-    if (typeof window.updateDashboardStats === "function") {
-      window.updateDashboardStats();
-    }
+    // Update sales table if visible
     if (window.currentSection === "sales" && typeof loadSalesData === "function") {
       loadSalesData();
     }
@@ -357,11 +364,13 @@ async function deleteDebt(debtId) {
 
     window.utils.showNotification("Debt deleted successfully!");
     loadDebtsData();
-
-    // Update dashboard
-    if (typeof window.updateDashboardStats === "function") {
-      window.updateDashboardStats();
+    window.forceStatsNext = true;
+    if (typeof window.updateDashboardStats === 'function') window.updateDashboardStats();
+    if (window.currentSection === 'dashboard') {
+      if (typeof window.createPaymentChart === 'function') window.createPaymentChart();
+      if (typeof window.createWeeklyChart === 'function') window.createWeeklyChart();
     }
+
   } catch (error) {
     console.error('Error deleting debt:', error);
     window.utils.showNotification(`Failed to delete debt: ${error.message}`, 'error');

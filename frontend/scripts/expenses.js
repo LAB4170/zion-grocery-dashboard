@@ -59,15 +59,18 @@ async function addExpense(event) {
     window.expenses = window.expenses || [];
     window.expenses.push(savedExpense?.data || savedExpense);
 
+    // Force next dashboard stats fetch to bypass throttle/cache and update now
+    window.forceStatsNext = true;
+    if (typeof window.updateDashboardStats === 'function') window.updateDashboardStats();
+    if (window.currentSection === 'dashboard') {
+      if (typeof window.createPaymentChart === 'function') window.createPaymentChart();
+      if (typeof window.createWeeklyChart === 'function') window.createWeeklyChart();
+    }
+
     // Close modal and refresh data
     closeModal("expenseModal");
     loadExpensesData();
     
-    // Update dashboard if visible
-    if (typeof updateDashboardStats === "function") {
-      updateDashboardStats();
-    }
-
     window.utils.showNotification("Expense added successfully!");
 
   } catch (error) {
@@ -153,9 +156,12 @@ async function deleteExpense(expenseId) {
     window.utils.showNotification("Expense deleted successfully!");
     loadExpensesData();
 
-    // Update dashboard
-    if (typeof window.updateDashboardStats === "function") {
-      window.updateDashboardStats();
+    // Force next dashboard stats fetch to bypass throttle/cache and update now
+    window.forceStatsNext = true;
+    if (typeof window.updateDashboardStats === "function") updateDashboardStats();
+    if (window.currentSection === 'dashboard') {
+      if (typeof window.createPaymentChart === 'function') window.createPaymentChart();
+      if (typeof window.createWeeklyChart === 'function') window.createWeeklyChart();
     }
   } catch (error) {
     console.error('Error deleting expense:', error);
