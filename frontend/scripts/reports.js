@@ -36,9 +36,31 @@ async function generateDailyReport() {
   // Simplicity: use in-memory data already maintained by the dashboard
 
   const today = getNairobiDateString();
-  const sales = Array.isArray(window.sales) ? window.sales : [];
-  const expenses = Array.isArray(window.expenses) ? window.expenses : [];
-  const debts = Array.isArray(window.debts) ? window.debts : [];
+  // If globals are empty (e.g., Reports opened before dashboard initialized), lazily fetch once
+  let sales = Array.isArray(window.sales) ? window.sales : [];
+  let expenses = Array.isArray(window.expenses) ? window.expenses : [];
+  let debts = Array.isArray(window.debts) ? window.debts : [];
+  try {
+    if (window.dataManager) {
+      if (!Array.isArray(sales) || sales.length === 0) {
+        const res = await window.dataManager.getData('sales');
+        sales = Array.isArray(res?.data) ? res.data : [];
+        window.sales = sales;
+      }
+      if (!Array.isArray(expenses) || expenses.length === 0) {
+        const res = await window.dataManager.getData('expenses');
+        expenses = Array.isArray(res?.data) ? res.data : [];
+        window.expenses = expenses;
+      }
+      if (!Array.isArray(debts) || debts.length === 0) {
+        const res = await window.dataManager.getData('debts');
+        debts = Array.isArray(res?.data) ? res.data : [];
+        window.debts = debts;
+      }
+    }
+  } catch (e) {
+    console.warn('Daily report lazy fetch failed:', e?.message || e);
+  }
 
   // Robust date comparison that tolerates different fields and types
   const isSameDay = (value, yyyyMmDd) => {
