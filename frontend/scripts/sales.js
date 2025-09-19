@@ -233,6 +233,18 @@ async function addSale(event) {
         if (typeof window.createPaymentChart === 'function') window.createPaymentChart();
         if (typeof window.createWeeklyChart === 'function') window.createWeeklyChart();
       }
+
+      // If Reports page is open showing Daily Report, refresh it immediately
+      if (window.currentSection === 'sales-reports' && window.currentReportType === 'daily' && typeof window.generateDailyReport === 'function') {
+        try {
+          // Use the selected date if user picked one; otherwise default to today (handled inside)
+          const dp = document.getElementById('dailyDatePicker');
+          const ymd = dp && dp.value ? dp.value : undefined;
+          window.generateDailyReport(ymd);
+        } catch (e) {
+          console.warn('Daily report refresh after sale create failed:', e?.message || e);
+        }
+      }
     }
 
     // Close modal and refresh data

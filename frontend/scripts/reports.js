@@ -28,7 +28,7 @@ function reportGetDateOnly(v) {
   return str.length >= 10 ? str.slice(0, 10) : str;
 }
 
-async function generateDailyReport() {
+async function generateDailyReport(targetYmd = null) {
   const reportContent = document.getElementById("reportContent");
   if (reportContent) {
     reportContent.innerHTML = '<div style="color:white;">Loading daily report…</div>';
@@ -44,7 +44,8 @@ async function generateDailyReport() {
     if (window.dataManager) {
       if (!Array.isArray(sales) || sales.length === 0) {
         const res = await window.dataManager.getData('sales');
-        sales = Array.isArray(res?.data) ? res.data : [];
+        const raw = Array.isArray(res?.data) ? res.data : [];
+        sales = (typeof window.normalizeSale === 'function') ? raw.map(window.normalizeSale) : raw;
         window.sales = sales;
       }
       if (!Array.isArray(expenses) || expenses.length === 0) {
@@ -73,12 +74,25 @@ async function generateDailyReport() {
     }
   };
 
-  const todaySales = sales.filter((s) => {
-    const v = s.date ?? s.createdAt ?? s.created_at;
-    return isSameDay(v, today);
-  });
-  const todayExpenses = expenses.filter((e) => isSameDay(e.date ?? e.createdAt ?? e.created_at, today));
-  const todayDebts = debts.filter((d) => isSameDay(d.date ?? d.createdAt ?? d.created_at, today));
+  // Determine the report day: explicit param -> today -> latest sale date
+  let reportYmd = (typeof targetYmd === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(targetYmd)) ? targetYmd : today;
+  let todaySales = sales.filter((s) => isSameDay(s.date ?? s.createdAt ?? s.created_at, reportYmd));
+  let todayExpenses = expenses.filter((e) => isSameDay(e.date ?? e.createdAt ?? e.created_at, reportYmd));
+  let todayDebts = debts.filter((d) => isSameDay(d.date ?? d.createdAt ?? d.created_at, reportYmd));
+
+  if (todaySales.length === 0 && sales.length > 0 && !targetYmd) {
+    const ymds = sales
+      .map(s => reportGetDateOnly(s.date ?? s.createdAt ?? s.created_at))
+      .filter(Boolean)
+      .sort();
+    const latest = ymds[ymds.length - 1];
+    if (latest) {
+      reportYmd = latest;
+      todaySales = sales.filter((s) => isSameDay(s.date ?? s.createdAt ?? s.created_at, reportYmd));
+      todayExpenses = expenses.filter((e) => isSameDay(e.date ?? e.createdAt ?? e.created_at, reportYmd));
+      todayDebts = debts.filter((d) => isSameDay(d.date ?? d.createdAt ?? d.created_at, reportYmd));
+    }
+  }
 
   const totalSales = todaySales.reduce((sum, s) => sum + reportGetTotal(s), 0);
   const totalExpenses = todayExpenses.reduce(
@@ -94,7 +108,7 @@ async function generateDailyReport() {
 
   reportContent.innerHTML = `
         <div class="report">
-            <h3>Daily Report - ${window.utils.formatDate(today)}</h3>
+            <h3>Daily Report - ${window.utils.formatDate(reportYmd)}</h3>
             <div class="report-stats">
                 <div class="report-stat">
                     <h4>Sales Summary</h4>
@@ -102,6 +116,7 @@ async function generateDailyReport() {
                       totalSales
                     )}</p>
                     <p>Number of Transactions: ${todaySales.length}</p>
+                    <p>Average Transaction: ${window.utils.formatCurrency(todaySales.length ? (totalSales / todaySales.length) : 0)}</p>
                     <p>Cash Sales: ${window.utils.formatCurrency(
                       todaySales
                         .filter((s) => reportGetPaymentMethod(s) === "cash")
@@ -149,9 +164,9 @@ async function generateDailyReport() {
                             (sale) => `
                             <tr>
                                 <td>${
-                                  sale.productName || "Unknown Product"
+                                  sale.productName || sale.product_name || "Unknown Product"
                                 }</td>
-                                <td>${sale.quantity || 0}</td>
+                                <td>${sale.quantity || sale.qty || 0}</td>
                                 <td>${window.utils.formatCurrency(
                                   reportGetTotal(sale)
                                  )}</td>
@@ -389,7 +404,7 @@ async function generateAnnualReport() {
   const reportContent = document.getElementById("reportContent");
   if (!reportContent) return;
 
-  const monthLabels = Array.from({ length: 12 }, (_, m) => new Date(selectedYear, m, 1).toLocaleDateString('en-KE', { month: 'long' }));
+  const monthLabels = Array.from({ length: 12 }, (_, m) => new Date(selectedYear, m, 1).toLocaleDateString('en-KE', { month: 'long', year: 'numeric' }));
 
   reportContent.innerHTML = `
     <div class="report">

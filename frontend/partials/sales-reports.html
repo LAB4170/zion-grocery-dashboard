@@ -10,6 +10,13 @@
                 <button class="btn report-btn" onclick="generateAnnualReport()">Annual Report</button>
             </div>
             <div class="report-filters">
+                <!-- Daily date picker: runs Daily Report for the selected date (YYYY-MM-DD) -->
+                <input type="date" id="dailyDatePicker" class="form-control" style="min-width:160px;" />
+                <button class="btn" onclick="(function(){
+                  var el=document.getElementById('dailyDatePicker');
+                  var ymd=el && el.value ? el.value : '';
+                  if (typeof window.generateDailyReport==='function') window.generateDailyReport(ymd);
+                })()">Go</button>
                 <select id="monthSelector" class="form-control" onchange="generateMonthlyReport()">
                     <option value="">Select Month</option>
                     <option value="0">January</option>
