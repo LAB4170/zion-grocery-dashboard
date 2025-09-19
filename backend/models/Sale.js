@@ -19,7 +19,9 @@ class Sale {
     this.quantity = parseInt(data.quantity);
     this.unitPrice = parseFloat(data.unitPrice || data.unit_price);
     this.total = parseFloat(data.total);
-    this.paymentMethod = data.paymentMethod || data.payment_method;
+    // Normalize payment method to lowercase to avoid case issues
+    const pm = data.paymentMethod || data.payment_method || '';
+    this.paymentMethod = typeof pm === 'string' ? pm.toLowerCase() : pm;
     this.customerName = data.customerName || data.customer_name || null;
     this.customerPhone = data.customerPhone || data.customer_phone || null;
     this.status = data.status || 'completed';
@@ -90,6 +92,8 @@ class Sale {
           customer_name: sale.customerName,
           customer_phone: sale.customerPhone,
           amount: sale.total,
+          amount_paid: 0, // ensure required field present
+          balance: sale.total, // initial balance equals total
           status: 'pending',
           notes: `Sale: ${sale.productName} (${sale.quantity} units)`,
           created_by: sale.createdBy,
