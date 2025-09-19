@@ -255,6 +255,91 @@ async function generateWeeklyReport() {
   window.currentReportType = 'weekly';
 }
 
+async function generateMonthlyReport() {
+  const mount = document.getElementById('reportContent');
+  if (!mount) return;
+  mount.innerHTML = '<div style="color:white;">Loading monthly report…</div>';
+
+  // Read current selectors (if present)
+  const monthSel = document.getElementById('monthSelector');
+  const yearSel = document.getElementById('yearSelector');
+  const now = new Date();
+  const m = monthSel && monthSel.value !== '' ? parseInt(monthSel.value, 10) : now.getMonth();
+  const y = yearSel && yearSel.value !== '' ? parseInt(yearSel.value, 10) : now.getFullYear();
+
+  const sales = Array.isArray(window.sales) ? window.sales : [];
+  const expenses = Array.isArray(window.expenses) ? window.expenses : [];
+  const products = Array.isArray(window.products) ? window.products : [];
+
+  // Filter records for month/year using Nairobi date keys
+  const inMonth = (dateVal) => {
+    const dstr = reportGetDateOnly(dateVal);
+    if (!dstr) return false;
+    const d = new Date(dstr + 'T00:00:00');
+    return d.getFullYear() === y && d.getMonth() === m;
+  };
+
+  const monthSales = sales.filter(s => inMonth(s.date ?? s.createdAt ?? s.created_at));
+  const monthExpenses = expenses.filter(e => inMonth(e.date ?? e.createdAt ?? e.created_at));
+
+  const totalSales = monthSales.reduce((sum, s) => sum + reportGetTotal(s), 0);
+  const totalExpenses = monthExpenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+  const monthlyNet = totalSales - totalExpenses;
+
+  // Group sales by product category using products catalog (best-effort)
+  const salesByCategory = monthSales.reduce((acc, s) => {
+    const pid = s.productId || s.product_id;
+    const prod = products.find(p => p.id === pid);
+    const cat = (prod && prod.category) ? prod.category : 'unknown';
+    acc[cat] = (acc[cat] || 0) + reportGetTotal(s);
+    return acc;
+  }, {});
+
+  const monthName = new Date(y, m, 1).toLocaleDateString('en-KE', { month: 'long', year: 'numeric' });
+
+  mount.innerHTML = `
+    <div class="report">
+      <h3>Monthly Report - ${monthName}</h3>
+      <div class="report-stats">
+        <div class="report-stat">
+          <h4>Sales Summary</h4>
+          <p>Total Sales: ${window.utils.formatCurrency(totalSales)}</p>
+          <p>Number of Transactions: ${monthSales.length}</p>
+          <p>Average Transaction: ${window.utils.formatCurrency(monthSales.length ? (totalSales / monthSales.length) : 0)}</p>
+        </div>
+        <div class="report-stat">
+          <h4>Expenses Summary</h4>
+          <p>Total Expenses: ${window.utils.formatCurrency(totalExpenses)}</p>
+          <p>Number of Expenses: ${monthExpenses.length}</p>
+        </div>
+        <div class="report-stat">
+          <h4>Net</h4>
+          <p>Monthly Net: ${window.utils.formatCurrency(monthlyNet)}</p>
+          <p>Profit Margin: ${totalSales ? (((monthlyNet) / totalSales) * 100).toFixed(2) : 0}%</p>
+        </div>
+      </div>
+      <div class="report-details">
+        <h4>Sales by Category</h4>
+        <table class="table">
+          <thead><tr><th>Category</th><th>Sales</th><th>%</th></tr></thead>
+          <tbody>
+            ${Object.entries(salesByCategory).map(([cat, amt]) => `
+              <tr>
+                <td>${cat}</td>
+                <td>${window.utils.formatCurrency(amt)}</td>
+                <td>${totalSales ? ((amt / totalSales) * 100).toFixed(2) : 0}%</td>
+              </tr>
+            `).join('') || '<tr><td colspan="3">No data</td></tr>'}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+
+  // Track type so selectors can auto-refresh this report
+  window.currentReportType = 'monthly';
+}
+
 async function generateAnnualReport() {
   // Simplicity: use in-memory sales
 
