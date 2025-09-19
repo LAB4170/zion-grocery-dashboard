@@ -618,13 +618,26 @@ function createWeeklyChart() {
     return d;
   })();
 
+  // Use Nairobi timezone for day keys to match how dates are stored/displayed
+  const fmt = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Africa/Nairobi',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  });
+  const dateKey = (d) => {
+    const parts = fmt.formatToParts(d);
+    const map = Object.fromEntries(parts.map(p => [p.type, p.value]));
+    return `${map.year}-${map.month}-${map.day}`; // YYYY-MM-DD
+  };
+
   const days = Array.from({ length: 7 }, (_, i) => {
     const d = new Date(base);
     d.setDate(base.getDate() + i);
     return d;
   });
 
-  const labels = days.map(d => d.toISOString().split('T')[0]);
+  const labels = days.map(d => dateKey(d));
 
   // Source data from in-memory sales (already normalized by sales.js)
   const sales = Array.isArray(window.sales) ? window.sales : [];
@@ -639,14 +652,20 @@ function createWeeklyChart() {
   const indexByDate = new Map(labels.map((d, i) => [d, i]));
 
   for (const s of sales) {
-    const date = typeof s.date === 'string' ? s.date : (typeof s.createdAt === 'string' ? s.createdAt.split('T')[0] : null);
+    const v = s.date ?? s.createdAt ?? s.created_at;
+    let date = null;
+    if (v instanceof Date) {
+      date = dateKey(v);
+    } else if (typeof v === 'string') {
+      date = v.slice(0, 10);
+    }
     if (!date) continue;
     const idx = indexByDate.get(date);
     if (idx === undefined) continue; // not in this week
 
     const amt = getTotalAmount(s);
     totalSeries[idx] += amt;
-    const pm = getPaymentMethod(s);
+    const pm = (getPaymentMethod(s) || '').toLowerCase();
     if (pm === 'cash') cashSeries[idx] += amt;
     else if (pm === 'mpesa') mpesaSeries[idx] += amt;
     else if (pm === 'debt') debtSeries[idx] += amt;
@@ -851,8 +870,8 @@ function prevWeek() {
   if (!selectedWeekMonday) {
     // Initialize to current week Monday first
     const init = new Date();
-    const dow = init.getDay();
-    const offset = dow === 0 ? -6 : 1 - dow;
+    const dow = init.getDay(); // 0=Sun,1=Mon
+    const offset = (dow === 0) ? -6 : (1 - dow);
     selectedWeekMonday = new Date(init);
     selectedWeekMonday.setDate(init.getDate() + offset);
   }
