@@ -12,26 +12,28 @@ function getNairobiDateString(d = new Date()) {
   return `${map.year}-${map.month}-${map.day}`;
 }
 
+// Helpers to normalize fields consistently
+function reportGetPaymentMethod(s) {
+  const v = s.paymentMethod || s.payment_method || s.payment || s.method || '';
+  return typeof v === 'string' ? v.toLowerCase() : '';
+}
+function reportGetTotal(s) {
+  const n = Number(s.total ?? s.total_amount ?? s.amount ?? 0);
+  return Number.isFinite(n) ? n : 0;
+}
+function reportGetDateOnly(v) {
+  if (!v) return null;
+  if (v instanceof Date) return getNairobiDateString(v);
+  const str = String(v);
+  return str.length >= 10 ? str.slice(0, 10) : str;
+}
+
 async function generateDailyReport() {
   const reportContent = document.getElementById("reportContent");
   if (reportContent) {
     reportContent.innerHTML = '<div style="color:white;">Loading daily report…</div>';
   }
-  // Ensure backend data is loaded before generating
-  try {
-    if (window.dataManager) {
-      const [salesRes, expensesRes, debtsRes] = await Promise.all([
-        window.dataManager.getData("sales"),
-        window.dataManager.getData("expenses"),
-        window.dataManager.getData("debts")
-      ]);
-      window.sales = Array.isArray(salesRes?.data) ? salesRes.data : (window.sales || []);
-      window.expenses = Array.isArray(expensesRes?.data) ? expensesRes.data : (window.expenses || []);
-      window.debts = Array.isArray(debtsRes?.data) ? debtsRes.data : (window.debts || []);
-    }
-  } catch (e) {
-    console.warn('Daily report: failed to refresh data from backend:', e?.message || e);
-  }
+  // Simplicity: use in-memory data already maintained by the dashboard
 
   const today = getNairobiDateString();
   const sales = Array.isArray(window.sales) ? window.sales : [];
@@ -42,12 +44,7 @@ async function generateDailyReport() {
   const isSameDay = (value, yyyyMmDd) => {
     if (!value) return false;
     try {
-      if (value instanceof Date) {
-        return getNairobiDateString(value) === yyyyMmDd;
-      }
-      // value may be 'YYYY-MM-DD' or full ISO; normalize to date-only
-      const str = String(value);
-      const dateOnly = str.length >= 10 ? str.slice(0, 10) : str;
+      const dateOnly = reportGetDateOnly(value);
       return dateOnly === yyyyMmDd;
     } catch {
       return false;
@@ -61,16 +58,13 @@ async function generateDailyReport() {
   const todayExpenses = expenses.filter((e) => isSameDay(e.date ?? e.createdAt ?? e.created_at, today));
   const todayDebts = debts.filter((d) => isSameDay(d.date ?? d.createdAt ?? d.created_at, today));
 
-  const totalSales = todaySales.reduce(
-    (sum, sale) => sum + (sale.total || 0),
-    0
-  );
+  const totalSales = todaySales.reduce((sum, s) => sum + reportGetTotal(s), 0);
   const totalExpenses = todayExpenses.reduce(
     (sum, expense) => sum + (expense.amount || 0),
     0
   );
   const totalDebts = todayDebts.reduce(
-    (sum, debt) => sum + (debt.amount || 0),
+    (sum, debt) => sum + (Number(debt.amount) || 0),
     0
   );
 
@@ -88,19 +82,19 @@ async function generateDailyReport() {
                     <p>Number of Transactions: ${todaySales.length}</p>
                     <p>Cash Sales: ${window.utils.formatCurrency(
                       todaySales
-                        .filter((s) => s.paymentMethod === "cash")
-                        .reduce((sum, s) => sum + (s.total || 0), 0)
-                    )}</p>
+                        .filter((s) => reportGetPaymentMethod(s) === "cash")
+                        .reduce((sum, s) => sum + reportGetTotal(s), 0)
+                     )}</p>
                     <p>M-Pesa Sales: ${window.utils.formatCurrency(
                       todaySales
-                        .filter((s) => s.paymentMethod === "mpesa")
-                        .reduce((sum, s) => sum + (s.total || 0), 0)
-                    )}</p>
+                        .filter((s) => reportGetPaymentMethod(s) === "mpesa")
+                        .reduce((sum, s) => sum + reportGetTotal(s), 0)
+                     )}</p>
                     <p>Credit Sales: ${window.utils.formatCurrency(
                       todaySales
-                        .filter((s) => s.paymentMethod === "debt")
-                        .reduce((sum, s) => sum + (s.total || 0), 0)
-                    )}</p>
+                        .filter((s) => reportGetPaymentMethod(s) === "debt")
+                        .reduce((sum, s) => sum + reportGetTotal(s), 0)
+                     )}</p>
                 </div>
                 <div class="report-stat">
                     <h4>Expenses Summary</h4>
@@ -137,11 +131,11 @@ async function generateDailyReport() {
                                 }</td>
                                 <td>${sale.quantity || 0}</td>
                                 <td>${window.utils.formatCurrency(
-                                  sale.total || 0
-                                )}</td>
+                                  reportGetTotal(sale)
+                                 )}</td>
                                 <td>${(
-                                  sale.paymentMethod || "unknown"
-                                ).toUpperCase()}</td>
+                                  reportGetPaymentMethod(sale) || "unknown"
+                                 ).toUpperCase()}</td>
                             </tr>
                         `
                           )
@@ -163,50 +157,29 @@ async function generateWeeklyReport() {
   reportContent.innerHTML = '<div style="color:white;">Loading weekly report…</div>';
 
   try {
-    let weekly = null;
-
-    if (window.apiClient && typeof window.apiClient.getSalesWeekly === 'function') {
-      const salesResp = await window.apiClient.getSalesWeekly();
-      weekly = salesResp && salesResp.data ? salesResp.data : null;
-    }
-
-    // Fallback: compute last 7 days from loaded sales if API not available
-    if (!weekly) {
-      const sales = Array.isArray(window.sales) ? window.sales : [];
-      const today = new Date();
-      const days = [];
-      for (let i = 6; i >= 0; i--) {
-        const d = new Date(today);
-        d.setDate(today.getDate() - i);
-        const key = getNairobiDateString(d);
-        const total_revenue = sales
-          .filter(s => {
-            const v = s.date ?? s.createdAt ?? s.created_at;
-            if (!v) return false;
-            const str = v instanceof Date ? getNairobiDateString(v) : String(v).slice(0,10);
-            return str === key;
-          })
-          .reduce((sum, s) => sum + (parseFloat(s.total) || 0), 0);
-        days.push({ date: key, total_revenue });
-      }
-      weekly = {
-        week: { start: days[0].date, end: days[6].date },
-        days
-      };
-    }
-
-    if (!weekly || !Array.isArray(weekly.days)) {
-      throw new Error('Unexpected weekly payload');
-    }
+    // Compute current week Monday..Sunday from in-memory sales
+    const sales = Array.isArray(window.sales) ? window.sales : [];
+    const today = new Date();
+    const dow = today.getDay();
+    const offset = (dow === 0) ? -6 : (1 - dow);
+    const monday = new Date(today);
+    monday.setDate(today.getDate() + offset);
+    monday.setHours(0, 0, 0, 0);
+    const days = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(monday);
+      d.setDate(monday.getDate() + i);
+      const key = getNairobiDateString(d);
+      const total_revenue = sales
+        .filter(s => reportGetDateOnly(s.date ?? s.createdAt ?? s.created_at) === key)
+        .reduce((sum, s) => sum + reportGetTotal(s), 0);
+      return { date: key, total_revenue };
+    });
+    const weekly = { week: { start: days[0].date, end: days[6].date }, days };
 
     const totalSales = weekly.days.reduce((sum, d) => sum + (parseFloat(d.total_revenue) || 0), 0);
 
-    // Try to get weekly expenses if available; otherwise compute a simple fallback of 0s
+    // Simplicity: do not fetch weekly expenses; show sales only
     let weeklyExp = null;
-    if (window.apiClient && typeof window.apiClient.getWeeklyExpenses === 'function') {
-      const expensesResp = await window.apiClient.getWeeklyExpenses();
-      weeklyExp = expensesResp && expensesResp.data ? expensesResp.data : null;
-    }
 
     const totalExpenses = Array.isArray(weeklyExp?.days)
       ? weeklyExp.days.reduce((sum, d) => sum + (parseFloat(d.total_amount) || 0), 0)
@@ -282,236 +255,8 @@ async function generateWeeklyReport() {
   window.currentReportType = 'weekly';
 }
 
-function generateMonthlyReport() {
-  const reportContent = document.getElementById("reportContent");
-  if (reportContent) {
-    reportContent.innerHTML = '<div style="color:white;">Loading monthly report…</div>';
-  }
-  // Respect month/year selectors if present
-  const monthSel = document.getElementById('monthSelector');
-  const yearSel = document.getElementById('yearSelector');
-  const current = new Date();
-  const selectedMonth = monthSel && monthSel.value !== '' ? parseInt(monthSel.value) : current.getMonth();
-  const selectedYear = yearSel && yearSel.value !== '' ? parseInt(yearSel.value) : current.getFullYear();
-
-  const sales = Array.isArray(window.sales) ? window.sales : [];
-  const expenses = Array.isArray(window.expenses) ? window.expenses : [];
-  const products = Array.isArray(window.products) ? window.products : [];
-
-  // Prefer stable s.date (YYYY-MM-DD); fallback to createdAt
-  const monthSales = sales.filter((s) => {
-    const dateStr = s.date || s.createdAt || s.created_at;
-    if (!dateStr) return false;
-    const d = new Date(dateStr);
-    return d.getMonth() === selectedMonth && d.getFullYear() === selectedYear;
-  });
-
-  const monthExpenses = expenses.filter((e) => {
-    const dateStr = e.date || e.createdAt || e.created_at;
-    if (!dateStr) return false;
-    const d = new Date(dateStr);
-    return d.getMonth() === selectedMonth && d.getFullYear() === selectedYear;
-  });
-
-  const totalSales = monthSales.reduce(
-    (sum, sale) => sum + (sale.total || 0),
-    0
-  );
-  const totalExpenses = monthExpenses.reduce(
-    (sum, expense) => sum + (expense.amount || 0),
-    0
-  );
-  const monthlyNet = totalSales - totalExpenses;
-
-  // Group by product category
-  const salesByCategory = monthSales.reduce((acc, sale) => {
-    const product = products.find((p) => p.id === sale.productId);
-    const category = product ? product.category : "unknown";
-    acc[category] = (acc[category] || 0) + (sale.total || 0);
-    return acc;
-  }, {});
-
-  // Group expenses by category
-  const expensesByCategory = monthExpenses.reduce((acc, expense) => {
-    const category = expense.category || "unknown";
-    acc[category] = (acc[category] || 0) + (expense.amount || 0);
-    return acc;
-  }, {});
-
-  const monthName = new Date(selectedYear, selectedMonth, 1).toLocaleDateString("en-KE", { month: "long", year: "numeric" });
-
-  if (!reportContent) return;
-
-  reportContent.innerHTML = `
-        <div class="report">
-            <h3>Monthly Report - ${monthName}</h3>
-            <div class="report-stats">
-                <div class="report-stat">
-                    <h4>Sales Summary</h4>
-                    <p>Total Sales: ${window.utils.formatCurrency(
-                      totalSales
-                    )}</p>
-                    <p>Number of Transactions: ${monthSales.length}</p>
-                    <p>Average Transaction: ${window.utils.formatCurrency(
-                      monthSales.length ? totalSales / monthSales.length : 0
-                    )}</p>
-                </div>
-                <div class="report-stat">
-                    <h4>Expenses Summary</h4>
-                    <p>Total Expenses: ${window.utils.formatCurrency(
-                      totalExpenses
-                    )}</p>
-                    <p>Number of Expenses: ${monthExpenses.length}</p>
-                </div>
-                <div class="report-stat">
-                    <h4>Net Profit</h4>
-                    <p>Monthly Net Profit: ${window.utils.formatCurrency(
-                      monthlyNet
-                    )}</p>
-                    <p>Profit Margin: ${
-                      totalSales
-                        ? (
-                            ((totalSales - totalExpenses) / totalSales) *
-                            100
-                          ).toFixed(2)
-                        : 0
-                    }%</p>
-                </div>
-            </div>
-            <div class="report-details">
-                <h4>Sales by Category</h4>
-                <table class="table">
-                    <thead>
-                        <tr>
-                            <th>Category</th>
-                            <th>Sales Amount</th>
-                            <th>Percentage</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${Object.entries(salesByCategory)
-                          .map(
-                            ([category, amount]) => `
-                            <tr>
-                                <td>${category}</td>
-                                <td>${window.utils.formatCurrency(amount)}</td>
-                                <td>${
-                                  totalSales
-                                    ? ((amount / totalSales) * 100).toFixed(2)
-                                    : 0
-                                }%</td>
-                            </tr>
-                        `
-                          )
-                          .join("")}
-                    </tbody>
-                </table>
-                
-                <h4>Expenses by Category</h4>
-                <table class="table">
-                    <thead>
-                        <tr>
-                            <th>Category</th>
-                            <th>Amount</th>
-                            <th>Percentage</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${Object.entries(expensesByCategory)
-                          .map(
-                            ([category, amount]) => `
-                            <tr>
-                                <td>${category}</td>
-                                <td>${window.utils.formatCurrency(amount)}</td>
-                                <td>${
-                                  totalExpenses
-                                    ? ((amount / totalExpenses) * 100).toFixed(
-                                        2
-                                      )
-                                    : 0
-                                }%</td>
-                            </tr>
-                        `
-                          )
-                          .join("")}
-                    </tbody>
-                </table>
-                
-                ${(() => {
-                  // Top products and slow movers (by revenue)
-                  const byProduct = new Map();
-                  monthSales.forEach(s => {
-                    const id = s.productId || s.product_id;
-                    const name = s.productName || (products.find(p => p.id === id)?.name) || 'Unknown';
-                    const rev = (s.total || 0);
-                    const qty = (s.quantity || 0);
-                    if (!byProduct.has(name)) byProduct.set(name, { revenue: 0, quantity: 0 });
-                    const agg = byProduct.get(name);
-                    agg.revenue += rev;
-                    agg.quantity += qty;
-                  });
-                  const items = Array.from(byProduct.entries()).map(([name, v]) => ({ name, ...v }));
-                  const top = items.sort((a,b) => b.revenue - a.revenue).slice(0, 5);
-                  const slow = items.slice().sort((a,b) => a.revenue - b.revenue).slice(0, 5);
-                  const topRows = top.map(i => `<tr><td>${i.name}</td><td>${window.utils.formatCurrency(i.revenue)}</td><td>${i.quantity}</td></tr>`).join('');
-                  const slowRows = slow.map(i => `<tr><td>${i.name}</td><td>${window.utils.formatCurrency(i.revenue)}</td><td>${i.quantity}</td></tr>`).join('');
-                  return `
-                  <h4>Top Products (by Revenue)</h4>
-                  <table class="table">
-                    <thead><tr><th>Product</th><th>Revenue</th><th>Qty</th></tr></thead>
-                    <tbody>${topRows || '<tr><td colspan="3">No data</td></tr>'}</tbody>
-                  </table>
-                  <h4>Slow Movers</h4>
-                  <table class="table">
-                    <thead><tr><th>Product</th><th>Revenue</th><th>Qty</th></tr></thead>
-                    <tbody>${slowRows || '<tr><td colspan="3">No data</td></tr>'}</tbody>
-                  </table>`;
-                })()}
-                
-                ${(() => {
-                  // Low stock section via dashboard stats (backend authority)
-                  return `<div id="lowStockSection"></div>`;
-                })()}
-            </div>
-        </div>
-    `;
-  // After rendering, fetch low stock and fill section
-  (async () => {
-    try {
-      if (window.apiClient && typeof window.apiClient.getDashboardStats === 'function') {
-        const resp = await window.apiClient.getDashboardStats();
-        const low = resp?.data?.inventory?.low_stock_products || [];
-        const mount = document.getElementById('lowStockSection');
-        if (mount) {
-          mount.innerHTML = `
-            <h4>Low Stock Alerts</h4>
-            <table class="table">
-              <thead><tr><th>Product</th><th>Category</th><th>Stock</th></tr></thead>
-              <tbody>
-                ${low.map(p => `<tr><td>${p.name}</td><td>${p.category || ''}</td><td>${p.stock}</td></tr>`).join('') || '<tr><td colspan="3">No low stock items</td></tr>'}
-              </tbody>
-            </table>`;
-        }
-      }
-    } catch (e) {
-      const mount = document.getElementById('lowStockSection');
-      if (mount) mount.innerHTML = '<div style="color:#ffcc00;">Low stock data unavailable.</div>';
-    }
-  })();
-  // Track current report type
-  window.currentReportType = 'monthly';
-}
-
 async function generateAnnualReport() {
-  // Ensure fresh sales from backend
-  try {
-    if (window.dataManager) {
-      const salesRes = await window.dataManager.getData("sales");
-      window.sales = Array.isArray(salesRes?.data) ? salesRes.data : (window.sales || []);
-    }
-  } catch (e) {
-    console.warn('Annual report: failed to refresh sales:', e?.message || e);
-  }
+  // Simplicity: use in-memory sales
 
   const yearSel = document.getElementById('yearSelector');
   const current = new Date();
@@ -528,7 +273,7 @@ async function generateAnnualReport() {
         const d = new Date(dateStr);
         return d.getFullYear() === selectedYear && d.getMonth() === m;
       })
-      .reduce((sum, s) => sum + (s.total || 0), 0);
+      .reduce((sum, s) => sum + reportGetTotal(s), 0);
     return total;
   });
 

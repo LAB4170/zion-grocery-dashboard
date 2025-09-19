@@ -607,115 +607,134 @@ function createWeeklyChart() {
     weeklyChart.destroy();
   }
 
-  (async () => {
-    try {
-      // Fetch weekly data from backend (Mon–Sun, zero-filled)
-      const resp = await getWeeklySalesThrottled();
-      const weekly = resp && resp.data ? resp.data : null;
-      if (!weekly || !Array.isArray(weekly.days)) {
-        console.warn('Weekly sales endpoint returned unexpected payload:', resp);
-        return;
-      }
-
-      // Update week label if present
-      const weekLabelEl = document.getElementById('weekLabel');
-      if (weekLabelEl && weekly.week) {
-        weekLabelEl.textContent = `Week: ${weekly.week.start} → ${weekly.week.end}`;
-      }
-
-      // Build labels like "Mon 12/08" and data from server days
-      const currentWeekDates = weekly.days.map(d => {
-        const dateObj = new Date(d.date + 'T00:00:00');
-        const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'short' });
-        const dateFormat = dateObj.toLocaleDateString('en-US', { day: '2-digit', month: '2-digit' });
-        return `${dayName} ${dateFormat}`;
-      });
-
-      const salesByDay = weekly.days.map(d => parseFloat(d.total_revenue) || 0);
-
-      // Find maximum sales value to set appropriate scale
-      const maxSales = Math.max(...salesByDay, 0);
-      const yAxisMax = Math.ceil(maxSales / 100) * 100 + 100; // Round up to next 100
-
-      // Prevent multiple chart instances overlapping
-      if (typeof weeklyChart !== 'undefined' && weeklyChart) {
-        try { weeklyChart.destroy(); } catch (e) { console.warn('Chart destroy failed:', e); }
-      }
-
-      weeklyChart = new Chart(ctx, {
-        type: "line",
-        data: {
-          labels: currentWeekDates,
-          datasets: [
-            {
-              label: "Daily Sales (KSh)",
-              data: salesByDay,
-              borderColor: "#4CAF50",
-              backgroundColor: "rgba(76, 175, 80, 0.1)",
-              tension: 0.4,
-              fill: true,
-              pointBackgroundColor: "#4CAF50",
-              pointBorderColor: "#ffffff",
-              pointBorderWidth: 2,
-              pointRadius: 5,
-            },
-          ],
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          scales: {
-            y: {
-              beginAtZero: true,
-              max: yAxisMax,
-              ticks: {
-                stepSize: 100,
-                color: "white",
-                callback: function (value) {
-                  return "KSh " + value.toLocaleString();
-                },
-              },
-              grid: {
-                color: "rgba(255, 255, 255, 0.1)",
-              },
-            },
-            x: {
-              ticks: {
-                color: "white",
-                maxRotation: 45,
-                minRotation: 45,
-              },
-              grid: {
-                color: "rgba(255, 255, 255, 0.1)",
-              },
-            },
-          },
-          plugins: {
-            legend: {
-              labels: {
-                color: "white",
-              },
-            },
-            tooltip: {
-              callbacks: {
-                label: function (context) {
-                  return "Sales: KSh " + context.parsed.y.toLocaleString();
-                },
-              },
-            },
-          },
-          elements: {
-            line: {
-              borderWidth: 3,
-            },
-          },
-        },
-      });
-    } catch (e) {
-      // Throttling or transient errors should not be treated as fatal here
-      console.warn('Skipped weekly chart refresh:', e?.message || e);
-    }
+  // Build Monday–Sunday labels for the selected or current week
+  const today = new Date();
+  const base = selectedWeekMonday ? new Date(selectedWeekMonday) : (function () {
+    const d = new Date();
+    const dow = d.getDay(); // 0=Sun,1=Mon
+    const offset = (dow === 0) ? -6 : (1 - dow);
+    d.setDate(d.getDate() + offset);
+    d.setHours(0, 0, 0, 0);
+    return d;
   })();
+
+  const days = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(base);
+    d.setDate(base.getDate() + i);
+    return d;
+  });
+
+  const labels = days.map(d => d.toISOString().split('T')[0]);
+
+  // Source data from in-memory sales (already normalized by sales.js)
+  const sales = Array.isArray(window.sales) ? window.sales : [];
+
+  // Initialize series
+  const totalSeries = Array(7).fill(0);
+  const cashSeries = Array(7).fill(0);
+  const mpesaSeries = Array(7).fill(0);
+  const debtSeries = Array(7).fill(0);
+
+  // Index labels for quick lookup
+  const indexByDate = new Map(labels.map((d, i) => [d, i]));
+
+  for (const s of sales) {
+    const date = typeof s.date === 'string' ? s.date : (typeof s.createdAt === 'string' ? s.createdAt.split('T')[0] : null);
+    if (!date) continue;
+    const idx = indexByDate.get(date);
+    if (idx === undefined) continue; // not in this week
+
+    const amt = getTotalAmount(s);
+    totalSeries[idx] += amt;
+    const pm = getPaymentMethod(s);
+    if (pm === 'cash') cashSeries[idx] += amt;
+    else if (pm === 'mpesa') mpesaSeries[idx] += amt;
+    else if (pm === 'debt') debtSeries[idx] += amt;
+  }
+
+  // Update week label if present
+  const weekLabel = document.getElementById('weekRangeLabel');
+  if (weekLabel) {
+    const start = labels[0];
+    const end = labels[6];
+    weekLabel.textContent = `${start} → ${end}`;
+  }
+
+  // Render multi-line chart
+  weeklyChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: labels.map(d => window.utils ? window.utils.formatDate(d) : d),
+      datasets: [
+        {
+          label: 'Total Sales',
+          data: totalSeries,
+          borderColor: '#E53935', // red
+          backgroundColor: 'rgba(229,57,53,0.15)',
+          tension: 0.2,
+          fill: false,
+        },
+        {
+          label: 'Cash',
+          data: cashSeries,
+          borderColor: '#4CAF50',
+          backgroundColor: 'rgba(76,175,80,0.15)',
+          tension: 0.2,
+          fill: false,
+        },
+        {
+          label: 'M-Pesa',
+          data: mpesaSeries,
+          borderColor: '#2196F3',
+          backgroundColor: 'rgba(33,150,243,0.15)',
+          tension: 0.2,
+          fill: false,
+        },
+        {
+          label: 'Debt',
+          data: debtSeries,
+          borderColor: '#FF9800',
+          backgroundColor: 'rgba(255,152,0,0.15)',
+          tension: 0.2,
+          fill: false,
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        x: {
+          ticks: { color: 'white' },
+          grid: { color: 'rgba(255,255,255,0.1)' }
+        },
+        y: {
+          beginAtZero: true,
+          ticks: {
+            color: 'white',
+            callback: function (value) {
+              try { return 'KSh ' + Number(value).toLocaleString(); } catch (_) { return value; }
+            }
+          },
+          grid: { color: 'rgba(255,255,255,0.1)' }
+        }
+      },
+      plugins: {
+        legend: {
+          labels: { color: 'white' }
+        },
+        tooltip: {
+          callbacks: {
+            label: function (context) {
+              const val = context.parsed.y || 0;
+              return `${context.dataset.label}: KSh ${val.toLocaleString()}`;
+            }
+          }
+        }
+      },
+      elements: { line: { borderWidth: 3 } }
+    }
+  });
 }
 
 // Throttling controls for dashboard API calls (configurable via CONFIG)
