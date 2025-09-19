@@ -87,7 +87,7 @@ async function addProduct(event) {
     if (isEditing) {
       // Update existing product
       const productId = modal.getAttribute("data-editing");
-      const result = await window.dataManager.updateData("products", productId, productData);
+      const result = await window.dataManager.updateData("products", productId, productData, { allowStockUpdate: true });
       
       if (result) {
         // Update global products array with the updated product

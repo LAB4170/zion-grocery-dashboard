@@ -266,6 +266,17 @@ class ApiClient {
         );
       }
 
+      // Important: Preserve common 4xx client errors (validation/auth/route) without
+      // converting them into misleading database connection errors
+      if (
+        error.message.startsWith('Bad request') ||
+        error.message.includes('API endpoint not found') ||
+        error.message.includes('Unauthorized') ||
+        error.message.includes("Access forbidden")
+      ) {
+        throw error;
+      }
+
       // Re-throw enhanced errors or create generic database error
       if (
         error.message.includes("Database connection error") ||

@@ -116,8 +116,8 @@ router.put('/:id', catchAsync(async (req, res) => {
     throw new AppError('Debt not found', 404);
   }
 
-  // Validate input
-  const errors = Debt.validate(req.body);
+  // Validate input (partial update)
+  const errors = Debt.validateUpdate(req.body);
   if (errors.length > 0) {
     throw new AppError(`Validation failed: ${errors.join(', ')}`, 400);
   }

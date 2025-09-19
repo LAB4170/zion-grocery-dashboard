@@ -148,8 +148,8 @@ router.put('/:id', catchAsync(async (req, res) => {
     throw new AppError('Sale not found', 404);
   }
 
-  // Validate input
-  const errors = Sale.validate(req.body);
+  // Validate input (partial update)
+  const errors = Sale.validateUpdate(req.body);
   if (errors.length > 0) {
     throw new AppError(`Validation failed: ${errors.join(', ')}`, 400);
   }

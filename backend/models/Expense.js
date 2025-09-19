@@ -105,18 +105,25 @@ class Expense {
   // Update expense
   static async update(id, updateData) {
     const db = getDatabase();
-    const dbData = {
-      description: updateData.description,
-      amount: parseFloat(updateData.amount),
-      category: updateData.category,
-      updated_at: new Date().toISOString()
-    };
-    
+    const dbData = { updated_at: new Date().toISOString() };
+
+    if (updateData.hasOwnProperty('description')) {
+      dbData.description = updateData.description;
+    }
+    if (updateData.hasOwnProperty('amount')) {
+      const amt = parseFloat(updateData.amount);
+      if (!isNaN(amt)) dbData.amount = amt;
+      else throw new Error('Valid expense amount is required');
+    }
+    if (updateData.hasOwnProperty('category')) {
+      dbData.category = updateData.category;
+    }
+     
     const [updatedExpense] = await db('expenses')
       .where('id', id)
       .update(dbData)
       .returning('*');
-    
+     
     return updatedExpense;
   }
 
@@ -298,6 +305,31 @@ class Expense {
       errors.push('Expense category is required');
     }
     
+    return errors;
+  }
+
+  // Partial validation for updates: only validate provided fields
+  static validateUpdate(data) {
+    const errors = [];
+
+    if (data.hasOwnProperty('description')) {
+      if (!data.description || data.description.trim().length === 0) {
+        errors.push('Expense description cannot be empty');
+      }
+    }
+
+    if (data.hasOwnProperty('amount')) {
+      if (isNaN(parseFloat(data.amount)) || parseFloat(data.amount) <= 0) {
+        errors.push('Valid expense amount is required');
+      }
+    }
+
+    if (data.hasOwnProperty('category')) {
+      if (!data.category || data.category.trim().length === 0) {
+        errors.push('Expense category cannot be empty');
+      }
+    }
+
     return errors;
   }
 }

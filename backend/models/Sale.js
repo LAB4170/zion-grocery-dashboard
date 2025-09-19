@@ -753,6 +753,44 @@ class Sale {
     
     return errors;
   }
+
+  // Partial validation for updates: only validate fields provided
+  static validateUpdate(data) {
+    const errors = [];
+
+    if (data.hasOwnProperty('productId') || data.hasOwnProperty('product_id')) {
+      const pid = data.productId ?? data.product_id;
+      if (!pid) errors.push('Product ID cannot be empty');
+    }
+
+    if (data.hasOwnProperty('quantity')) {
+      if ((!data.quantity) || isNaN(parseInt(data.quantity)) || parseInt(data.quantity) <= 0) {
+        errors.push('Valid quantity is required');
+      }
+    }
+
+    if (data.hasOwnProperty('unitPrice') || data.hasOwnProperty('unit_price')) {
+      const up = parseFloat(data.unitPrice ?? data.unit_price);
+      if (isNaN(up) || up <= 0) {
+        errors.push('Valid unit price is required');
+      }
+    }
+
+    if (data.hasOwnProperty('paymentMethod') || data.hasOwnProperty('payment_method')) {
+      const pm = data.paymentMethod ?? data.payment_method;
+      if (!['cash', 'mpesa', 'debt'].includes(pm)) {
+        errors.push('Valid payment method is required (cash, mpesa, or debt)');
+      }
+      if (pm === 'debt') {
+        const name = data.customerName ?? data.customer_name;
+        const phone = data.customerPhone ?? data.customer_phone;
+        if (!name || (name || '').trim().length === 0) errors.push('Customer name is required for debt payments');
+        if (!phone || (phone || '').trim().length === 0) errors.push('Customer phone is required for debt payments');
+      }
+    }
+
+    return errors;
+  }
 }
 
 module.exports = Sale;

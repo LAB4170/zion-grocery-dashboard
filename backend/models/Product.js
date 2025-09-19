@@ -134,12 +134,18 @@ class Product {
   // Update product
   static async update(id, updateData) {
     const db = getDatabase();
-    const dbData = {
-      name: updateData.name,
-      category: updateData.category,
-      price: parseFloat(updateData.price),
-      updated_at: new Date().toISOString()
-    };
+    const dbData = { updated_at: new Date().toISOString() };
+
+    // Only set fields that were provided
+    if (updateData.hasOwnProperty('name')) {
+      dbData.name = updateData.name;
+    }
+    if (updateData.hasOwnProperty('category')) {
+      dbData.category = updateData.category;
+    }
+    if (updateData.hasOwnProperty('price')) {
+      dbData.price = parseFloat(updateData.price);
+    }
 
     // Allow stock updates when explicitly provided; validate non-negative number
     if (updateData.hasOwnProperty('stockQuantity') || updateData.hasOwnProperty('stock_quantity')) {
@@ -233,6 +239,39 @@ class Product {
       errors.push('Valid stock quantity is required');
     }
     
+    return errors;
+  }
+
+  // Validation for partial updates (PUT) - only validates fields provided
+  static validateUpdate(data) {
+    const errors = [];
+
+    if (data.hasOwnProperty('name')) {
+      if (data.name === undefined || data.name === null || data.name.toString().trim().length === 0) {
+        errors.push('Product name cannot be empty');
+      }
+    }
+
+    if (data.hasOwnProperty('category')) {
+      if (data.category === undefined || data.category === null || data.category.toString().trim().length === 0) {
+        errors.push('Product category cannot be empty');
+      }
+    }
+
+    if (data.hasOwnProperty('price')) {
+      if (isNaN(parseFloat(data.price)) || parseFloat(data.price) <= 0) {
+        errors.push('Valid price is required');
+      }
+    }
+
+    if (data.hasOwnProperty('stockQuantity') || data.hasOwnProperty('stock_quantity')) {
+      const raw = data.stockQuantity ?? data.stock_quantity;
+      const parsed = parseFloat(raw);
+      if (isNaN(parsed) || parsed < 0) {
+        errors.push('Valid stock quantity is required');
+      }
+    }
+
     return errors;
   }
 }

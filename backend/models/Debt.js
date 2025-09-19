@@ -115,23 +115,44 @@ class Debt {
   // Update debt
   static async update(id, updateData) {
     const db = getDatabase();
-    const dbData = {
-      customer_name: updateData.customerName,
-      customer_phone: updateData.customerPhone,
-      amount: parseFloat(updateData.amount),
-      amount_paid: parseFloat(updateData.amountPaid),
-      balance: parseFloat(updateData.balance),
-      status: updateData.status,
-      due_date: updateData.dueDate,
-      notes: updateData.notes,
-      updated_at: new Date().toISOString()
-    };
-    
+    const dbData = { updated_at: new Date().toISOString() };
+
+    if (updateData.hasOwnProperty('customerName')) {
+      dbData.customer_name = updateData.customerName;
+    }
+    if (updateData.hasOwnProperty('customerPhone')) {
+      dbData.customer_phone = updateData.customerPhone;
+    }
+    if (updateData.hasOwnProperty('amount')) {
+      const amt = parseFloat(updateData.amount);
+      if (isNaN(amt) || amt <= 0) throw new Error('Valid debt amount is required');
+      dbData.amount = amt;
+    }
+    if (updateData.hasOwnProperty('amountPaid') || updateData.hasOwnProperty('amount_paid')) {
+      const paid = parseFloat(updateData.amountPaid ?? updateData.amount_paid);
+      if (isNaN(paid) || paid < 0) throw new Error('Valid amount paid is required');
+      dbData.amount_paid = paid;
+    }
+    if (updateData.hasOwnProperty('balance')) {
+      const bal = parseFloat(updateData.balance);
+      if (isNaN(bal) || bal < 0) throw new Error('Valid balance is required');
+      dbData.balance = bal;
+    }
+    if (updateData.hasOwnProperty('status')) {
+      dbData.status = updateData.status;
+    }
+    if (updateData.hasOwnProperty('dueDate') || updateData.hasOwnProperty('due_date')) {
+      dbData.due_date = updateData.dueDate ?? updateData.due_date;
+    }
+    if (updateData.hasOwnProperty('notes')) {
+      dbData.notes = updateData.notes;
+    }
+     
     const [updatedDebt] = await db('debts')
       .where('id', id)
       .update(dbData)
       .returning('*');
-    
+     
     return updatedDebt;
   }
 
@@ -317,6 +338,41 @@ class Debt {
       errors.push('Valid debt amount is required');
     }
     
+    return errors;
+  }
+
+  // Partial validation for updates
+  static validateUpdate(data) {
+    const errors = [];
+
+    if (data.hasOwnProperty('customerName') || data.hasOwnProperty('customer_name')) {
+      const name = data.customerName ?? data.customer_name;
+      if (!name || (name || '').trim().length === 0) {
+        errors.push('Customer name cannot be empty');
+      }
+    }
+
+    if (data.hasOwnProperty('amount')) {
+      const amt = parseFloat(data.amount);
+      if (isNaN(amt) || amt <= 0) {
+        errors.push('Valid debt amount is required');
+      }
+    }
+
+    if (data.hasOwnProperty('amountPaid') || data.hasOwnProperty('amount_paid')) {
+      const paid = parseFloat(data.amountPaid ?? data.amount_paid);
+      if (isNaN(paid) || paid < 0) {
+        errors.push('Valid amount paid is required');
+      }
+    }
+
+    if (data.hasOwnProperty('balance')) {
+      const bal = parseFloat(data.balance);
+      if (isNaN(bal) || bal < 0) {
+        errors.push('Valid balance is required');
+      }
+    }
+
     return errors;
   }
 }
