@@ -351,7 +351,7 @@ async function updateDashboardStats() {
         if (todaysDebtsElement)
           todaysDebtsElement.textContent = window.utils.formatCurrency(stats.debts.today_debts || 0);
 
-        // Today's expenses
+        // Daily expenses
         const dailyExpensesElement = document.getElementById("daily-expenses");
         if (dailyExpensesElement)
           dailyExpensesElement.textContent = window.utils.formatCurrency(stats.expenses.today_expenses || 0);
@@ -653,12 +653,30 @@ function createWeeklyChart() {
   }
 
   // Update week label if present
-  const weekLabel = document.getElementById('weekRangeLabel');
-  if (weekLabel) {
+  const weekLabelEl = document.getElementById('weekRangeLabel') || document.getElementById('weekLabel');
+  if (weekLabelEl) {
     const start = labels[0];
     const end = labels[6];
-    weekLabel.textContent = `${start} → ${end}`;
+    weekLabelEl.textContent = `${start} → ${end}`;
   }
+
+  // Ensure chart container has some height to render
+  try {
+    const container = ctx.closest('.chart-container');
+    if (container && (!container.style.height || container.clientHeight < 120)) {
+      container.style.minHeight = '260px';
+    }
+  } catch (_) {}
+
+  // Debug: log series to help diagnose empty lines
+  try {
+    const sum = arr => arr.reduce((a, b) => a + b, 0);
+    console.log('📈 Weekly chart debug:', {
+      labels,
+      totals: { total: sum(totalSeries), cash: sum(cashSeries), mpesa: sum(mpesaSeries), debt: sum(debtSeries) },
+      salesCount: sales.length
+    });
+  } catch (_) {}
 
   // Render multi-line chart
   weeklyChart = new Chart(ctx, {
