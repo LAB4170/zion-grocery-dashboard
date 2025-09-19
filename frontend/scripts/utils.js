@@ -8,15 +8,25 @@ window.utils = {
         })}`;
     },
 
-    formatDate: function(dateString) {
+    formatDate: function(dateInput) {
         try {
-            const date = new Date(dateString);
-            if (isNaN(date.getTime())) return 'Invalid Date';
-            return date.toLocaleDateString('en-KE', {
+            if (!dateInput) return 'Invalid Date';
+            let d = null;
+            if (dateInput instanceof Date) {
+                d = dateInput;
+            } else if (typeof dateInput === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateInput)) {
+                // Treat date-only strings as Nairobi local midnight to avoid UTC shifting
+                d = new Date(`${dateInput}T00:00:00+03:00`);
+            } else {
+                d = new Date(dateInput);
+            }
+            if (isNaN(d.getTime())) return 'Invalid Date';
+            return new Intl.DateTimeFormat('en-KE', {
+                timeZone: 'Africa/Nairobi',
                 year: 'numeric',
                 month: 'short',
                 day: 'numeric'
-            });
+            }).format(d);
         } catch (e) {
             console.error('Date formatting error:', e);
             return 'Invalid Date';

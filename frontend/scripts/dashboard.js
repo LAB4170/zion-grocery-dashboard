@@ -270,7 +270,15 @@ async function loadDashboardData() {
 }
 
 async function updateDashboardStats() {
-  const today = new Date().toISOString().split("T")[0];
+  // Use Nairobi local date (YYYY-MM-DD) to avoid UTC off-by-one
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Africa/Nairobi',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date());
+  const map = Object.fromEntries(parts.map(p => [p.type, p.value]));
+  const today = `${map.year}-${map.month}-${map.day}`;
   const currentMonth = new Date().getMonth();
   const currentYear = new Date().getFullYear();
 

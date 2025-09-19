@@ -3,6 +3,21 @@
 // Use global expenses variable for consistency - no redeclaration needed
 // Access window.expenses directly to avoid conflicts
 
+// Helper: current ISO timestamp based on Nairobi local time (UTC+03:00)
+function getNairobiIsoNow() {
+  const partsDate = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Africa/Nairobi', year: 'numeric', month: '2-digit', day: '2-digit'
+  }).formatToParts(new Date());
+  const dateMap = Object.fromEntries(partsDate.map(p => [p.type, p.value]));
+  const partsTime = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Africa/Nairobi', hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit'
+  }).formatToParts(new Date());
+  const timeMap = Object.fromEntries(partsTime.map(p => [p.type, p.value]));
+  const ymd = `${dateMap.year}-${dateMap.month}-${dateMap.day}`;
+  const hms = `${timeMap.hour || '00'}:${timeMap.minute || '00'}:${timeMap.second || '00'}`;
+  return new Date(`${ymd}T${hms}+03:00`).toISOString();
+}
+
 async function addExpense(event) {
   event.preventDefault();
 
@@ -32,8 +47,9 @@ async function addExpense(event) {
       category: category,
       amount: amount,
       createdBy: 'system',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+      // Use Nairobi-local timestamp to avoid day shifting in reports
+      createdAt: getNairobiIsoNow(),
+      updatedAt: getNairobiIsoNow()
     };
 
     // DATABASE-FIRST OPERATION: Send to database first, then update cache

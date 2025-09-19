@@ -12,6 +12,30 @@ function initializeDebtsPagination() {
   }
 }
 
+// Helper: build Nairobi-local ISO timestamp (UTC+03:00)
+function getNairobiIsoNow() {
+  const partsDate = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Africa/Nairobi', year: 'numeric', month: '2-digit', day: '2-digit'
+  }).formatToParts(new Date());
+  const dateMap = Object.fromEntries(partsDate.map(p => [p.type, p.value]));
+  const partsTime = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Africa/Nairobi', hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit'
+  }).formatToParts(new Date());
+  const timeMap = Object.fromEntries(partsTime.map(p => [p.type, p.value]));
+  const ymd = `${dateMap.year}-${dateMap.month}-${dateMap.day}`;
+  const hms = `${timeMap.hour || '00'}:${timeMap.minute || '00'}:${timeMap.second || '00'}`;
+  return new Date(`${ymd}T${hms}+03:00`).toISOString();
+}
+
+// Helper: Nairobi date-only string (YYYY-MM-DD)
+function getNairobiDateString(d = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Africa/Nairobi', year: 'numeric', month: '2-digit', day: '2-digit'
+  }).formatToParts(d);
+  const map = Object.fromEntries(parts.map(p => [p.type, p.value]));
+  return `${map.year}-${map.month}-${map.day}`;
+}
+
 async function addDebt(event) {
   event.preventDefault();
 
@@ -55,10 +79,11 @@ async function addDebt(event) {
       customerPhone: customerPhone.trim(),
       amount: amount,
       status: "pending",
+      // Ensure due date is a Nairobi date-only string
       dueDate: dueDate,
       createdBy: 'system',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+      createdAt: getNairobiIsoNow(),
+      updatedAt: getNairobiIsoNow()
     };
 
     // DATABASE-FIRST OPERATION: Send to database first, then update cache
@@ -105,11 +130,12 @@ async function addDebtFromSale(sale) {
     customerName: sale.customerName || sale.customer_name,
     customerPhone: sale.customerPhone || sale.customer_phone,
     amount: sale.total,
-    dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0], // 7 days from now
+    // 7 days from now in Nairobi local date
+    dueDate: (() => { const d = new Date(); d.setDate(d.getDate() + 7); return getNairobiDateString(d); })(),
     status: "pending",
     saleId: sale.id,
     createdBy: 'system',
-    createdAt: sale.createdAt || sale.created_at,
+    createdAt: sale.createdAt || sale.created_at || getNairobiIsoNow(),
     date: sale.date,
   };
 
@@ -290,7 +316,7 @@ async function markDebtPaid(debtId) {
   const debt = debts.find((d) => d.id === debtId);
   if (debt) {
     debt.status = "paid";
-    debt.paidAt = new Date().toISOString();
+    debt.paidAt = getNairobiIsoNow();
     await window.dataManager.updateData("debts", debtId, debt);
 
     // Update corresponding sale record if it exists
@@ -373,13 +399,19 @@ function getGracePeriodInfo(debt) {
 
 function isDebtOverdue(debt) {
   if (debt.status === "paid") return false;
-  return new Date(debt.dueDate) < new Date();
+  // Compare Nairobi-local dates only (ignore time)
+  const today = getNairobiDateString();
+  const due = typeof debt.dueDate === 'string' ? debt.dueDate.slice(0,10) : getNairobiDateString(new Date(debt.dueDate));
+  return due < today;
 }
 
 function getDaysUntilDue(debt) {
-  const today = new Date();
-  const dueDate = new Date(debt.dueDate);
-  const diffTime = dueDate - today;
+  // Compute difference in days based on Nairobi-local date-only values
+  const todayStr = getNairobiDateString();
+  const dueStr = typeof debt.dueDate === 'string' ? debt.dueDate.slice(0,10) : getNairobiDateString(new Date(debt.dueDate));
+  const t = new Date(`${todayStr}T00:00:00+03:00`);
+  const d = new Date(`${dueStr}T00:00:00+03:00`);
+  const diffTime = d - t;
   return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 }
 
@@ -398,7 +430,8 @@ function editDebtDate(debtId, dateField) {
   
   if (newDate && newDate !== currentDate) {
     if (dateField === 'createdAt') {
-      debt.createdAt = new Date(newDate + 'T' + debt.createdAt.split('T')[1]).toISOString();
+      const timePart = (debt.createdAt && debt.createdAt.includes('T')) ? debt.createdAt.split('T')[1].replace('Z','').substring(0,8) : '00:00:00';
+      debt.createdAt = new Date(`${newDate}T${timePart}+03:00`).toISOString();
       debt.date = newDate;
     } else {
       debt.dueDate = newDate;
