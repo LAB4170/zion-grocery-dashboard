@@ -211,7 +211,8 @@ async function addSale(event) {
       
       // Update global variable only after successful database save
       window.sales = window.sales || [];
-      window.sales.push(savedSale.data || savedSale);
+      const saved = normalizeSale(savedSale.data || savedSale);
+      window.sales.push(saved);
       
       // Backend decrements stock transactionally; refresh products to reflect new stock
       try {
@@ -227,7 +228,10 @@ async function addSale(event) {
 
       // Refresh dashboard charts if currently viewing dashboard
       if (typeof window.loadDashboardData === "function" && window.currentSection === "dashboard") {
-        window.loadDashboardData();
+        // Lightweight refresh: update stats and charts directly
+        if (typeof window.updateDashboardStats === 'function') window.updateDashboardStats();
+        if (typeof window.createPaymentChart === 'function') window.createPaymentChart();
+        if (typeof window.createWeeklyChart === 'function') window.createWeeklyChart();
       }
     }
 
@@ -281,7 +285,8 @@ async function loadSalesData(filteredSales = null) {
         const result = await window.dataManager.getData("sales");
         
         if (result && result.data) {
-          window.sales = result.data;
+          // Normalize all sales for consistent dashboard usage
+          window.sales = result.data.map(normalizeSale);
           console.log('✅ Sales loaded from database:', window.sales.length, 'items');
         } else {
           window.sales = [];
@@ -328,7 +333,7 @@ function renderSalesTable(salesToShow) {
 
   // Sync with global variables - use window.sales consistently
   const sales = window.sales || [];
-  const dataToRender = salesToShow || sales;
+  const dataToRender = (salesToShow || sales).map(normalizeSale);
 
   tbody.innerHTML = dataToRender
     .map((sale) => {
@@ -645,6 +650,34 @@ function resolveProductFromInput(inputValue) {
   // Starts-with or includes unique match
   const candidates = products.filter(p => (p.name || '').toLowerCase().includes(inputValue.toLowerCase()));
   return candidates.length === 1 ? candidates[0] : null;
+}
+
+// Normalize a sale object from backend (snake_case) or frontend (camelCase)
+function normalizeSale(s) {
+  if (!s || typeof s !== 'object') return s;
+  return {
+    // IDs and product
+    id: s.id,
+    productId: s.productId ?? s.product_id,
+    productName: s.productName ?? s.product_name,
+    // quantities and amounts
+    quantity: Number(s.quantity ?? 0),
+    unitPrice: Number(s.unitPrice ?? s.unit_price ?? 0),
+    total: Number(s.total ?? s.total_amount ?? s.amount ?? 0),
+    // payment and status
+    paymentMethod: s.paymentMethod ?? s.payment_method ?? s.payment ?? s.method,
+    status: s.status ?? (s.paymentMethod === 'debt' || s.payment_method === 'debt' ? 'pending' : 'completed'),
+    // customer
+    customerName: s.customerName ?? s.customer_name ?? null,
+    customerPhone: s.customerPhone ?? s.customer_phone ?? null,
+    // notes and mpesa
+    mpesaCode: s.mpesaCode ?? s.mpesa_code ?? null,
+    notes: s.notes ?? null,
+    // dates
+    date: s.date ?? (typeof s.created_at === 'string' ? s.created_at.split('T')[0] : (typeof s.createdAt === 'string' ? s.createdAt.split('T')[0] : null)),
+    createdAt: s.createdAt ?? s.created_at ?? null,
+    createdBy: s.createdBy ?? s.created_by ?? null
+  };
 }
 
 // Export for global access

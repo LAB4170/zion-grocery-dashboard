@@ -7,6 +7,15 @@ function formatCurrency(amount) {
   return "KSh " + amount.toFixed(2).replace(/\d(?=(\d{3})+\.)/g, "$&,");
 }
 
+// Helper accessors to normalize backend/Frontend field names
+function getPaymentMethod(rec) {
+  return rec.paymentMethod || rec.payment_method || rec.payment || rec.method || '';
+}
+function getTotalAmount(rec) {
+  const n = Number(rec.total ?? rec.total_amount ?? rec.amount ?? 0);
+  return Number.isFinite(n) ? n : 0;
+}
+
 async function fetchDashboardData() {
   console.log("📊 Initializing dashboard...");
 
@@ -378,16 +387,16 @@ async function updateDashboardStats() {
 
   // Cash sales
   const cashSales = sales
-    .filter((s) => s.paymentMethod === "cash")
-    .reduce((sum, sale) => sum + (sale.total || 0), 0);
+    .filter((s) => getPaymentMethod(s) === "cash")
+    .reduce((sum, sale) => sum + getTotalAmount(sale), 0);
   const cashTotalElement = document.getElementById("cash-total");
   if (cashTotalElement)
     cashTotalElement.textContent = window.utils.formatCurrency(cashSales);
 
   // M-Pesa sales (removed from dashboard but kept for payment distribution)
   const mpesaSales = sales
-    .filter((s) => s.paymentMethod === "mpesa")
-    .reduce((sum, sale) => sum + (sale.total || 0), 0);
+    .filter((s) => getPaymentMethod(s) === "mpesa")
+    .reduce((sum, sale) => sum + getTotalAmount(sale), 0);
 
   // Show M-Pesa total on dashboard card (if present)
   const mpesaTotalElement = document.getElementById("mpesa-total");
@@ -555,15 +564,16 @@ function createPaymentChart() {
   // FIX: Use consistent global variable access
   const sales = window.sales || [];
 
+  // Use normalized accessors for accurate distribution
   const cashTotal = sales
-    .filter((s) => s.paymentMethod === "cash")
-    .reduce((sum, sale) => sum + (sale.total || 0), 0);
+    .filter((s) => getPaymentMethod(s) === "cash")
+    .reduce((sum, s) => sum + getTotalAmount(s), 0);
   const mpesaTotal = sales
-    .filter((s) => s.paymentMethod === "mpesa")
-    .reduce((sum, sale) => sum + (sale.total || 0), 0);
+    .filter((s) => getPaymentMethod(s) === "mpesa")
+    .reduce((sum, s) => sum + getTotalAmount(s), 0);
   const debtTotal = sales
-    .filter((s) => s.paymentMethod === "debt")
-    .reduce((sum, sale) => sum + (sale.total || 0), 0);
+    .filter((s) => getPaymentMethod(s) === "debt")
+    .reduce((sum, s) => sum + getTotalAmount(s), 0);
 
   paymentChart = new Chart(ctx, {
     type: "doughnut",
@@ -702,7 +712,8 @@ function createWeeklyChart() {
         },
       });
     } catch (e) {
-      console.error('Failed to create weekly chart:', e);
+      // Throttling or transient errors should not be treated as fatal here
+      console.warn('Skipped weekly chart refresh:', e?.message || e);
     }
   })();
 }
@@ -719,13 +730,23 @@ let _weeklyInFlight = null;
 const DASHBOARD_STATS_CACHE_TTL_MS = 60000; // 60 seconds
 let _statsCache = { data: null, ts: 0 };
 
+// Weekly data cache (60s TTL)
+const WEEKLY_CACHE_TTL_MS = 60000; // 60 seconds
+let _weeklyCache = { data: null, ts: 0 };
+
 async function getDashboardStatsThrottled() {
   const now = Date.now();
   if (_statsInFlight) {
     return _statsInFlight;
   }
-  if (now - _lastStatsFetchAt < DASHBOARD_THROTTLE_MS) {
-    return Promise.reject(new Error('Throttled: dashboard stats requested too frequently'));
+  const since = now - _lastStatsFetchAt;
+  if (since < DASHBOARD_THROTTLE_MS) {
+    // Serve cached if available; otherwise wait until throttle window elapses then fetch
+    if (_statsCache.data && (now - _statsCache.ts) < DASHBOARD_STATS_CACHE_TTL_MS) {
+      return Promise.resolve({ data: _statsCache.data, fromCache: true });
+    }
+    const wait = Math.max(0, DASHBOARD_THROTTLE_MS - since);
+    return new Promise(resolve => setTimeout(() => resolve(getDashboardStatsThrottled()), wait));
   }
   _lastStatsFetchAt = now;
   _statsInFlight = window.apiClient.getDashboardStats()
@@ -736,6 +757,14 @@ async function getDashboardStatsThrottled() {
         _statsCache = { data: stats, ts: Date.now() };
       }
       return resp;
+    })
+    .catch(err => {
+      // If rate-limited or other transient error, fall back to cache (if any)
+      if (_statsCache.data && (Date.now() - _statsCache.ts) < DASHBOARD_STATS_CACHE_TTL_MS) {
+        console.warn('Stats request failed; serving cached data:', err?.message || err);
+        return { data: _statsCache.data, fromCache: true };
+      }
+      throw err;
     })
     .finally(() => {
       _statsInFlight = null;
@@ -748,11 +777,31 @@ async function getWeeklySalesThrottled() {
   if (_weeklyInFlight) {
     return _weeklyInFlight;
   }
-  if (now - _lastWeeklyFetchAt < WEEKLY_THROTTLE_MS) {
-    return Promise.reject(new Error('Throttled: weekly sales requested too frequently'));
+  const since = now - _lastWeeklyFetchAt;
+  if (since < WEEKLY_THROTTLE_MS) {
+    // Serve cached weekly if available; otherwise wait until throttle window elapses then fetch
+    if (_weeklyCache.data && (now - _weeklyCache.ts) < WEEKLY_CACHE_TTL_MS) {
+      return Promise.resolve({ data: _weeklyCache.data, fromCache: true });
+    }
+    const wait = Math.max(0, WEEKLY_THROTTLE_MS - since);
+    return new Promise(resolve => setTimeout(() => resolve(getWeeklySalesThrottled()), wait));
   }
   _lastWeeklyFetchAt = now;
   _weeklyInFlight = window.apiClient.getSalesWeekly()
+    .then(resp => {
+      const weekly = resp && resp.data ? resp.data : null;
+      if (weekly) {
+        _weeklyCache = { data: weekly, ts: Date.now() };
+      }
+      return resp;
+    })
+    .catch(err => {
+      if (_weeklyCache.data && (Date.now() - _weeklyCache.ts) < WEEKLY_CACHE_TTL_MS) {
+        console.warn('Weekly request failed; serving cached data:', err?.message || err);
+        return { data: _weeklyCache.data, fromCache: true };
+      }
+      throw err;
+    })
     .finally(() => {
       _weeklyInFlight = null;
     });
@@ -800,6 +849,9 @@ window.loadDashboardData = loadDashboardData;
 window.prevWeek = prevWeek;
 window.nextWeek = nextWeek;
 window.thisWeek = thisWeek;
+// New: export chart functions so other modules can refresh immediately
+window.createPaymentChart = createPaymentChart;
+window.createWeeklyChart = createWeeklyChart;
 
 // Initialize dashboard when DOM is ready
 document.addEventListener("DOMContentLoaded", function () {

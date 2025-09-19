@@ -35,6 +35,12 @@ window.CONFIG = {
     SOCKET_IO_ENABLED: true,
     SYNC_INTERVAL: isLocalhost ? 10000 : 30000, // Faster sync in development
     
+    // Dashboard Throttling (ms)
+    // Simplicity first: disable throttling by default in all environments
+    DASHBOARD_THROTTLING_ENABLED: false,
+    DASHBOARD_THROTTLE_MS: 5000,
+    WEEKLY_THROTTLE_MS: 5000,
+    
     // Application Settings
     APP_NAME: 'Zion Grocery Dashboard',
     VERSION: '1.0.0',
