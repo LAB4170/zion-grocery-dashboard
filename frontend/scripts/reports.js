@@ -28,6 +28,27 @@ function reportGetDateOnly(v) {
   return str.length >= 10 ? str.slice(0, 10) : str;
 }
 
+// New: get Nairobi-local YYYY-MM-DD from a timestamp string
+function reportGetNairobiFromTimestamp(v) {
+  if (!v) return null;
+  try {
+    const d = new Date(v);
+    if (isNaN(d.getTime())) return null;
+    return getNairobiDateString(d);
+  } catch { return null; }
+}
+
+// New: Effective sale date for reporting (handles legacy UTC-stamped records)
+function reportEffectiveSaleYmd(s) {
+  const dPref = reportGetDateOnly(s?.date);
+  const dFromTs = reportGetNairobiFromTimestamp(s?.createdAt || s?.created_at);
+  if (!dPref) return dFromTs;
+  if (!dFromTs) return dPref;
+  // If they disagree (likely timezone drift), prefer Nairobi-local from timestamp
+  if (dPref !== dFromTs) return dFromTs;
+  return dPref;
+}
+
 async function generateDailyReport(targetYmd = null) {
   const reportContent = document.getElementById("reportContent");
   if (reportContent) {
@@ -76,19 +97,19 @@ async function generateDailyReport(targetYmd = null) {
 
   // Determine the report day: explicit param -> today -> latest sale date
   let reportYmd = (typeof targetYmd === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(targetYmd)) ? targetYmd : today;
-  let todaySales = sales.filter((s) => isSameDay(s.date ?? s.createdAt ?? s.created_at, reportYmd));
+  let todaySales = sales.filter((s) => isSameDay(reportEffectiveSaleYmd(s), reportYmd));
   let todayExpenses = expenses.filter((e) => isSameDay(e.date ?? e.createdAt ?? e.created_at, reportYmd));
   let todayDebts = debts.filter((d) => isSameDay(d.date ?? d.createdAt ?? d.created_at, reportYmd));
 
   if (todaySales.length === 0 && sales.length > 0 && !targetYmd) {
     const ymds = sales
-      .map(s => reportGetDateOnly(s.date ?? s.createdAt ?? s.created_at))
+      .map(s => reportEffectiveSaleYmd(s))
       .filter(Boolean)
       .sort();
     const latest = ymds[ymds.length - 1];
     if (latest) {
       reportYmd = latest;
-      todaySales = sales.filter((s) => isSameDay(s.date ?? s.createdAt ?? s.created_at, reportYmd));
+      todaySales = sales.filter((s) => isSameDay(reportEffectiveSaleYmd(s), reportYmd));
       todayExpenses = expenses.filter((e) => isSameDay(e.date ?? e.createdAt ?? e.created_at, reportYmd));
       todayDebts = debts.filter((d) => isSameDay(d.date ?? d.createdAt ?? d.created_at, reportYmd));
     }
@@ -215,7 +236,7 @@ async function generateWeeklyReport() {
       d.setDate(monday.getDate() + i);
       const key = getNairobiDateString(d);
       const total_revenue = sales
-        .filter(s => reportGetDateOnly(s.date ?? s.createdAt ?? s.created_at) === key)
+        .filter(s => reportEffectiveSaleYmd(s) === key)
         .reduce((sum, s) => sum + reportGetTotal(s), 0);
       return { date: key, total_revenue };
     });

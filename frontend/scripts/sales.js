@@ -675,6 +675,20 @@ function resolveProductFromInput(inputValue) {
 // Normalize a sale object from backend (snake_case) or frontend (camelCase)
 function normalizeSale(s) {
   if (!s || typeof s !== 'object') return s;
+  // Helper: turn any date-like input into Nairobi-local YYYY-MM-DD
+  const toNairobiYmd = (val) => {
+    if (!val) return null;
+    if (val instanceof Date) return getNairobiDateString(val);
+    const str = String(val);
+    // If already YYYY-MM-DD, trust directly
+    if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
+    // Otherwise, parse and format in Nairobi
+    try {
+      const d = new Date(str);
+      if (!isNaN(d.getTime())) return getNairobiDateString(d);
+    } catch (_) {}
+    return null;
+  };
   return {
     // IDs and product
     id: s.id,
@@ -694,7 +708,8 @@ function normalizeSale(s) {
     mpesaCode: s.mpesaCode ?? s.mpesa_code ?? null,
     notes: s.notes ?? null,
     // dates
-    date: s.date ?? (typeof s.created_at === 'string' ? s.created_at.split('T')[0] : (typeof s.createdAt === 'string' ? s.createdAt.split('T')[0] : null)),
+    // Prefer explicit sale date; else derive from created_at/createdAt in Nairobi timezone
+    date: s.date ?? toNairobiYmd(s.created_at ?? s.createdAt),
     createdAt: s.createdAt ?? s.created_at ?? null,
     createdBy: s.createdBy ?? s.created_by ?? null
   };
