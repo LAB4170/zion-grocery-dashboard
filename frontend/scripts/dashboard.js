@@ -279,84 +279,32 @@ async function updateDashboardStats() {
   }).formatToParts(new Date());
   const map = Object.fromEntries(parts.map(p => [p.type, p.value]));
   const today = `${map.year}-${map.month}-${map.day}`;
-  const currentMonth = new Date().getMonth();
-  const currentYear = new Date().getFullYear();
+  const nowEat = new Date(`${today}T00:00:00+03:00`);
+  const currentMonth = nowEat.getMonth();
+  const currentYear = nowEat.getFullYear();
 
-  // Debug: Check what's actually in window.sales
-  console.log("🔍 Debug - window.sales:", window.sales);
-  console.log("🔍 Debug - Type of window.sales:", typeof window.sales);
-  console.log("🔍 Debug - Is array:", Array.isArray(window.sales));
+  // Helper to mirror reports' effective date logic
+  const effectiveSaleYmd = (s) => {
+    const dateField = (typeof s.date === 'string' && s.date.length >= 10) ? s.date.slice(0,10) : null;
+    const ts = s.createdAt || s.created_at;
+    let fromTs = null;
+    if (ts) {
+      try {
+        const d = new Date(ts);
+        if (!isNaN(d.getTime())) {
+          const p = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Nairobi', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(d);
+          const m = Object.fromEntries(p.map(pp => [pp.type, pp.value]));
+          fromTs = `${m.year}-${m.month}-${m.day}`;
+        }
+      } catch {}
+    }
+    if (!dateField) return fromTs;
+    if (!fromTs) return dateField;
+    return (dateField !== fromTs) ? fromTs : dateField;
+  };
 
-  // FIX: Use global variables consistently and ensure they are arrays
-  const sales = Array.isArray(window.sales) ? window.sales : [];
-  const debts = Array.isArray(window.debts) ? window.debts : [];
-  const expenses = Array.isArray(window.expenses) ? window.expenses : [];
-  const products = Array.isArray(window.products) ? window.products : [];
-
-  // Additional debug info
-  console.log("🔍 Debug - Final sales array:", sales);
-  console.log("🔍 Debug - Sales length:", sales.length);
-
-  // Preferred path: use cache first if fresh to avoid initial burst, then refresh in background
-  const now = Date.now();
-  const cacheFresh = _statsCache.data && (now - _statsCache.ts) < DASHBOARD_STATS_CACHE_TTL_MS;
-  if (cacheFresh) {
-    const stats = _statsCache.data;
-    const totalSalesElement = document.getElementById("total-sales");
-    if (totalSalesElement)
-      totalSalesElement.textContent = window.utils.formatCurrency(stats.sales?.total_revenue || 0);
-    const cashTotalElement = document.getElementById("cash-total");
-    if (cashTotalElement)
-      cashTotalElement.textContent = window.utils.formatCurrency(stats.sales?.cash_sales || 0);
-    const mpesaTotalElement = document.getElementById("mpesa-total");
-    if (mpesaTotalElement)
-      mpesaTotalElement.textContent = window.utils.formatCurrency(stats.sales?.mpesa_sales || 0);
-    const todaysDebtsElement = document.getElementById("todays-debts");
-    if (todaysDebtsElement)
-      todaysDebtsElement.textContent = window.utils.formatCurrency(stats.debts?.today_debts || 0);
-    const dailyExpensesElement = document.getElementById("daily-expenses");
-    if (dailyExpensesElement)
-      dailyExpensesElement.textContent = window.utils.formatCurrency(stats.expenses?.today_expenses || 0);
-    const monthlySalesElement = document.getElementById("monthly-sales");
-    if (monthlySalesElement)
-      monthlySalesElement.textContent = window.utils.formatCurrency(stats.sales?.monthly_revenue || 0);
-    const monthlyExpensesElement = document.getElementById("monthly-expenses");
-    if (monthlyExpensesElement)
-      monthlyExpensesElement.textContent = window.utils.formatCurrency(stats.expenses?.monthly_expenses || 0);
-    const outstandingDebtElement = document.getElementById("outstanding-debt");
-    if (outstandingDebtElement)
-      outstandingDebtElement.textContent = window.utils.formatCurrency(stats.debts?.total_outstanding || 0);
-
-    // OVERRIDE: Show TODAY's Cash and M‑Pesa on the tiles (reset at 00:00 EAT)
-    try {
-      const salesArr = Array.isArray(window.sales) ? window.sales : [];
-      const sameDay = (v) => {
-        if (!v) return false;
-        if (v instanceof Date) return `${map.year}-${map.month}-${map.day}` === new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Nairobi', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(v).reduce((o,p)=>{o[p.type]=p.value;return o;},{}); // not used
-        const s = String(v);
-        return s.slice(0,10) === today;
-      };
-      let cashToday = 0, mpesaToday = 0;
-      for (const s of salesArr) {
-        const dateVal = s.date ?? s.createdAt ?? s.created_at;
-        const dOnly = typeof dateVal === 'string' ? dateVal.slice(0,10) : (dateVal instanceof Date ? today : null);
-        if (dOnly !== today) continue;
-        const amt = Number(s.total ?? s.total_amount ?? s.amount ?? 0) || 0;
-        const pm = (s.paymentMethod || s.payment_method || s.payment || s.method || '').toString().toLowerCase();
-        if (pm === 'cash') cashToday += amt;
-        else if (pm === 'mpesa') mpesaToday += amt;
-      }
-      if (cashTotalElement) cashTotalElement.textContent = window.utils.formatCurrency(cashToday);
-      if (mpesaTotalElement) mpesaTotalElement.textContent = window.utils.formatCurrency(mpesaToday);
-    } catch (_) {}
-
-    // Trigger a background refresh that respects throttling (no await)
-    getDashboardStatsThrottled().catch(e => console.warn('Stats background refresh skipped:', e?.message || e));
-    return; // we already rendered from cache
-  }
-
-  // Preferred path: fetch counters from backend dashboard stats
   try {
+    // Prefer server stats when available
     if (window.apiClient && typeof window.apiClient.getDashboardStats === 'function') {
       // Use UNTHROTTLED fetch if a force flag is set (e.g., right after CRUD), else throttled fetch
       const resp = (window.forceStatsNext === true)
@@ -366,68 +314,49 @@ async function updateDashboardStats() {
       if (window.forceStatsNext === true) window.forceStatsNext = false;
       const stats = resp && resp.data ? resp.data : null;
       if (stats && stats.sales && stats.expenses && stats.debts) {
-        // Total sales (revenue)
-        const totalSalesElement = document.getElementById("total-sales");
-        if (totalSalesElement)
-          totalSalesElement.textContent = window.utils.formatCurrency(stats.sales.total_revenue || 0);
-
-        // Cash total (label retained for backward-compat; this shows cash revenue all-time)
-        const cashTotalElement = document.getElementById("cash-total");
-        if (cashTotalElement)
-          cashTotalElement.textContent = window.utils.formatCurrency(stats.sales.cash_sales || 0);
-
-        // M-Pesa total (if present on UI)
-        const mpesaTotalElement = document.getElementById("mpesa-total");
-        if (mpesaTotalElement)
-          mpesaTotalElement.textContent = window.utils.formatCurrency(stats.sales.mpesa_sales || 0);
-
-        // Today's debts amount
-        const todaysDebtsElement = document.getElementById("todays-debts");
-        if (todaysDebtsElement)
-          todaysDebtsElement.textContent = window.utils.formatCurrency(stats.debts.today_debts || 0);
-
-        // Daily expenses
-        const dailyExpensesElement = document.getElementById("daily-expenses");
-        if (dailyExpensesElement)
-          dailyExpensesElement.textContent = window.utils.formatCurrency(stats.expenses.today_expenses || 0);
-
-        // Monthly sales (revenue)
-        const monthlySalesElement = document.getElementById("monthly-sales");
-        if (monthlySalesElement)
-          monthlySalesElement.textContent = window.utils.formatCurrency(stats.sales.monthly_revenue || 0);
-
-        // Monthly expenses
-        const monthlyExpensesElement = document.getElementById("monthly-expenses");
-        if (monthlyExpensesElement)
-          monthlyExpensesElement.textContent = window.utils.formatCurrency(stats.expenses.monthly_expenses || 0);
-
-        // Outstanding debt (pending)
-        const outstandingDebtElement = document.getElementById("outstanding-debt");
-        if (outstandingDebtElement)
-          outstandingDebtElement.textContent = window.utils.formatCurrency(stats.debts.total_outstanding || 0);
-
-        // OVERRIDE: Show TODAY's Cash and M‑Pesa on the tiles (reset at 00:00 EAT)
+        // CLIENT-FIRST ACCURACY: ensure in-memory arrays are present, then recompute tiles to match reports exactly
         try {
+          await ensureSalesLoaded();
           const salesArr = Array.isArray(window.sales) ? window.sales : [];
-          const sameDay = (v) => {
-            if (!v) return false;
-            if (v instanceof Date) return `${map.year}-${map.month}-${map.day}` === new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Nairobi', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(v).reduce((o,p)=>{o[p.type]=p.value;return o;},{}); // not used
-            const s = String(v);
-            return s.slice(0,10) === today;
-          };
-          let cashToday = 0, mpesaToday = 0;
+
+          // Total sales (all-time) and Monthly Sales from client for instant accuracy
+          let totalAll = 0, monthly = 0, cashToday = 0, mpesaToday = 0;
           for (const s of salesArr) {
-            const dateVal = s.date ?? s.createdAt ?? s.created_at;
-            const dOnly = typeof dateVal === 'string' ? dateVal.slice(0,10) : (dateVal instanceof Date ? today : null);
-            if (dOnly !== today) continue;
             const amt = Number(s.total ?? s.total_amount ?? s.amount ?? 0) || 0;
-            const pm = (s.paymentMethod || s.payment_method || s.payment || s.method || '').toString().toLowerCase();
-            if (pm === 'cash') cashToday += amt;
-            else if (pm === 'mpesa') mpesaToday += amt;
+            totalAll += amt;
+            const ymd = effectiveSaleYmd(s);
+            if (ymd) {
+              if (ymd === today) {
+                const pm = (s.paymentMethod || s.payment_method || s.payment || s.method || '').toString().toLowerCase();
+                if (pm === 'cash') cashToday += amt;
+                else if (pm === 'mpesa') mpesaToday += amt;
+              }
+              const d = new Date(`${ymd}T00:00:00+03:00`);
+              if (d.getFullYear() === currentYear && d.getMonth() === currentMonth) monthly += amt;
+            }
           }
+          const totalSalesElement2 = document.getElementById("total-sales");
+          if (totalSalesElement2) totalSalesElement2.textContent = window.utils.formatCurrency(totalAll);
+          const monthlySalesElement2 = document.getElementById("monthly-sales");
+          if (monthlySalesElement2) monthlySalesElement2.textContent = window.utils.formatCurrency(monthly);
+          const cashTotalElement = document.getElementById("cash-total");
           if (cashTotalElement) cashTotalElement.textContent = window.utils.formatCurrency(cashToday);
+          const mpesaTotalElement = document.getElementById("mpesa-total");
           if (mpesaTotalElement) mpesaTotalElement.textContent = window.utils.formatCurrency(mpesaToday);
-        } catch (_) {}
+
+          // Today Debts and Daily Expenses from client if arrays available
+          await Promise.all([ensureExpensesLoaded(), ensureDebtsLoaded()]);
+          const exps = Array.isArray(window.expenses) ? window.expenses : [];
+          const dbts = Array.isArray(window.debts) ? window.debts : [];
+          const todayExp = exps.filter(e => (typeof e.date === 'string' ? e.date.slice(0,10) : (e.createdAt || e.created_at || '')).slice(0,10) === today)
+                               .reduce((s,e)=> s + (Number(e.amount)||0), 0);
+          const todayDeb = dbts.filter(d => (typeof d.date === 'string' ? d.date.slice(0,10) : (d.createdAt || d.created_at || '')).slice(0,10) === today)
+                               .reduce((s,d)=> s + (Number(d.amount)||0), 0);
+          const todaysDebtsElement2 = document.getElementById("todays-debts");
+          if (todaysDebtsElement2) todaysDebtsElement2.textContent = window.utils.formatCurrency(todayDeb);
+          const dailyExpensesElement2 = document.getElementById("daily-expenses");
+          if (dailyExpensesElement2) dailyExpensesElement2.textContent = window.utils.formatCurrency(todayExp);
+        } catch (__) {}
 
         // Done with server-provided stats
         return;
@@ -439,104 +368,98 @@ async function updateDashboardStats() {
 
   // Fallback path (no server stats): ensure TODAY's Cash and M‑Pesa are shown
   try {
+    await ensureSalesLoaded();
     const cashEl = document.getElementById('cash-total');
     const mpesaEl = document.getElementById('mpesa-total');
     if (cashEl || mpesaEl) {
       const salesArr = Array.isArray(window.sales) ? window.sales : [];
-      let cashToday = 0, mpesaToday = 0;
+      let cashToday = 0, mpesaToday = 0, totalAll = 0, monthly = 0;
       for (const s of salesArr) {
-        const v = s.date ?? s.createdAt ?? s.created_at;
-        const dOnly = typeof v === 'string' ? v.slice(0,10) : (v instanceof Date ? today : null);
-        if (dOnly !== today) continue;
         const amt = Number(s.total ?? s.total_amount ?? s.amount ?? 0) || 0;
-        const pm = (s.paymentMethod || s.payment_method || s.payment || s.method || '').toString().toLowerCase();
-        if (pm === 'cash') cashToday += amt;
-        else if (pm === 'mpesa') mpesaToday += amt;
+        totalAll += amt;
+        const ymd = effectiveSaleYmd(s);
+        if (ymd) {
+          if (ymd === today) {
+            const pm = (s.paymentMethod || s.payment_method || s.payment || s.method || '').toString().toLowerCase();
+            if (pm === 'cash') cashToday += amt;
+            else if (pm === 'mpesa') mpesaToday += amt;
+          }
+          const d = new Date(`${ymd}T00:00:00+03:00`);
+          if (d.getFullYear() === currentYear && d.getMonth() === currentMonth) monthly += amt;
+        }
       }
+      const totalSalesElement = document.getElementById('total-sales');
+      if (totalSalesElement) totalSalesElement.textContent = window.utils.formatCurrency(totalAll);
+      const monthlySalesElement = document.getElementById('monthly-sales');
+      if (monthlySalesElement) monthlySalesElement.textContent = window.utils.formatCurrency(monthly);
       if (cashEl) cashEl.textContent = window.utils.formatCurrency(cashToday);
       if (mpesaEl) mpesaEl.textContent = window.utils.formatCurrency(mpesaToday);
     }
+
+    // Client-side Today Debts & Expenses
+    await Promise.all([ensureExpensesLoaded(), ensureDebtsLoaded()]);
+    const exps = Array.isArray(window.expenses) ? window.expenses : [];
+    const dbts = Array.isArray(window.debts) ? window.debts : [];
+    const todayExp = exps.filter(e => (typeof e.date === 'string' ? e.date.slice(0,10) : (e.createdAt || e.created_at || '')).slice(0,10) === today)
+                         .reduce((s,e)=> s + (Number(e.amount)||0), 0);
+    const todayDeb = dbts.filter(d => (typeof d.date === 'string' ? d.date.slice(0,10) : (d.createdAt || d.created_at || '')).slice(0,10) === today)
+                         .reduce((s,d)=> s + (Number(d.amount)||0), 0);
+    const todaysDebtsElement2 = document.getElementById("todays-debts");
+    if (todaysDebtsElement2) todaysDebtsElement2.textContent = window.utils.formatCurrency(todayDeb);
+    const dailyExpensesElement2 = document.getElementById("daily-expenses");
+    if (dailyExpensesElement2) dailyExpensesElement2.textContent = window.utils.formatCurrency(todayExp);
   } catch (_) {}
 
-  // Total sales
-  const totalSales = sales.reduce((sum, sale) => sum + (sale.total || 0), 0);
-  const totalSalesElement = document.getElementById("total-sales");
-  if (totalSalesElement)
-    totalSalesElement.textContent = window.utils.formatCurrency(totalSales);
+  // Any additional UI updates...
+}
 
-  // Cash sales
-  const cashSales = sales
-    .filter((s) => getPaymentMethod(s) === "cash")
-    .reduce((sum, sale) => sum + getTotalAmount(sale), 0);
-  const cashTotalElement = document.getElementById("cash-total");
-  if (cashTotalElement)
-    cashTotalElement.textContent = window.utils.formatCurrency(cashSales);
-
-  // M-Pesa sales (removed from dashboard but kept for payment distribution)
-  const mpesaSales = sales
-    .filter((s) => getPaymentMethod(s) === "mpesa")
-    .reduce((sum, sale) => sum + getTotalAmount(sale), 0);
-
-  // Show M-Pesa total on dashboard card (if present)
-  const mpesaTotalElement = document.getElementById("mpesa-total");
-  if (mpesaTotalElement) {
-    mpesaTotalElement.textContent = window.utils.formatCurrency(mpesaSales);
-  }
-
-  // Today's debts
-  const todaysDebts = debts
-    .filter((d) => d.date === today && d.status === "pending")
-    .reduce((sum, debt) => sum + (debt.amount || 0), 0);
-  const todaysDebtsElement = document.getElementById("todays-debts");
-  if (todaysDebtsElement)
-    todaysDebtsElement.textContent = window.utils.formatCurrency(todaysDebts);
-
-  // Daily expenses
-  const dailyExpenses = expenses
-    .filter((e) => e.date === today)
-    .reduce((sum, expense) => sum + (expense.amount || 0), 0);
-  const dailyExpensesElement = document.getElementById("daily-expenses");
-  if (dailyExpensesElement)
-    dailyExpensesElement.textContent =
-      window.utils.formatCurrency(dailyExpenses);
-
-  // Monthly sales
-  const monthlySales = sales
-    .filter((s) => {
-      const saleDate = new Date(s.createdAt);
-      return (
-        saleDate.getMonth() === currentMonth &&
-        saleDate.getFullYear() === currentYear
-      );
+// ---- Single-flight loaders to avoid duplicate requests ----
+window.__salesLoadPromise = null;
+window.__productsLoadPromise = null;
+window.__expensesLoadPromise = null;
+window.__debtsLoadPromise = null;
+async function ensureSalesLoaded() {
+  if (Array.isArray(window.sales) && window.sales.length > 0) return;
+  if (window.__salesLoadPromise) return window.__salesLoadPromise;
+  if (!window.dataManager) return;
+  window.__salesLoadPromise = window.dataManager.getData('sales')
+    .then(res => {
+      const raw = Array.isArray(res?.data) ? res.data : [];
+      window.sales = (typeof window.normalizeSale === 'function') ? raw.map(window.normalizeSale) : raw;
     })
-    .reduce((sum, sale) => sum + (sale.total || 0), 0);
-  const monthlySalesElement = document.getElementById("monthly-sales");
-  if (monthlySalesElement)
-    monthlySalesElement.textContent = window.utils.formatCurrency(monthlySales);
-
-  // Monthly expenses
-  const monthlyExpenses = expenses
-    .filter((e) => {
-      const expenseDate = new Date(e.createdAt);
-      return (
-        expenseDate.getMonth() === currentMonth &&
-        expenseDate.getFullYear() === currentYear
-      );
-    })
-    .reduce((sum, expense) => sum + (expense.amount || 0), 0);
-  const monthlyExpensesElement = document.getElementById("monthly-expenses");
-  if (monthlyExpensesElement)
-    monthlyExpensesElement.textContent =
-      window.utils.formatCurrency(monthlyExpenses);
-
-  // Outstanding debt
-  const outstandingDebt = debts
-    .filter((d) => d.status === "pending")
-    .reduce((sum, debt) => sum + (debt.amount || 0), 0);
-  const outstandingDebtElement = document.getElementById("outstanding-debt");
-  if (outstandingDebtElement)
-    outstandingDebtElement.textContent =
-      window.utils.formatCurrency(outstandingDebt);
+    .catch(e => console.warn('ensureSalesLoaded failed:', e?.message || e))
+    .finally(() => { setTimeout(() => { window.__salesLoadPromise = null; }, 0); });
+  return window.__salesLoadPromise;
+}
+async function ensureProductsLoaded() {
+  if (Array.isArray(window.products) && window.products.length > 0) return;
+  if (window.__productsLoadPromise) return window.__productsLoadPromise;
+  if (!window.dataManager) return;
+  window.__productsLoadPromise = window.dataManager.getData('products')
+    .then(res => { window.products = Array.isArray(res?.data) ? res.data : []; })
+    .catch(e => console.warn('ensureProductsLoaded failed:', e?.message || e))
+    .finally(() => { setTimeout(() => { window.__productsLoadPromise = null; }, 0); });
+  return window.__productsLoadPromise;
+}
+async function ensureExpensesLoaded() {
+  if (Array.isArray(window.expenses) && window.expenses.length > 0) return;
+  if (window.__expensesLoadPromise) return window.__expensesLoadPromise;
+  if (!window.dataManager) return;
+  window.__expensesLoadPromise = window.dataManager.getData('expenses')
+    .then(res => { window.expenses = Array.isArray(res?.data) ? res.data : []; })
+    .catch(e => console.warn('ensureExpensesLoaded failed:', e?.message || e))
+    .finally(() => { setTimeout(() => { window.__expensesLoadPromise = null; }, 0); });
+  return window.__expensesLoadPromise;
+}
+async function ensureDebtsLoaded() {
+  if (Array.isArray(window.debts) && window.debts.length > 0) return;
+  if (window.__debtsLoadPromise) return window.__debtsLoadPromise;
+  if (!window.dataManager) return;
+  window.__debtsLoadPromise = window.dataManager.getData('debts')
+    .then(res => { window.debts = Array.isArray(res?.data) ? res.data : []; })
+    .catch(e => console.warn('ensureDebtsLoaded failed:', e?.message || e))
+    .finally(() => { setTimeout(() => { window.__debtsLoadPromise = null; }, 0); });
+  return window.__debtsLoadPromise;
 }
 
 function updateInventoryOverview() {
