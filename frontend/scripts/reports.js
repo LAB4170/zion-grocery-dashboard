@@ -662,3 +662,91 @@ window.exportToExcel = exportToExcel;
 window.exportToCSV = exportToCSV;
 window.initReportsControls = initReportsControls;
 window.filterProducts = filterProducts;
+
+// ===== Export utilities (no printing) =====
+function loadScriptOnce(src, globalCheck) {
+  return new Promise((resolve, reject) => {
+    try {
+      if (globalCheck && typeof globalCheck() !== 'undefined') return resolve();
+      // Already loading?
+      const existing = document.querySelector(`script[data-src="${src}"]`);
+      if (existing) {
+        existing.addEventListener('load', () => resolve());
+        existing.addEventListener('error', (e) => reject(e));
+        return;
+      }
+      const s = document.createElement('script');
+      s.src = src;
+      s.async = true;
+      s.defer = true;
+      s.setAttribute('data-src', src);
+      s.onload = () => resolve();
+      s.onerror = (e) => reject(e);
+      document.head.appendChild(s);
+    } catch (e) { reject(e); }
+  });
+}
+
+async function exportToPDF() {
+  const mount = document.getElementById('reportContent');
+  if (!mount) return window.utils?.showNotification?.('Nothing to export', 'error');
+
+  // Load html2pdf bundle once (includes html2canvas and jsPDF)
+  await loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js', () => window.html2pdf);
+
+  const filenameParts = [
+    'Report',
+    (window.currentReportType || 'daily'),
+    new Date().toISOString().slice(0,10)
+  ];
+  const file = filenameParts.join('_') + '.pdf';
+
+  // Configure options for good A4 output
+  const opt = {
+    margin:       [10, 10, 10, 10],
+    filename:     file,
+    image:        { type: 'jpeg', quality: 0.95 },
+    html2canvas:  { scale: 2, useCORS: true, logging: false },
+    jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+  };
+
+  // Ensure charts or large elements fit page by cloning and constraining width
+  const clone = mount.cloneNode(true);
+  clone.style.background = '#fff';
+  clone.style.color = '#000';
+  clone.style.maxWidth = '800px';
+  clone.style.margin = '0 auto';
+
+  // Generate and download PDF (no printing)
+  await window.html2pdf().set(opt).from(clone).save();
+  if (window.utils?.showNotification) window.utils.showNotification('PDF exported successfully');
+}
+
+async function exportToExcel() {
+  const mount = document.getElementById('reportContent');
+  if (!mount) return window.utils?.showNotification?.('Nothing to export', 'error');
+
+  // Find first table; if multiple, export the first details table
+  const table = mount.querySelector('table');
+  if (!table) return window.utils?.showNotification?.('No table data to export', 'error');
+
+  // Load SheetJS (XLSX) once
+  await loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js', () => window.XLSX);
+
+  const ws = window.XLSX.utils.table_to_sheet(table);
+  const wb = window.XLSX.utils.book_new();
+  window.XLSX.utils.book_append_sheet(wb, ws, 'Report');
+
+  const filenameParts = [
+    'Report',
+    (window.currentReportType || 'daily'),
+    new Date().toISOString().slice(0,10)
+  ];
+  const file = filenameParts.join('_') + '.xlsx';
+  window.XLSX.writeFile(wb, file);
+  if (window.utils?.showNotification) window.utils.showNotification('Excel exported successfully');
+}
+
+// Expose for buttons
+window.exportToPDF = exportToPDF;
+window.exportToExcel = exportToExcel;
