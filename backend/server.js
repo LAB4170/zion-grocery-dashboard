@@ -11,7 +11,44 @@ require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
 const app = express();
 
-// CRITICAL: Trust proxy for Render deployment
+// Utility: normalize origin by removing trailing slash and lowercasing
+function normalizeOrigin(value) {
+  if (!value) return value;
+  try {
+    // If it's a full URL, use URL parsing, else trim only
+    const u = new URL(value);
+    const normalized = `${u.protocol}//${u.host}`.toLowerCase();
+    return normalized;
+  } catch {
+    return value.replace(/\/$/, '').toLowerCase();
+  }
+}
+
+// Build allowed origins list from env
+function getAllowedOrigins() {
+  const isDevelopment = process.env.NODE_ENV === 'development';
+  if (isDevelopment) {
+    return ['http://localhost:5000', 'http://127.0.0.1:5000', 'http://localhost:8080'].map(normalizeOrigin);
+  }
+  // Production: support single FRONTEND_URL or comma-separated FRONTEND_URLS
+  const single = process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : [];
+  const multi = process.env.FRONTEND_URLS ? process.env.FRONTEND_URLS.split(',').map(s => s.trim()).filter(Boolean) : [];
+  const all = [...single, ...multi].map(normalizeOrigin);
+  return all;
+}
+
+function isAllowedOrigin(origin) {
+  if (!origin) return true; // allow curl/mobile apps
+  const allowed = getAllowedOrigins();
+  if (allowed.length === 0) {
+    // No FRONTEND_URL configured: allow origin (lenient fallback to avoid hardcoding providers)
+    return true;
+  }
+  const normalizedOrigin = normalizeOrigin(origin);
+  return allowed.includes(normalizedOrigin);
+}
+
+// CRITICAL: Trust proxy for deployment
 app.set('trust proxy', true);
 
 const server = http.createServer(app);
@@ -21,18 +58,8 @@ const PORT = process.env.PORT || 5000;
 const io = socketIo(server, {
   cors: {
     origin: function (origin, callback) {
-      if (!origin) return callback(null, true);
-      
-      const isDevelopment = process.env.NODE_ENV === 'development';
-      const allowedOrigins = isDevelopment ? 
-        ['http://localhost:5000', 'http://127.0.0.1:5000'] :
-        [process.env.FRONTEND_URL || process.env.RENDER_URL];
-      
-      if (allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error('Not allowed by CORS'));
-      }
+      if (isAllowedOrigin(origin)) return callback(null, true);
+      return callback(new Error('Not allowed by CORS'));
     },
     methods: ["GET", "POST"],
     credentials: true
@@ -73,17 +100,10 @@ app.use(cors({
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
-    
-    const isDevelopment = process.env.NODE_ENV === 'development';
-    const allowedOrigins = isDevelopment ? 
-      ['http://localhost:5000', 'http://127.0.0.1:5000', 'http://localhost:8080'] :
-      ['https://zion-grocery-dashboard-1.onrender.com'];
-    
-    if (allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
+
+    if (isAllowedOrigin(origin)) return callback(null, true);
+
+    return callback(new Error('Not allowed by CORS'));
   },
   credentials: true
 }));
@@ -165,11 +185,14 @@ app.get('/health', async (req, res) => {
     database: {
       status: 'Unknown',
       type: 'PostgreSQL',
-      environment: process.env.NODE_ENV === 'development' ? 'Local' : 'Render Cloud',
+      environment: process.env.NODE_ENV === 'development' ? 'Local' : 'Production',
       lastChecked: new Date().toISOString()
     },
     api: {
-      baseUrl: process.env.NODE_ENV === 'development' ? 'http://localhost:5000/api' : 'https://zion-grocery-dashboard-1.onrender.com/api',
+      baseUrl: (() => {
+        const base = process.env.FRONTEND_URL || `${req.protocol}://${req.get('host')}`;
+        return `${base}/api`;
+      })(),
       endpoints: ['/products', '/sales', '/expenses', '/debts', '/dashboard']
     }
   };
@@ -202,7 +225,7 @@ app.get('/health', async (req, res) => {
     healthCheck.database = {
       status: 'Connected',
       type: 'PostgreSQL',
-      environment: process.env.NODE_ENV === 'development' ? 'Local' : 'Render Cloud',
+      environment: process.env.NODE_ENV === 'development' ? 'Local' : 'Production',
       name: dbName.rows[0].database,
       version: dbVersion.rows[0].version.split(' ')[1], // Extract version number
       activeConnections: activeConnections,
@@ -221,21 +244,21 @@ app.get('/health', async (req, res) => {
     healthCheck.database = {
       status: 'Disconnected',
       type: 'PostgreSQL',
-      environment: process.env.NODE_ENV === 'development' ? 'Local' : 'Render Cloud',
+      environment: process.env.NODE_ENV === 'development' ? 'Local' : 'Production',
       error: error.message,
       errorCode: error.code,
       lastChecked: new Date().toISOString(),
       troubleshooting: process.env.NODE_ENV === 'development' ? [
         'Check if PostgreSQL service is running',
         `Verify database "${process.env.DB_NAME || 'zion_grocery_db'}" exists`,
-        `Check credentials in .env file: DB_USER and DB_PASSWORD`,
+        'Validate DB_HOST, DB_USER, DB_PASSWORD in .env',
         `Run: createdb ${process.env.DB_NAME || 'zion_grocery_db'}`,
         'Run: npm run migrate'
       ] : [
-        'Check Render database status',
         'Verify DATABASE_URL environment variable',
-        'Check SSL connection configuration',
-        'Review Render dashboard for database issues'
+        'Ensure your cloud database allows connections from this app',
+        'If using managed PostgreSQL, ensure SSL parameters are correct',
+        'Check your hosting provider logs for database connectivity issues'
       ]
     };
     
@@ -312,14 +335,12 @@ process.on('SIGINT', () => {
 if (process.env.NODE_ENV !== 'test') {
   const isDevelopment = process.env.NODE_ENV === 'development';
   const environment = process.env.NODE_ENV || 'development';
-  const frontendUrl = isDevelopment ? 
-    'http://localhost:5000' : 
-    'https://zion-grocery-dashboard-1.onrender.com';
+  const frontendUrl = process.env.FRONTEND_URL || `http://localhost:${PORT}`;
     
   server.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Zion Grocery Dashboard (Integrated Server) running on port ${PORT}`);
     console.log(`📊 Environment: ${environment}`);
-    console.log(`🗄️  Database: ${isDevelopment ? 'Local PostgreSQL' : 'Render PostgreSQL'}`);
+    console.log(`🗄️  Database: ${isDevelopment ? 'Local PostgreSQL' : 'Production PostgreSQL'}`);
     console.log(`🏥 Health check: ${frontendUrl}/health`);
     console.log(`🌐 Frontend: ${frontendUrl}`);
     console.log(`📱 Login: ${frontendUrl}/login`);

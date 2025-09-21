@@ -49,13 +49,17 @@ const config = {
 
   production: {
     client: "postgresql",
-    connection: {
-      connectionString: process.env.DATABASE_URL,
-      ssl: { rejectUnauthorized: false } // Required for Render PostgreSQL
-    },
+    connection: (() => {
+      const url = process.env.DATABASE_URL;
+      if (!url) return null;
+      const useSSL = (process.env.DB_SSL || '').toLowerCase() === 'true';
+      return useSSL
+        ? { connectionString: url, ssl: { rejectUnauthorized: false } }
+        : { connectionString: url };
+    })(),
     pool: {
-      min: 2,
-      max: 8, // Reduced for Render limits
+      min: 5,
+      max: 20,
       createTimeoutMillis: 30000,
       acquireTimeoutMillis: 60000,
       idleTimeoutMillis: 30000,
