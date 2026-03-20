@@ -20,28 +20,88 @@ export default function DashboardLayout() {
   ];
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: '#0B0E14', color: '#fff', fontFamily: 'sans-serif' }}>
+    <div style={{ display: 'flex', minHeight: '100vh', background: '#0B0E14', color: '#fff' }}>
       {/* Sidebar */}
-      <aside style={{ width: '260px', background: 'rgba(21, 26, 35, 0.7)', borderRight: '1px solid rgba(255,255,255,0.08)', padding: '1.5rem', display: 'flex', flexDirection: 'column' }}>
-        <h2 style={{ fontSize: '1.75rem', fontWeight: 700, margin: '0 0 2.5rem 0', background: 'linear-gradient(to right, #FFF, #9D84FF)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-          Zion POS
+      <aside style={{ 
+        width: '260px', 
+        background: 'rgba(21, 26, 35, 0.4)', 
+        borderRight: '1px solid rgba(255,255,255,0.06)', 
+        padding: '24px', 
+        display: 'flex', 
+        flexDirection: 'column',
+        backdropFilter: 'blur(10px)'
+      }}>
+        <h2 style={{ 
+          fontSize: '24px', 
+          fontWeight: 800, 
+          margin: '0 0 40px 0', 
+          background: 'linear-gradient(135deg, #FFFFFF 0%, #6B48FF 100%)', 
+          WebkitBackgroundClip: 'text', 
+          WebkitTextFillColor: 'transparent',
+          letterSpacing: '-1px'
+        }}>
+          ZION POS
         </h2>
         
-        <nav style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+        <nav style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
           {navItems.map(item => (
-            <Link key={item.path} to={item.path} style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '0.85rem 1.25rem', borderRadius: '12px', color: '#8F9BB3', textDecoration: 'none', transition: 'all 0.2s', fontWeight: 500 }}>
+            <Link 
+              key={item.path} 
+              to={item.path} 
+              className="nav-link"
+              style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '12px', 
+                padding: '12px 16px', 
+                borderRadius: '12px', 
+                color: '#8F9BB3', 
+                textDecoration: 'none', 
+                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)', 
+                fontWeight: 600,
+                fontSize: '15px'
+              }}
+            >
               <item.icon size={20} />
               {item.name}
             </Link>
           ))}
         </nav>
 
-        <div style={{ marginTop: 'auto', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '1.5rem' }}>
-          <div style={{ fontSize: '0.85rem', color: '#8F9BB3', marginBottom: '1rem' }}>{currentUser?.email}</div>
-          <button onClick={handleLogout} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', width: '100%', padding: '0.75rem 1rem', background: 'rgba(255, 61, 113, 0.1)', color: '#FF3D71', border: '1px solid transparent', borderRadius: '12px', cursor: 'pointer', fontWeight: 600 }}>
+        <div style={{ marginTop: 'auto', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '24px' }}>
+          <div style={{ fontSize: '14px', color: '#6B48FF', marginBottom: '16px', fontWeight: 600 }}>
+            {currentUser?.email?.split('@')[0]}
+          </div>
+          <button 
+            onClick={handleLogout} 
+            style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              gap: '8px', 
+              width: '100%', 
+              padding: '12px', 
+              background: 'rgba(255, 61, 113, 0.1)', 
+              color: '#FF3D71', 
+              border: '1px solid rgba(255, 61, 113, 0.2)', 
+              borderRadius: '12px', 
+              cursor: 'pointer', 
+              fontWeight: 700,
+              fontSize: '14px',
+              transition: 'all 0.2s'
+            }}
+          >
             <LogOut size={18} /> Logout
           </button>
         </div>
+
+        <style>{`
+          .nav-link:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: #FFFFFF !important;
+            transform: translateX(4px);
+          }
+        `}</style>
       </aside>
 
       {/* Main Content */}

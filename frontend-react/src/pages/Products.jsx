@@ -53,7 +53,7 @@ export default function Products() {
                 <tr key={product.id} style={{ borderTop: '1px solid rgba(255,255,255,0.04)', transition: 'background 0.2s', cursor: 'pointer' }} onMouseEnter={e => e.currentTarget.style.background='rgba(255,255,255,0.02)'} onMouseLeave={e => e.currentTarget.style.background='transparent'}>
                   <td style={{ padding: '1.25rem 1.5rem', color: '#fff', fontWeight: 500 }}>{product.name}</td>
                   <td style={{ padding: '1.25rem 1.5rem', color: '#8F9BB3' }}>{product.category}</td>
-                  <td style={{ padding: '1.25rem 1.5rem', color: '#1CE783', fontWeight: 500 }}>${Number(product.price).toFixed(2)}</td>
+                  <td style={{ padding: '1.25rem 1.5rem', color: '#1CE783', fontWeight: 500 }}>KSh {Number(product.price).toLocaleString()}</td>
                   <td style={{ padding: '1.25rem 1.5rem', color: product.stock_quantity < 10 ? '#FFAA00' : '#fff' }}>
                     <span style={{ padding: '0.25rem 0.75rem', background: product.stock_quantity < 10 ? 'rgba(255, 170, 0, 0.1)' : 'rgba(255,255,255,0.05)', color: product.stock_quantity < 10 ? '#FFAA00' : '#fff', borderRadius: '12px' }}>
                       {product.stock_quantity}

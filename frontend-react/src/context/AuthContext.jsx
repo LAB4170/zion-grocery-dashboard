@@ -2,14 +2,14 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 
-// TODO: Replace with your actual Firebase Client SDK keys
 const firebaseConfig = {
-  apiKey: "REPLACE_WITH_YOUR_API_KEY",
-  authDomain: "REPLACE_WITH_YOUR_PROJECT_ID.firebaseapp.com",
-  projectId: "REPLACE_WITH_YOUR_PROJECT_ID",
-  storageBucket: "REPLACE_WITH_YOUR_PROJECT_ID.appspot.com",
-  messagingSenderId: "REPLACE_WITH_YOUR_SENDER_ID",
-  appId: "REPLACE_WITH_YOUR_APP_ID"
+  apiKey: "AIzaSyDY-zEP_8HDewz9QcIo2y7Ck1fDpSBJ54I",
+  authDomain: "eobordtech-pos.firebaseapp.com",
+  projectId: "eobordtech-pos",
+  storageBucket: "eobordtech-pos.firebasestorage.app",
+  messagingSenderId: "821131892978",
+  appId: "1:821131892978:web:3d5e9c24fee9676c0c986b",
+  measurementId: "G-ZQB91GF12N"
 };
 
 // Initialize Firebase App
