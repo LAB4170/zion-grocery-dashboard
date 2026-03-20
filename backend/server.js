@@ -79,6 +79,7 @@ const debtRoutes = require('./routes/debts');
 
 // Import middleware
 const { errorHandler } = require('./middleware/errorHandler');
+const { verifyToken } = require('./middleware/firebase-auth');
 
 // Security middleware
 app.use(helmet({
@@ -119,19 +120,13 @@ if (process.env.NODE_ENV !== 'production') {
   app.use(morgan('combined'));
 }
 
-// Serve static files from frontend directory
-const frontendPath = path.join(__dirname, '../frontend');
+// Serve static files from React dist directory
+const frontendPath = path.join(__dirname, '../frontend-react/dist');
 app.use(express.static(frontendPath, {
   maxAge: process.env.NODE_ENV === 'production' ? '1d' : 0,
   etag: true,
   lastModified: true
 }));
-
-// Optimized static file serving for specific directories
-app.use('/scripts', express.static(path.join(frontendPath, 'scripts'), { maxAge: '1h' }));
-app.use('/styles', express.static(path.join(frontendPath, 'styles'), { maxAge: '1h' }));
-app.use('/modals', express.static(path.join(frontendPath, 'modals'), { maxAge: '1h' }));
-app.use('/partials', express.static(path.join(frontendPath, 'partials'), { maxAge: '1h' }));
 
 // Socket.IO connection handling
 io.on('connection', (socket) => {
@@ -281,28 +276,13 @@ app.get('/api/test-db', async (req, res) => {
 });
 
 // API routes
-app.use('/api/products', productRoutes);
-app.use('/api/sales', salesRoutes);
-app.use('/api/expenses', expenseRoutes);
-app.use('/api/debts', debtRoutes);
-app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/products', verifyToken, productRoutes);
+app.use('/api/sales', verifyToken, salesRoutes);
+app.use('/api/expenses', verifyToken, expenseRoutes);
+app.use('/api/debts', verifyToken, debtRoutes);
+app.use('/api/dashboard', verifyToken, dashboardRoutes);
 
-// Handle frontend routing - serve login.html by default, index.html for authenticated routes
-app.get('/', (req, res) => {
-  // Serve login.html for root path by default
-  res.sendFile(path.join(__dirname, '../frontend/login.html'));
-});
-
-app.get('/dashboard', (req, res) => {
-  // Serve dashboard for /dashboard route
-  res.sendFile(path.join(__dirname, '../frontend/index.html'));
-});
-
-app.get('/login', (req, res) => {
-  // Serve login page for /login route
-  res.sendFile(path.join(__dirname, '../frontend/login.html'));
-});
-
+// Handle React frontend routing - Catch all to serve index.html
 app.get('*', (req, res) => {
   // Don't serve index.html for API routes
   if (req.path.startsWith('/api/')) {
@@ -313,8 +293,8 @@ app.get('*', (req, res) => {
     });
   }
   
-  // For all other routes, serve login.html to avoid authentication conflicts
-  res.sendFile(path.join(__dirname, '../frontend/login.html'));
+  // Hand off routing to React Router DOM
+  res.sendFile(path.join(frontendPath, 'index.html'));
 });
 
 // Global error handler
