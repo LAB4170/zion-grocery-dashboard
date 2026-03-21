@@ -725,6 +725,48 @@ class Sale {
     };
   }
 
+  // Get daily sales breakdown for last N days — used for dashboard chart
+  static async getDailySales(days = 7) {
+    const dbx = getDatabase();
+    const since = new Date();
+    since.setDate(since.getDate() - (days - 1));
+    since.setHours(0, 0, 0, 0);
+
+    const rows = await dbx('sales')
+      .where('created_at', '>=', since.toISOString())
+      .select(
+        dbx.raw(`DATE(created_at) as date`),
+        dbx.raw('COUNT(*) as total_sales'),
+        dbx.raw('SUM(total) as total_revenue'),
+        dbx.raw(`SUM(CASE WHEN payment_method = 'cash'  THEN total ELSE 0 END) as cash`),
+        dbx.raw(`SUM(CASE WHEN payment_method = 'mpesa' THEN total ELSE 0 END) as mpesa`),
+        dbx.raw(`SUM(CASE WHEN payment_method = 'debt'  THEN total ELSE 0 END) as debt`)
+      )
+      .groupByRaw('DATE(created_at)')
+      .orderBy('date', 'asc');
+
+    // Fill in missing days with zeroes so the chart always shows all 7 days
+    const result = [];
+    for (let i = 0; i < days; i++) {
+      const d = new Date(since);
+      d.setDate(d.getDate() + i);
+      const dateStr = d.toISOString().split('T')[0];
+      const row = rows.find(r => {
+        const rd = typeof r.date === 'string' ? r.date : new Date(r.date).toISOString().split('T')[0];
+        return rd === dateStr;
+      });
+      result.push({
+        date: dateStr,
+        total_sales: row ? parseInt(row.total_sales) || 0 : 0,
+        total_revenue: row ? parseFloat(row.total_revenue) || 0 : 0,
+        cash:  row ? parseFloat(row.cash)  || 0 : 0,
+        mpesa: row ? parseFloat(row.mpesa) || 0 : 0,
+        debt:  row ? parseFloat(row.debt)  || 0 : 0
+      });
+    }
+    return result;
+  }
+
   // Simple validation matching frontend
   static validate(data) {
     const errors = [];

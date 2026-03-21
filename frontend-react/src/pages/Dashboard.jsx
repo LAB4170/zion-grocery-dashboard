@@ -1,10 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
-import { 
-  TrendingUp, Package, DollarSign, AlertCircle, 
+import { useNavigate } from 'react-router-dom';
+import {
+  TrendingUp, Package, DollarSign, AlertCircle,
   ArrowUpRight, ArrowDownRight, ShoppingCart, CreditCard
 } from 'lucide-react';
-import { 
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+import {
+  ComposedChart, Area, Line, XAxis, YAxis, CartesianGrid,
+  Tooltip, ResponsiveContainer, Legend,
   BarChart, Bar
 } from 'recharts';
 import api from '../services/api';
@@ -50,6 +52,28 @@ const CustomTooltip = ({ active, payload, label }) => {
   return null;
 };
 
+const MultiLineTooltip = ({ active, payload, label }) => {
+  if (!active || !payload?.length) return null;
+  const fmt = v => Number(v || 0).toLocaleString('en-KE');
+  const colors = { 'Total': '#10B981', 'Cash': '#3B82F6', 'M-Pesa': '#8B5CF6', 'Debt': '#F59E0B' };
+  return (
+    <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '12px', padding: '12px 16px', boxShadow: 'var(--shadow-lg)', minWidth: 180 }}>
+      <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '8px', fontWeight: 700 }}>
+        {label ? (() => { try { return new Date(label + 'T00:00:00').toLocaleDateString('en-KE', { weekday: 'long', month: 'short', day: 'numeric' }); } catch { return label; } })() : ''}
+      </p>
+      {payload.map((p, i) => (
+        <div key={i} style={{ display: 'flex', justifyContent: 'space-between', gap: '20px', marginBottom: '4px' }}>
+          <span style={{ fontSize: '12px', color: colors[p.name] || p.color, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 5 }}>
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: colors[p.name] || p.color, display: 'inline-block' }} />
+            {p.name}
+          </span>
+          <span style={{ fontSize: '12px', fontWeight: 800 }}>KSh {fmt(p.value)}</span>
+        </div>
+      ))}
+    </div>
+  );
+};
+
 export default function Dashboard() {
   const [stats, setStats] = useState(null);
   const [chartData, setChartData] = useState([]);
@@ -59,6 +83,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState(new Date());
   const socket = useSocket();
+  const navigate = useNavigate();
 
   // Tracks whether we're currently back-off waiting after a 429
   const backoffRef = useRef(false);
@@ -228,63 +253,81 @@ export default function Dashboard() {
         
         {/* Revenue Performance */}
         <section className="card-elevated" style={{ padding: '28px', minWidth: 0 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
             <div>
               <h3 style={{ fontSize: '17px', fontWeight: 800 }}>Revenue Performance</h3>
-              <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: 2 }}>Daily sales revenue — last 7 days</p>
+              <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: 2 }}>Cash • M-Pesa • Debt — last 7 days</p>
             </div>
-            <div className="glass" style={{ padding: '4px 14px', borderRadius: '8px', fontSize: '13px', fontWeight: 700, color: 'var(--text)' }}>
-              7 Days
-            </div>
+            <button
+              onClick={() => navigate('/sales-records')}
+              style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 14px', borderRadius: '8px', background: 'var(--accent)', color: '#fff', fontWeight: 700, fontSize: '12px', border: 'none', cursor: 'pointer' }}
+            >
+              View Records →
+            </button>
           </div>
+
+          {/* Legend pills */}
+          <div style={{ display: 'flex', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
+            {[{ label: 'Total', color: '#10B981' }, { label: 'Cash', color: '#3B82F6' }, { label: 'M-Pesa', color: '#8B5CF6' }, { label: 'Debt', color: '#F59E0B' }].map(l => (
+              <div key={l.label} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 700 }}>
+                <div style={{ width: 10, height: 10, borderRadius: '50%', background: l.color }} />
+                {l.label}
+              </div>
+            ))}
+          </div>
+
           <div style={{ width: '100%' }}>
-            {chartData.length === 0 ? (
+            {chartData.length === 0 || chartData.every(d => d.total_revenue === 0) ? (
               <div style={{ height: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 8 }}>
                 <TrendingUp size={32} style={{ color: 'var(--text-muted)', opacity: 0.4 }} />
-                <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>No sales data yet</span>
+                <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>No sales data for the last 7 days</span>
               </div>
             ) : (
               <ResponsiveContainer width="100%" height={300}>
-                <AreaChart data={chartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+                <ComposedChart data={chartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
                   <defs>
-                    <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="var(--accent)" stopOpacity={0.35}/>
-                      <stop offset="95%" stopColor="var(--accent)" stopOpacity={0.02}/>
+                    <linearGradient id="gTotal" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%"  stopColor="#10B981" stopOpacity={0.25}/>
+                      <stop offset="95%" stopColor="#10B981" stopOpacity={0.02}/>
+                    </linearGradient>
+                    <linearGradient id="gCash" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%"  stopColor="#3B82F6" stopOpacity={0.25}/>
+                      <stop offset="95%" stopColor="#3B82F6" stopOpacity={0.02}/>
+                    </linearGradient>
+                    <linearGradient id="gMpesa" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%"  stopColor="#8B5CF6" stopOpacity={0.25}/>
+                      <stop offset="95%" stopColor="#8B5CF6" stopOpacity={0.02}/>
+                    </linearGradient>
+                    <linearGradient id="gDebt" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%"  stopColor="#F59E0B" stopOpacity={0.25}/>
+                      <stop offset="95%" stopColor="#F59E0B" stopOpacity={0.02}/>
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-                  <XAxis 
-                    dataKey="date" 
-                    stroke="var(--text-muted)" 
-                    fontSize={11} 
-                    tickLine={false} 
-                    axisLine={false} 
-                    tickFormatter={(str) => {
-                      try { return new Date(str + 'T00:00:00').toLocaleDateString('en-KE', { weekday: 'short' }); }
-                      catch { return str; }
-                    }}
+                  <XAxis
+                    dataKey="date"
+                    stroke="var(--text-muted)"
+                    fontSize={11}
+                    tickLine={false}
+                    axisLine={false}
+                    tickFormatter={str => { try { return new Date(str + 'T00:00:00').toLocaleDateString('en-KE', { weekday: 'short', day: 'numeric' }); } catch { return str; } }}
                   />
-                  <YAxis 
-                    stroke="var(--text-muted)" 
-                    fontSize={11} 
-                    tickLine={false} 
-                    axisLine={false} 
-                    tickFormatter={yAxisFmt}
-                    width={72}
-                  />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Area 
-                    type="monotone" 
-                    dataKey="total_revenue" 
-                    stroke="var(--accent)" 
-                    strokeWidth={2.5} 
-                    fillOpacity={1} 
-                    fill="url(#colorRevenue)" 
-                    dot={{ r: 4, fill: 'var(--accent)', strokeWidth: 0 }}
-                    activeDot={{ r: 6, fill: 'var(--accent)' }}
-                    name="Revenue (KSh)"
-                  />
-                </AreaChart>
+                  <YAxis stroke="var(--text-muted)" fontSize={11} tickLine={false} axisLine={false} tickFormatter={yAxisFmt} width={72} />
+                  <Tooltip content={<MultiLineTooltip />} />
+                  {/* Total — thick green base */}
+                  <Area type="monotone" dataKey="total_revenue" stroke="#10B981" strokeWidth={3}
+                    fill="url(#gTotal)" dot={{ r: 4, fill: '#10B981', strokeWidth: 0 }}
+                    activeDot={{ r: 6 }} name="Total" />
+                  {/* Cash — blue line */}
+                  <Line type="monotone" dataKey="cash" stroke="#3B82F6" strokeWidth={2}
+                    dot={{ r: 3, fill: '#3B82F6', strokeWidth: 0 }} name="Cash" />
+                  {/* M-Pesa — purple line */}
+                  <Line type="monotone" dataKey="mpesa" stroke="#8B5CF6" strokeWidth={2}
+                    dot={{ r: 3, fill: '#8B5CF6', strokeWidth: 0 }} name="M-Pesa" strokeDasharray="5 3" />
+                  {/* Debt — amber dashed */}
+                  <Line type="monotone" dataKey="debt" stroke="#F59E0B" strokeWidth={2}
+                    dot={{ r: 3, fill: '#F59E0B', strokeWidth: 0 }} name="Debt" strokeDasharray="3 3" />
+                </ComposedChart>
               </ResponsiveContainer>
             )}
           </div>
