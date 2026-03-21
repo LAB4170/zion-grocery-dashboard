@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Plus, Search, Edit2, Trash2, X, Package, Tag, DollarSign, List } from 'lucide-react';
 import api from '../services/api';
 import { useSocket } from '../context/SocketContext';
 
 export default function Products() {
+  const navigate = useNavigate();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -63,7 +65,12 @@ export default function Products() {
       setIsModalOpen(false);
       fetchProducts();
     } catch (err) {
-      alert(err.response?.data?.message || 'Action failed');
+      if (err.response?.status === 402) {
+        alert(err.response.data.message);
+        navigate('/app/settings');
+      } else {
+        alert(err.response?.data?.message || 'Action failed');
+      }
     }
   };
 
@@ -73,7 +80,12 @@ export default function Products() {
       await api.delete(`/products/${id}`);
       fetchProducts();
     } catch (err) {
-      alert(err.response?.data?.message || 'Delete failed');
+      if (err.response?.status === 402) {
+        alert(err.response.data.message);
+        navigate('/app/settings');
+      } else {
+        alert(err.response?.data?.message || 'Delete failed');
+      }
     }
   };
 

@@ -228,9 +228,11 @@ class Product {
   }
 
   // Get total inventory valuation
-  static async getValuation() {
+  static async getValuation(businessId) {
+    if (!businessId) throw new Error('businessId is required');
     const db = getDatabase();
     const result = await db('products')
+      .where('business_id', businessId)
       .select(db.raw('SUM(stock_quantity * price) as total_value'))
       .first();
     return parseFloat(result.total_value) || 0;
@@ -261,6 +263,7 @@ class Product {
     if (!businessId) throw new Error('businessId is required');
     const db = getDatabase();
     const categories = await db('products')
+      .where('business_id', businessId)
       .distinct('category')
       .orderBy('category', 'asc');
     

@@ -1,5 +1,5 @@
 {
-  "name": "zion-grocery-dashboard",
+  "name": "eobordtech-pos",
   "version": "1.0.0",
   "description": "Point of Sale System for Zion Groceries",
   "main": "backend/server.js",
@@ -15,7 +15,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/LAB4170/zion-grocery-dashboard.git"
+    "url": "git+https://github.com/LAB4170/EOBORDTECH-POS.git"
   },
   "keywords": [
     "pos",

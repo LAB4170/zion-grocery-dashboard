@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Calendar, Search, CreditCard, User, Phone, CheckCircle, AlertCircle, X, DollarSign, Wallet } from 'lucide-react';
 import api from '../services/api';
 
 export default function Debts() {
+  const navigate = useNavigate();
   const [debts, setDebts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -51,7 +53,12 @@ export default function Debts() {
       setIsModalOpen(false);
       fetchDebts();
     } catch (err) {
-      alert(err.response?.data?.message || 'Payment recording failed');
+      if (err.response?.status === 402) {
+        alert(err.response.data.message);
+        navigate('/app/settings');
+      } else {
+        alert(err.response?.data?.message || 'Payment recording failed');
+      }
     }
   };
 

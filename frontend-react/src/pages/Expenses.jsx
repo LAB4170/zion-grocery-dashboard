@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ArrowRightLeft, Plus, Search, Trash2, X, Tag, DollarSign, Calendar, FileText } from 'lucide-react';
 import api from '../services/api';
 
 export default function Expenses() {
+  const navigate = useNavigate();
   const [expenses, setExpenses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -35,7 +37,12 @@ export default function Expenses() {
       setFormData({ description: '', amount: '', category: 'Utilities' });
       fetchExpenses();
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to record expense');
+      if (err.response?.status === 402) {
+        alert(err.response.data.message);
+        navigate('/app/settings');
+      } else {
+        alert(err.response?.data?.message || 'Failed to record expense');
+      }
     }
   };
 
@@ -45,7 +52,12 @@ export default function Expenses() {
       await api.delete(`/expenses/${id}`);
       fetchExpenses();
     } catch (err) {
-      alert('Delete failed');
+      if (err.response?.status === 402) {
+        alert(err.response.data.message);
+        navigate('/app/settings');
+      } else {
+        alert('Delete failed');
+      }
     }
   };
 

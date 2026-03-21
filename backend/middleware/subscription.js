@@ -1,58 +1,59 @@
 const { db } = require('../config/database');
 
+/**
+ * Middleware to enforce active subscription status.
+ * Blocks mutation requests (POST, PUT, DELETE) if the business has no active subscription or trial.
+ * GET requests remain allowed (Read-Only Mode).
+ */
 const requireActiveSubscription = async (req, res, next) => {
-  // Always permit read operations so users can view historical data
-  if (req.method === 'GET') {
-    return next();
-  }
-
-  // The auth middleware attaches req.businessId
-  if (!req.businessId) {
-    // If there's no business context yet (e.g., creating a business), allow it
-    if (req.baseUrl === '/api/business' && req.method === 'POST') {
-      return next();
-    }
-    return res.status(400).json({ success: false, message: 'Missing business context for transaction.' });
-  }
-
   try {
-    const business = await db('businesses').where('id', req.businessId).first();
+    const businessId = req.businessId;
     
+    // If businessId is not attached, something is wrong with the auth flow
+    if (!businessId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Business context missing. Authentication required.'
+      });
+    }
+
+    const business = await db('businesses').where('id', businessId).first();
+
     if (!business) {
-      return res.status(404).json({ success: false, message: 'Business explicitly not found.' });
+      return res.status(404).json({
+        success: false,
+        message: 'Business record not found.'
+      });
     }
 
     const now = new Date();
+    const trialExpired = business.trial_ends_at && new Date(business.trial_ends_at) < now;
+    const subscriptionExpired = !business.subscription_ends_at || new Date(business.subscription_ends_at) < now;
+    
+    const isRestrictedMethod = ['POST', 'PUT', 'DELETE'].includes(req.method);
 
-    // 1. Check Active Status
-    if (business.subscription_status === 'active') {
-      if (business.subscription_ends_at && new Date(business.subscription_ends_at) >= now) {
-        return next();
-      } else {
-        // Expired!
-        await db('businesses').where('id', business.id).update({ subscription_status: 'past_due' });
-        return res.status(402).json({ success: false, message: 'Subscription expired. Please renew.' });
-      }
+    // Allow everything if trial OR subscription is still valid
+    if (!trialExpired || !subscriptionExpired) {
+      return next();
     }
 
-    // 2. Check Trial Status
-    if (business.subscription_status === 'trial') {
-      if (new Date(business.trial_ends_at) >= now) {
-        return next();
-      } else {
-        // Trial Expired
-        await db('businesses').where('id', business.id).update({ subscription_status: 'past_due' });
-        return res.status(402).json({ success: false, message: 'Your 14-day free trial has expired. Payment required to continue.' });
-      }
+    // If both expired AND user is trying to modify data -> 402 Payment Required
+    if (isRestrictedMethod) {
+      return res.status(402).json({
+        success: false,
+        message: 'Subscription expired. Please upgrade to continue managing your business.',
+        code: 'SUBSCRIPTION_EXPIRED'
+      });
     }
 
-    // 3. Fallback (past_due or canceled)
-    return res.status(402).json({ success: false, message: 'Action blocked. Active subscription required.' });
-
+    // Allow GET requests (Read-Only mode) even if expired
+    next();
   } catch (error) {
-    console.error('Error verifying subscription lock state:', error);
-    res.status(500).json({ success: false, message: 'Server error authorizing database write.' });
+    console.error('Subscription Middleware Error:', error);
+    res.status(500).json({ success: false, message: 'Internal server error during subscription check' });
   }
 };
 
-module.exports = { requireActiveSubscription };
+module.exports = {
+  requireActiveSubscription
+};

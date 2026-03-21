@@ -3,11 +3,11 @@
  * @returns { Promise<void> }
  */
 exports.up = function(knex) {
-  return knex.schema.alterTable('businesses', function(table) {
-    table.string('subscription_status').notNullable().defaultTo('trial');
-    // Using raw SQL for precise 14-day default in Postgres
-    table.timestamp('trial_ends_at').notNullable().defaultTo(knex.raw("CURRENT_TIMESTAMP + interval '14 days'"));
-    table.timestamp('subscription_ends_at').nullable();
+  return knex.schema.alterTable('businesses', table => {
+    table.string('subscription_status').defaultTo('trial'); // trial, active, past_due, canceled
+    table.timestamp('trial_ends_at');
+    table.timestamp('subscription_ends_at');
+    table.string('mpesa_number').nullable(); // Preferred payment number
   });
 };
 

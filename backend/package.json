@@ -1,5 +1,5 @@
 {
-  "name": "zion-grocery-backend",
+  "name": "eobordtech-pos-backend",
   "version": "1.0.0",
   "description": "Backend API for Zion Grocery Dashboard - Node.js/Express with PostgreSQL",
   "main": "server.js",

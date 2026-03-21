@@ -529,12 +529,13 @@ class Sale {
   }
 
   // Additional helper method to check for potential stock inconsistencies
-  static async validateStockConsistency(productId) {
+  static async validateStockConsistency(productId, businessId) {
+    if (!businessId) throw new Error('businessId is required');
     const dbx = getDatabase();
     
     try {
       // Get product current stock
-      const product = await dbx('products').where('id', productId).first();
+      const product = await dbx('products').where('id', productId).andWhere('business_id', businessId).first();
       if (!product) {
         return { valid: false, error: 'Product not found' };
       }
@@ -542,6 +543,7 @@ class Sale {
       // Calculate total quantity sold for this product
       const salesResult = await dbx('sales')
         .where('product_id', productId)
+        .andWhere('business_id', businessId)
         .sum('quantity as total_sold');
       
       const totalSold = parseInt(salesResult[0]?.total_sold || 0);
@@ -568,13 +570,17 @@ class Sale {
   }
 
   // Method to detect and fix potential stock inconsistencies (use with caution)
-  static async detectStockInconsistencies() {
+  static async detectStockInconsistencies(businessId) {
+    if (!businessId) throw new Error('businessId is required');
     const dbx = getDatabase();
     
     try {
       // Get all products with their sales totals
       const results = await dbx('products as p')
-        .leftJoin('sales as s', 'p.id', 's.product_id')
+        .leftJoin('sales as s', function() {
+          this.on('p.id', '=', 's.product_id').andOn('p.business_id', '=', 's.business_id')
+        })
+        .where('p.business_id', businessId)
         .select(
           'p.id',
           'p.name',
