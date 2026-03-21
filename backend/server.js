@@ -77,7 +77,7 @@ const io = socketIo(server, {
 // PostgreSQL database connection - required
 const { db, testConnection } = require('./config/database');
 // Import routes
-const dashboardRoutes = require('./routes/dashboard');
+const { router: dashboardRoutes, clearDashboardCache } = require('./routes/dashboard');
 const productRoutes = require('./routes/products');
 const salesRoutes = require('./routes/sales');
 const expenseRoutes = require('./routes/expenses');
@@ -97,7 +97,7 @@ app.use(compression());
 // Rate limiting
 const limiter = rateLimit({
   windowMs: (process.env.RATE_LIMIT_WINDOW || 15) * 60 * 1000, // 15 minutes
-  max: process.env.RATE_LIMIT_MAX || 100, // limit each IP to 100 requests per windowMs
+  max: process.env.RATE_LIMIT_MAX || 1000, // limit each IP to 1000 requests per windowMs
   message: 'Too many requests from this IP, please try again later.'
 });
 app.use('/api/', limiter);
@@ -173,6 +173,7 @@ const broadcastDataChange = (type, data) => {
 
 // Make broadcast function available to routes
 app.locals.broadcastDataChange = broadcastDataChange;
+app.locals.clearDashboardCache = clearDashboardCache;
 app.locals.io = io;
 
 // Health check endpoint with comprehensive database status

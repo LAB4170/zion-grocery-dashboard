@@ -47,20 +47,37 @@ export default function Dashboard() {
 
   const fetchDashboardData = async () => {
     try {
-      const [statsRes, chartsRes, activitiesRes, alertsRes] = await Promise.all([
+      const [statsRes, chartsRes, activitiesRes, alertsRes] = await Promise.allSettled([
         api.get('/dashboard/stats'),
         api.get('/dashboard/charts'),
         api.get('/dashboard/recent-activities'),
         api.get('/dashboard/alerts')
       ]);
 
-      if (statsRes.data.success) setStats(statsRes.data.data);
-      if (chartsRes.data.success) {
-        setChartData(chartsRes.data.data.daily_sales || []);
-        setCategoryData(chartsRes.data.data.expenses_by_category || []);
+      if (statsRes.status === 'fulfilled' && statsRes.value.data.success) {
+        setStats(statsRes.value.data.data);
+      } else {
+        console.error('Stats fetch failed:', statsRes.reason || 'Request not successful');
       }
-      if (activitiesRes.data.success) setRecentActivities(activitiesRes.data.data);
-      if (alertsRes.data.success) setAlerts(alertsRes.data.data);
+
+      if (chartsRes.status === 'fulfilled' && chartsRes.value.data.success) {
+        setChartData(chartsRes.value.data.data.daily_sales || []);
+        setCategoryData(chartsRes.value.data.data.expenses_by_category || []);
+      } else {
+        console.error('Charts fetch failed:', chartsRes.reason || 'Request not successful');
+      }
+
+      if (activitiesRes.status === 'fulfilled' && activitiesRes.value.data.success) {
+        setRecentActivities(activitiesRes.value.data.data);
+      } else {
+        console.error('Activities fetch failed:', activitiesRes.reason || 'Request not successful');
+      }
+
+      if (alertsRes.status === 'fulfilled' && alertsRes.value.data.success) {
+        setAlerts(alertsRes.value.data.data);
+      } else {
+        console.error('Alerts fetch failed:', alertsRes.reason || 'Request not successful');
+      }
     } catch (error) {
       console.error('Failed to fetch dashboard data', error);
     } finally {
@@ -102,7 +119,16 @@ export default function Dashboard() {
         </div>
       </header>
 
-      <div className="stats-grid">
+      <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))' }}>
+        <StatCard 
+          title="Today's Revenue" 
+          value={`KSh ${(stats?.sales?.today_revenue || 0).toLocaleString()}`} 
+          icon={TrendingUp} 
+          color="#10B981" 
+          trend="up" 
+          trendValue="Live" 
+          subtitle="Gross sales today"
+        />
         <StatCard 
           title="Today's Cash" 
           value={`KSh ${(stats?.sales?.today_cash || 0).toLocaleString()}`} 
@@ -110,7 +136,7 @@ export default function Dashboard() {
           color="#10B981" 
           trend="up" 
           trendValue="Live" 
-          subtitle="Collected today"
+          subtitle="Cash collected"
         />
         <StatCard 
           title="Today's M-Pesa" 
@@ -128,16 +154,25 @@ export default function Dashboard() {
           color="#F59E0B" 
           trend="up" 
           trendValue="Live" 
-          subtitle="Credit sales"
+          subtitle="New credit sales"
         />
         <StatCard 
-          title="Today's Total" 
-          value={`KSh ${(stats?.sales?.today_revenue || 0).toLocaleString()}`} 
-          icon={TrendingUp} 
+          title="Monthly Revenue" 
+          value={`KSh ${(stats?.sales?.monthly_revenue || 0).toLocaleString()}`} 
+          icon={Package} 
           color="#8B5CF6" 
           trend="up" 
-          trendValue="Live" 
-          subtitle="Gross revenue"
+          trendValue="Month" 
+          subtitle="Since 1st of month"
+        />
+        <StatCard 
+          title="Monthly Debt" 
+          value={`KSh ${(stats?.debts?.monthly_debts || 0).toLocaleString()}`} 
+          icon={AlertCircle} 
+          color="#EF4444" 
+          trend="up" 
+          trendValue="Month" 
+          subtitle="Total pending this month"
         />
       </div>
 

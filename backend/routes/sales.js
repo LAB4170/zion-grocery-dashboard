@@ -137,6 +137,7 @@ router.post('/', catchAsync(async (req, res) => {
   // Real-time broadcast for both sales and product (since stock changed)
   req.app.locals.broadcastDataChange('sale', sale);
   req.app.locals.broadcastDataChange('product', { id: sale.productId });
+  req.app.locals.clearDashboardCache();
   
   res.status(201).json({
     success: true,
@@ -163,6 +164,7 @@ router.put('/:id', catchAsync(async (req, res) => {
   // Real-time broadcast
   req.app.locals.broadcastDataChange('sale', updatedSale);
   req.app.locals.broadcastDataChange('product', { id: updatedSale.product_id });
+  req.app.locals.clearDashboardCache();
   
   res.json({
     success: true,
@@ -183,6 +185,7 @@ router.patch('/:id/status', catchAsync(async (req, res) => {
   
   // Real-time broadcast
   req.app.locals.broadcastDataChange('sale', updatedSale);
+  req.app.locals.clearDashboardCache();
   
   res.json({
     success: true,
@@ -204,6 +207,7 @@ router.delete('/:id', catchAsync(async (req, res) => {
   req.app.locals.broadcastDataChange('sale', { id: req.params.id, deleted: true });
   if (result && result.product) {
     req.app.locals.broadcastDataChange('product', { id: result.product.id });
+    req.app.locals.clearDashboardCache();
   }
    
    res.json({

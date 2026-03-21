@@ -104,6 +104,7 @@ router.post('/', catchAsync(async (req, res) => {
   
   // Real-time broadcast
   req.app.locals.broadcastDataChange('debt', debt);
+  req.app.locals.clearDashboardCache();
   
   res.status(201).json({
     success: true,
@@ -129,6 +130,7 @@ router.put('/:id', catchAsync(async (req, res) => {
   
   // Real-time broadcast
   req.app.locals.broadcastDataChange('debt', updatedDebt);
+  req.app.locals.clearDashboardCache();
   
   res.json({
     success: true,
@@ -158,6 +160,7 @@ router.post('/:id/payment', catchAsync(async (req, res) => {
   
   // Real-time broadcast
   req.app.locals.broadcastDataChange('debt', updatedDebt);
+  req.app.locals.clearDashboardCache();
   
   res.json({
     success: true,
@@ -177,6 +180,7 @@ router.delete('/:id', catchAsync(async (req, res) => {
   
   // Real-time broadcast
   req.app.locals.broadcastDataChange('debt', { id: req.params.id, deleted: true });
+  req.app.locals.clearDashboardCache();
   
   res.json({
     success: true,

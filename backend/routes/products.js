@@ -117,6 +117,7 @@ router.post('/', catchAsync(async (req, res) => {
   
   // Real-time broadcast
   req.app.locals.broadcastDataChange('product', product);
+  req.app.locals.clearDashboardCache();
   
   res.status(201).json({
     success: true,
@@ -142,6 +143,7 @@ router.put('/:id', catchAsync(async (req, res) => {
   
   // Real-time broadcast
   req.app.locals.broadcastDataChange('product', updatedProduct);
+  req.app.locals.clearDashboardCache();
   
   res.json({
     success: true,
@@ -169,6 +171,7 @@ router.patch('/:id/stock', catchAsync(async (req, res) => {
     message: 'Stock updated successfully',
     data: updatedProduct
   });
+  req.app.locals.clearDashboardCache();
 }));
 
 // DELETE /api/products/:id - Delete product
@@ -188,6 +191,7 @@ router.delete('/:id', catchAsync(async (req, res) => {
   
   // Real-time broadcast
   req.app.locals.broadcastDataChange('product', { id: req.params.id, deleted: true });
+  req.app.locals.clearDashboardCache();
   
   res.json({
     success: true,

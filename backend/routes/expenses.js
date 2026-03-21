@@ -95,6 +95,7 @@ router.post('/', catchAsync(async (req, res) => {
   
   // Real-time broadcast
   req.app.locals.broadcastDataChange('expense', expense);
+  req.app.locals.clearDashboardCache();
   
   res.status(201).json({
     success: true,
@@ -120,6 +121,7 @@ router.put('/:id', catchAsync(async (req, res) => {
   
   // Real-time broadcast
   req.app.locals.broadcastDataChange('expense', updatedExpense);
+  req.app.locals.clearDashboardCache();
   
   res.json({
     success: true,
@@ -145,6 +147,7 @@ router.patch('/:id/approve', catchAsync(async (req, res) => {
     message: 'Expense approved successfully',
     data: approvedExpense
   });
+  req.app.locals.clearDashboardCache();
 }));
 
 // PATCH /api/expenses/:id/reject - Reject expense
@@ -164,6 +167,7 @@ router.patch('/:id/reject', catchAsync(async (req, res) => {
     message: 'Expense rejected successfully',
     data: rejectedExpense
   });
+  req.app.locals.clearDashboardCache();
 }));
 
 // DELETE /api/expenses/:id - Delete expense
@@ -177,6 +181,7 @@ router.delete('/:id', catchAsync(async (req, res) => {
   
   // Real-time broadcast
   req.app.locals.broadcastDataChange('expense', { id: req.params.id, deleted: true });
+  req.app.locals.clearDashboardCache();
   
   res.json({
     success: true,
