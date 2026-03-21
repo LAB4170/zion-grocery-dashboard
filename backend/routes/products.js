@@ -115,6 +115,9 @@ router.post('/', catchAsync(async (req, res) => {
 
   const product = await Product.create(productData);
   
+  // Real-time broadcast
+  req.app.locals.broadcastDataChange('product', product);
+  
   res.status(201).json({
     success: true,
     message: 'Product created successfully',
@@ -136,6 +139,9 @@ router.put('/:id', catchAsync(async (req, res) => {
   }
 
   const updatedProduct = await Product.update(req.params.id, req.body);
+  
+  // Real-time broadcast
+  req.app.locals.broadcastDataChange('product', updatedProduct);
   
   res.json({
     success: true,
@@ -179,6 +185,9 @@ router.delete('/:id', catchAsync(async (req, res) => {
   }
 
   await Product.delete(req.params.id);
+  
+  // Real-time broadcast
+  req.app.locals.broadcastDataChange('product', { id: req.params.id, deleted: true });
   
   res.json({
     success: true,

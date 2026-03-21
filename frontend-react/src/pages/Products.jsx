@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Plus, Search, Edit2, Trash2, X, Package, Tag, DollarSign, List } from 'lucide-react';
 import api from '../services/api';
+import { useSocket } from '../context/SocketContext';
 
 export default function Products() {
   const [products, setProducts] = useState([]);
@@ -10,9 +11,17 @@ export default function Products() {
   const [editingProduct, setEditingProduct] = useState(null);
   const [formData, setFormData] = useState({ name: '', category: '', price: '', stockQuantity: '' });
 
+  const socket = useSocket();
+
   useEffect(() => {
     fetchProducts();
-  }, []);
+    if (socket) {
+      socket.on('data-update', (data) => {
+        if (data.type === 'product' || data.type === 'sale') fetchProducts();
+      });
+    }
+    return () => socket?.off('data-update');
+  }, [socket]);
 
   const fetchProducts = async () => {
     try {

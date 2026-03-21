@@ -46,73 +46,57 @@ router.get('/stats', catchAsync(async (req, res) => {
     const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
     const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
     
-    // Get sales summary
-    const salesSummary = await Sale.getSummary();
-    const todaySales = await Sale.getSummary({
-      date_from: startOfDay,
-      date_to: today
-    });
-    const monthlySales = await Sale.getSummary({
-      date_from: startOfMonth,
-      date_to: today
-    });
-    
-    // Get expenses summary
-    const expensesSummary = await Expense.getSummary();
-    const todayExpenses = await Expense.getSummary({
-      date_from: startOfDay,
-      date_to: today
-    });
-    const monthlyExpenses = await Expense.getSummary({
-      date_from: startOfMonth,
-      date_to: today
-    });
-    
-    // Get debts summary
-    const debtsSummary = await Debt.getSummary();
-    const todayDebts = await Debt.getSummary({
-      date_from: startOfDay,
-      date_to: today
-    });
-    
-    // Get low stock products count (guard against missing method)
-    let lowStockProducts = [];
-    if (Product && typeof Product.getLowStock === 'function') {
-      lowStockProducts = await Product.getLowStock();
-    } else {
-      console.warn('dashboard.stats: Product.getLowStock() not available, defaulting to empty list');
+    try {
+      // Get sales summary
+      const salesSummary = (await Sale.getSummary()) || {};
+      const todaySales = (await Sale.getSummary({ date_from: startOfDay, date_to: today })) || {};
+      const monthlySales = (await Sale.getSummary({ date_from: startOfMonth, date_to: today })) || {};
+      
+      // Get expenses summary
+      const expensesSummary = (await Expense.getSummary()) || {};
+      const todayExpenses = (await Expense.getSummary({ date_from: startOfDay, date_to: today })) || {};
+      const monthlyExpenses = (await Expense.getSummary({ date_from: startOfMonth, date_to: today })) || {};
+      
+      // Get debts summary
+      const debtsSummary = (await Debt.getSummary()) || {};
+      const todayDebts = (await Debt.getSummary({ date_from: startOfDay, date_to: today })) || {};
+      
+      // Get low stock
+      const lowStockProducts = (await Product.getLowStock()) || [];
+      const inventoryValuation = (await Product.getValuation()) || 0;
+      
+      stats = {
+        sales: {
+          total_revenue: Number(salesSummary.total_revenue || 0),
+          total_sales: Number(salesSummary.total_sales || 0),
+          cash_sales: Number(salesSummary.cash_sales || 0),
+          mpesa_sales: Number(salesSummary.mpesa_sales || 0),
+          debt_sales: Number(salesSummary.debt_sales || 0),
+          today_revenue: Number(todaySales.total_revenue || 0),
+          today_sales: Number(todaySales.total_sales || 0),
+          monthly_revenue: Number(monthlySales.total_revenue || 0),
+          monthly_sales: Number(monthlySales.total_sales || 0)
+        },
+        expenses: {
+          total_expenses: Number(expensesSummary.total_amount || 0),
+          today_expenses: Number(todayExpenses.total_amount || 0),
+          monthly_expenses: Number(monthlyExpenses.total_amount || 0)
+        },
+        debts: {
+          total_outstanding: Number(debtsSummary.pending_amount || 0),
+          total_debts: Number(debtsSummary.total_debts || 0),
+          today_debts: Number(todayDebts.total_amount || 0)
+        },
+        inventory: {
+          total_valuation: Number(inventoryValuation || 0),
+          low_stock_count: lowStockProducts.length,
+          low_stock_products: lowStockProducts.slice(0, 5)
+        }
+      };
+    } catch (dbErr) {
+      console.error('CRITICAL: Dashboard stats fetch failed:', dbErr);
+      throw dbErr;
     }
-    
-    stats = {
-      sales: {
-        total_revenue: salesSummary.total_revenue,
-        total_sales: salesSummary.total_sales,
-        cash_sales: salesSummary.cash_sales,
-        mpesa_sales: salesSummary.mpesa_sales,
-        debt_sales: salesSummary.debt_sales,
-        today_revenue: todaySales.total_revenue,
-        today_sales: todaySales.total_sales,
-        monthly_revenue: monthlySales.total_revenue,
-        monthly_sales: monthlySales.total_sales
-      },
-      expenses: {
-        total_expenses: expensesSummary.total_amount,
-        approved_expenses: expensesSummary.approved_amount,
-        pending_expenses: expensesSummary.pending_amount,
-        today_expenses: todayExpenses.total_amount,
-        monthly_expenses: monthlyExpenses.total_amount
-      },
-      debts: {
-        total_outstanding: debtsSummary.total_outstanding,
-        total_debts: debtsSummary.total_debts,
-        pending_debts: debtsSummary.pending_count,
-        today_debts: todayDebts.total_amount
-      },
-      inventory: {
-        low_stock_count: lowStockProducts.length,
-        low_stock_products: lowStockProducts.slice(0, 5) // Top 5 low stock items
-      }
-    };
     
     // Cache for 5 minutes
     setCache(cacheKey, stats, CACHE_TTL.stats);
@@ -131,29 +115,34 @@ router.get('/charts', catchAsync(async (req, res) => {
   let chartData = getFromCache(cacheKey);
   
   if (!chartData) {
-    // Get daily sales for the last 7 days
-    const dailySales = await Sale.getDailySales(7);
-    
-    // Get top selling products
-    const topProducts = await Sale.getTopProducts(10);
-    
-    // Get sales by payment method
-    const salesSummary = await Sale.getSummary();
-    const paymentDistribution = {
-      cash: salesSummary.cash_sales,
-      mpesa: salesSummary.mpesa_sales,
-      debt: salesSummary.debt_sales
-    };
-    
-    // Get expenses by category
-    const expensesByCategory = await Expense.getByCategory();
-    
-    chartData = {
-      daily_sales: dailySales,
-      top_products: topProducts,
-      payment_distribution: paymentDistribution,
-      expenses_by_category: expensesByCategory
-    };
+    try {
+      // Get daily sales for the last 7 days
+      const dailySales = (await Sale.getDailySales(7)) || [];
+      
+      // Get top selling products
+      const topProducts = (await Sale.getTopProducts(10)) || [];
+      
+      // Get sales by payment method
+      const salesSummary = (await Sale.getSummary()) || {};
+      const paymentDistribution = {
+        cash: Number(salesSummary.cash_sales || 0),
+        mpesa: Number(salesSummary.mpesa_sales || 0),
+        debt: Number(salesSummary.debt_sales || 0)
+      };
+      
+      // Get expenses by category
+      const expensesByCategory = (await Expense.getByCategory()) || [];
+      
+      chartData = {
+        daily_sales: dailySales,
+        top_products: topProducts,
+        payment_distribution: paymentDistribution,
+        expenses_by_category: expensesByCategory
+      };
+    } catch (chartsErr) {
+      console.error('Dashboard charts fetch failed:', chartsErr);
+      throw chartsErr;
+    }
     
     // Cache for 10 minutes
     setCache(cacheKey, chartData, CACHE_TTL.charts);
@@ -213,47 +202,49 @@ router.get('/recent-activities', catchAsync(async (req, res) => {
 router.get('/alerts', catchAsync(async (req, res) => {
   const alerts = [];
   
-  // Low stock alerts
-  const lowStockProducts = await Product.getLowStock();
-  lowStockProducts.forEach(product => {
-    alerts.push({
-      type: 'warning',
-      title: 'Low Stock Alert',
-      message: `${product.name} is running low (${product.stock} remaining)`,
-      created_at: new Date()
-    });
-  });
-  
-  // Overdue debts alerts
-  const overdueDebts = await Debt.getOverdue();
-  if (overdueDebts.length > 0) {
-    alerts.push({
-      type: 'error',
-      title: 'Overdue Debts',
-      message: `${overdueDebts.length} debt(s) are overdue`,
-      created_at: new Date()
-    });
-  }
-  
-  // High expenses alert (if today's expenses > average)
-  const today = new Date();
-  const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  const todayExpenses = await Expense.getSummary({
-    date_from: startOfDay,
-    date_to: today
-  });
-  
-  const monthlyExpenses = await Expense.getMonthlyExpenses(1);
-  if (monthlyExpenses.length > 0) {
-    const avgDailyExpense = monthlyExpenses[0].total_amount / 30;
-    if (todayExpenses.total_amount > avgDailyExpense * 1.5) {
+  try {
+    // Low stock alerts
+    const lowStockProducts = (await Product.getLowStock()) || [];
+    lowStockProducts.forEach(product => {
       alerts.push({
         type: 'warning',
-        title: 'High Expenses',
-        message: `Today's expenses (${todayExpenses.total_amount}) are above average`,
+        title: 'Low Stock Alert',
+        message: `${product.name} is running low (${product.stock} remaining)`,
+        created_at: new Date()
+      });
+    });
+    
+    // Overdue debts alerts
+    const overdueDebts = (await Debt.getOverdue()) || [];
+    if (overdueDebts.length > 0) {
+      alerts.push({
+        type: 'error',
+        title: 'Overdue Debts',
+        message: `${overdueDebts.length} debt(s) are overdue`,
         created_at: new Date()
       });
     }
+    
+    // High expenses alert
+    const today = new Date();
+    const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const todayExpenses = (await Expense.getSummary({ date_from: startOfDay, date_to: today })) || {};
+    
+    const monthlyExpenses = (await Expense.getMonthlyExpenses(1)) || [];
+    if (monthlyExpenses.length > 0) {
+      const avgDailyExpense = (Number(monthlyExpenses[0].total_amount || 0) / 30);
+      if (Number(todayExpenses.total_amount || 0) > avgDailyExpense * 1.5) {
+        alerts.push({
+          type: 'warning',
+          title: 'High Expenses',
+          message: `Today's expenses (KSh ${Number(todayExpenses.total_amount || 0).toLocaleString()}) are above average`,
+          created_at: new Date()
+        });
+      }
+    }
+  } catch (alertErr) {
+    console.error('Non-blocking Dashboard alerts failure:', alertErr);
+    // Return empty alerts rather than 500 to keep the dashboard alive
   }
   
   res.json({

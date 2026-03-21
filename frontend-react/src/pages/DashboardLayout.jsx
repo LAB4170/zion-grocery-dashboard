@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { 
   Menu, X, LayoutDashboard, Package, ShoppingCart, 
-  ArrowRightLeft, Users, Sun, Moon, LogOut, ChevronRight
+  ArrowRightLeft, Users, Sun, Moon, LogOut, ChevronRight,
+  BarChart3, History
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -16,8 +17,10 @@ export default function DashboardLayout() {
 
   const menuItems = [
     { name: 'Overview', path: '/dashboard', icon: LayoutDashboard },
+    { name: 'Reports', path: '/reports', icon: BarChart3 },
     { name: 'Inventory', path: '/products', icon: Package },
-    { name: 'Sales', path: '/sales', icon: ShoppingCart },
+    { name: 'Sales POS', path: '/sales', icon: ShoppingCart },
+    { name: 'Sales History', path: '/sales/history', icon: History },
     { name: 'Expenses', path: '/expenses', icon: ArrowRightLeft },
     { name: 'Debts', path: '/debts', icon: Users },
   ];
@@ -94,6 +97,30 @@ export default function DashboardLayout() {
       </aside>
 
       <main className="main-content">
+        <header className="content-top-bar glass" style={{
+          display: 'flex',
+          justifyContent: 'flex-end',
+          alignItems: 'center',
+          gap: '16px',
+          padding: '12px 24px',
+          borderBottom: '1px solid var(--border)',
+          marginBottom: '24px'
+        }}>
+          <button 
+            className="glass" 
+            style={{ padding: '8px 16px', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: 700, color: 'var(--text-muted)' }}
+            onClick={() => navigate('/products')}
+          >
+            <Package size={16} /> + Product
+          </button>
+          <button 
+            className="btn-primary" 
+            style={{ padding: '8px 20px', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: 700 }}
+            onClick={() => navigate('/sales')}
+          >
+            <ShoppingCart size={16} /> New Sale
+          </button>
+        </header>
         <div className="content-inner">
           <Outlet />
         </div>

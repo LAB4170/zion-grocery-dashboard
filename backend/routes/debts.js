@@ -102,6 +102,9 @@ router.post('/', catchAsync(async (req, res) => {
 
   const debt = await Debt.create(debtData);
   
+  // Real-time broadcast
+  req.app.locals.broadcastDataChange('debt', debt);
+  
   res.status(201).json({
     success: true,
     message: 'Debt created successfully',
@@ -123,6 +126,9 @@ router.put('/:id', catchAsync(async (req, res) => {
   }
 
   const updatedDebt = await Debt.update(req.params.id, req.body);
+  
+  // Real-time broadcast
+  req.app.locals.broadcastDataChange('debt', updatedDebt);
   
   res.json({
     success: true,
@@ -150,6 +156,9 @@ router.post('/:id/payment', catchAsync(async (req, res) => {
 
   const updatedDebt = await Debt.makePayment(req.params.id, amount, payment_method);
   
+  // Real-time broadcast
+  req.app.locals.broadcastDataChange('debt', updatedDebt);
+  
   res.json({
     success: true,
     message: 'Payment recorded successfully',
@@ -165,6 +174,9 @@ router.delete('/:id', catchAsync(async (req, res) => {
   }
 
   await Debt.delete(req.params.id);
+  
+  // Real-time broadcast
+  req.app.locals.broadcastDataChange('debt', { id: req.params.id, deleted: true });
   
   res.json({
     success: true,

@@ -93,6 +93,9 @@ router.post('/', catchAsync(async (req, res) => {
 
   const expense = await Expense.create(expenseData);
   
+  // Real-time broadcast
+  req.app.locals.broadcastDataChange('expense', expense);
+  
   res.status(201).json({
     success: true,
     message: 'Expense created successfully',
@@ -114,6 +117,9 @@ router.put('/:id', catchAsync(async (req, res) => {
   }
 
   const updatedExpense = await Expense.update(req.params.id, req.body);
+  
+  // Real-time broadcast
+  req.app.locals.broadcastDataChange('expense', updatedExpense);
   
   res.json({
     success: true,
@@ -168,6 +174,9 @@ router.delete('/:id', catchAsync(async (req, res) => {
   }
 
   await Expense.delete(req.params.id);
+  
+  // Real-time broadcast
+  req.app.locals.broadcastDataChange('expense', { id: req.params.id, deleted: true });
   
   res.json({
     success: true,

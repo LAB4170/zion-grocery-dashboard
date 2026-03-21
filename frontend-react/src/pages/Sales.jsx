@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { ShoppingCart, Search, Plus, Minus, Trash2, CreditCard, Wallet, User, Phone, CheckCircle, AlertCircle } from 'lucide-react';
 import api from '../services/api';
+import { useSocket } from '../context/SocketContext';
 
 export default function Sales() {
   const [products, setProducts] = useState([]);
@@ -12,9 +13,17 @@ export default function Sales() {
   const [successMessage, setSuccessMessage] = useState('');
   const [error, setError] = useState('');
 
+  const socket = useSocket();
+
   useEffect(() => {
     fetchProducts();
-  }, []);
+    if (socket) {
+      socket.on('data-update', (data) => {
+        if (data.type === 'product') fetchProducts();
+      });
+    }
+    return () => socket?.off('data-update');
+  }, [socket]);
 
   const fetchProducts = async () => {
     try {

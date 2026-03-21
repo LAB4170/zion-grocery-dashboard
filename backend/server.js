@@ -28,7 +28,13 @@ function normalizeOrigin(value) {
 function getAllowedOrigins() {
   const isDevelopment = process.env.NODE_ENV === 'development';
   if (isDevelopment) {
-    return ['http://localhost:5000', 'http://127.0.0.1:5000', 'http://localhost:8080'].map(normalizeOrigin);
+    return [
+      'http://localhost:5000', 
+      'http://127.0.0.1:5000', 
+      'http://localhost:5173', 
+      'http://127.0.0.1:5173',
+      'http://localhost:8080'
+    ].map(normalizeOrigin);
   }
   // Production: support single FRONTEND_URL or comma-separated FRONTEND_URLS
   const single = process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : [];

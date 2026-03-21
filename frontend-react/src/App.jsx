@@ -9,6 +9,8 @@ import Products from './pages/Products';
 import Sales from './pages/Sales';
 import Expenses from './pages/Expenses';
 import Debts from './pages/Debts';
+import Reports from './pages/Reports';
+import SalesRecords from './pages/SalesRecords';
 
 // Protected Route Guard
 function ProtectedRoute({ children }) {
@@ -35,8 +37,10 @@ function App() {
                 <Route path="dashboard" element={<Dashboard />} />
                 <Route path="products" element={<Products />} />
                 <Route path="sales" element={<Sales />} />
+                <Route path="sales/history" element={<SalesRecords />} />
                 <Route path="expenses" element={<Expenses />} />
                 <Route path="debts" element={<Debts />} />
+                <Route path="reports" element={<Reports />} />
               </Route>
               
               {/* Fallback */}

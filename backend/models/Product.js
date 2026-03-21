@@ -209,6 +209,33 @@ class Product {
     return await Product.update(id, { stockQuantity: newStock });
   }
 
+  // Get total inventory valuation
+  static async getValuation() {
+    const db = getDatabase();
+    const result = await db('products')
+      .select(db.raw('SUM(stock_quantity * price) as total_value'))
+      .first();
+    return parseFloat(result.total_value) || 0;
+  }
+
+  // Get low stock products
+  static async getLowStock(threshold = 10) {
+    const db = getDatabase();
+    const products = await db('products')
+      .where('stock_quantity', '<=', threshold)
+      .orderBy('stock_quantity', 'asc');
+    
+    return products.map(p => ({
+      id: p.id,
+      name: p.name,
+      category: p.category,
+      price: p.price,
+      stock: parseFloat(p.stock_quantity),
+      createdAt: p.created_at,
+      updatedAt: p.updated_at
+    }));
+  }
+
   // Get product categories
   static async getCategories() {
     const db = getDatabase();
