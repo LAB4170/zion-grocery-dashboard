@@ -2,13 +2,16 @@ import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   ArrowRight, Store, BarChart3, Users, 
-  ShieldCheck, Smartphone, Zap, CheckCircle2 
+  ShieldCheck, Smartphone, Zap, CheckCircle2,
+  Sun, Moon
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 
 export default function LandingPage() {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
+  const { isDarkMode, toggleTheme } = useTheme();
 
   useEffect(() => {
     // Basic reveal animation observer
@@ -44,6 +47,13 @@ export default function LandingPage() {
             <span className="brand-text">NexusPOS</span>
           </div>
           <div className="landing-nav-links">
+            <button 
+              onClick={toggleTheme} 
+              style={{ background: 'transparent', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', cursor: 'pointer' }}
+              title="Toggle Theme"
+            >
+              {isDarkMode ? <Sun size={22} /> : <Moon size={22} />}
+            </button>
             <a href="#features">Features</a>
             <a href="#pricing">Pricing</a>
             <button className="btn-secondary" onClick={() => navigate('/login')}>Login</button>
@@ -141,12 +151,12 @@ export default function LandingPage() {
           <p>Join hundreds of businesses scaling with NexusPOS today.</p>
           <div className="pricing-price">
             <span className="currency">KSh</span>
-            <span className="amount">FREE</span>
-            <span className="period">/ forever</span>
+            <span className="amount">1,500</span>
+            <span className="period">/ month</span>
           </div>
-          <p className="pricing-note">Beta pricing. Early adopters get lifetime free access.</p>
+          <p className="pricing-note">Start your 14-day free trial today. Cancel anytime.</p>
           <button className="hero-btn-primary mx-auto" onClick={handleCTA} style={{ marginTop: '32px' }}>
-            Claim Your Workspace <ArrowRight size={20} />
+            Start 14-Day Free Trial <ArrowRight size={20} />
           </button>
         </div>
       </section>

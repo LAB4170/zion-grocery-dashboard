@@ -3,7 +3,7 @@ import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { 
   Menu, X, LayoutDashboard, Package, ShoppingCart, 
   ArrowRightLeft, Users, Sun, Moon, LogOut, ChevronRight,
-  BarChart3, History
+  BarChart3, History, Settings
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -18,13 +18,14 @@ export default function DashboardLayout() {
   const location = useLocation();
 
   const menuItems = [
-    { name: 'Overview', path: '/app/dashboard', icon: LayoutDashboard },
-    { name: 'Reports', path: '/app/reports', icon: BarChart3 },
-    { name: 'Inventory', path: '/app/products', icon: Package },
-    { name: 'Sales POS', path: '/app/sales', icon: ShoppingCart },
-    { name: 'Sales History', path: '/app/sales/history', icon: History },
-    { name: 'Expenses', path: '/app/expenses', icon: ArrowRightLeft },
-    { name: 'Debts', path: '/app/debts', icon: Users },
+    { name: 'Overview', path: '/app/dashboard', icon: LayoutDashboard, color: '#3B82F6', bg: 'rgba(59, 130, 246, 0.15)' },
+    { name: 'Reports', path: '/app/reports', icon: BarChart3, color: '#F59E0B', bg: 'rgba(245, 158, 11, 0.15)' },
+    { name: 'Inventory', path: '/app/products', icon: Package, color: '#10B981', bg: 'rgba(16, 185, 129, 0.15)' },
+    { name: 'Sales POS', path: '/app/sales', icon: ShoppingCart, color: '#8B5CF6', bg: 'rgba(139, 92, 246, 0.15)' },
+    { name: 'Sales History', path: '/app/sales/history', icon: History, color: '#EC4899', bg: 'rgba(236, 72, 153, 0.15)' },
+    { name: 'Expenses', path: '/app/expenses', icon: ArrowRightLeft, color: '#EF4444', bg: 'rgba(239, 68, 68, 0.15)' },
+    { name: 'Debts', path: '/app/debts', icon: Users, color: '#06B6D4', bg: 'rgba(6, 182, 212, 0.15)' },
+    { name: 'Settings', path: '/app/settings', icon: Settings, color: '#64748B', bg: 'rgba(100, 116, 139, 0.15)' },
   ];
 
   const handleLogout = async () => {
@@ -67,8 +68,10 @@ export default function DashboardLayout() {
                   setIsSidebarOpen(false);
                 }}
               >
-                <Icon size={20} />
-                <span style={{ flex: 1 }}>{item.name}</span>
+                <div className="icon-tile" style={{ color: item.color, backgroundColor: isActive ? item.color : item.bg, color: isActive ? '#fff' : item.color }}>
+                  <Icon size={18} strokeWidth={isActive ? 3 : 2.5} />
+                </div>
+                <span style={{ flex: 1, fontWeight: isActive ? 700 : 600 }}>{item.name}</span>
                 {isActive && <ChevronRight size={14} opacity={0.6} />}
               </button>
             );
@@ -99,6 +102,8 @@ export default function DashboardLayout() {
       </aside>
 
       <main className="main-content">
+        <GlobalBillingBanner business={business} navigate={navigate} />
+        
         <header className="content-top-bar glass" style={{
           display: 'flex',
           justifyContent: 'flex-end',
@@ -142,4 +147,45 @@ export default function DashboardLayout() {
       )}
     </div>
   );
+}
+
+// Sub-component for globally enforcing visibility of the subscription status
+function GlobalBillingBanner({ business, navigate }) {
+  if (!business) return null;
+
+  const status = business.subscription_status;
+  
+  if (status === 'active') return null;
+
+  if (status === 'past_due') {
+    return (
+      <div className="global-billing-banner error">
+        <div className="banner-content">
+          <ArrowRightLeft size={18} />
+          <span><strong>Subscription Expired:</strong> Your workspace is locked in Read-Only mode. Processing new sales is disabled.</span>
+        </div>
+        <button className="btn-renew" onClick={() => navigate('/app/settings')}>Renew MPesa</button>
+      </div>
+    );
+  }
+
+  if (status === 'trial') {
+    const end = new Date(business.trial_ends_at);
+    const now = new Date();
+    const diff = Math.ceil((end - now) / (1000 * 60 * 60 * 24));
+    
+    if (diff <= 3) {
+      return (
+        <div className="global-billing-banner warning">
+          <div className="banner-content">
+            <Settings size={18} />
+            <span><strong>Trial Ending Soon:</strong> You have {diff} day{diff === 1 ? '' : 's'} left of your free trial.</span>
+          </div>
+          <button className="btn-renew" onClick={() => navigate('/app/settings')}>Upgrade Plan</button>
+        </div>
+      );
+    }
+  }
+
+  return null;
 }

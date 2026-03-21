@@ -2,12 +2,14 @@ import React, { useState } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useBusiness } from '../context/BusinessContext';
+import { useTheme } from '../context/ThemeContext';
 import api from '../services/api';
-import { Loader2, Store, LogOut } from 'lucide-react';
+import { Loader2, Store, LogOut, Sun, Moon } from 'lucide-react';
 
 export default function Onboarding() {
   const { logout } = useAuth();
   const { business, needsOnboarding, setBusiness, setNeedsOnboarding } = useBusiness();
+  const { isDarkMode, toggleTheme } = useTheme();
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -43,75 +45,85 @@ export default function Onboarding() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="flex justify-center text-blue-600">
-          <Store className="h-12 w-12" />
-        </div>
-        <h2 className="mt-6 text-center text-3xl font-extrabold text-slate-900">
-          Welcome to NexusPOS
-        </h2>
-        <p className="mt-2 text-center text-sm text-slate-600">
-          Let's get your business set up.
-        </p>
+    <div className="login-page" style={{ position: 'relative' }}>
+      
+      {/* Theme Toggle Top Bar */}
+      <div style={{ position: 'absolute', top: 32, right: 32, zIndex: 10 }}>
+        <button 
+          onClick={toggleTheme}
+          style={{ background: 'transparent', color: 'var(--text-muted)', padding: 0 }}
+          title="Toggle Theme"
+        >
+          {isDarkMode ? <Sun size={24} /> : <Moon size={24} />}
+        </button>
       </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10 border border-slate-100">
-          <form className="space-y-6" onSubmit={handleCreateBusiness}>
-            <div>
-              <label htmlFor="name" className="block text-sm font-medium text-slate-700">
-                Business Name
-              </label>
-              <div className="mt-1">
-                <input
-                  id="name"
-                  name="name"
-                  type="text"
-                  required
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="appearance-none block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm placeholder-slate-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  placeholder="e.g. Zion Grocery, Downtown Cafe"
-                />
-              </div>
-            </div>
-
-            {error && (
-              <div className="text-red-600 text-sm bg-red-50 p-3 rounded-md border border-red-100">
-                {error}
-              </div>
-            )}
-
-            <div>
-              <button
-                type="submit"
-                disabled={loading || !name.trim()}
-                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="animate-spin -ml-1 mr-2 h-4 w-4" />
-                    Creating...
-                  </>
-                ) : (
-                  'Create Business'
-                )}
-              </button>
-            </div>
-            
-            <div className="mt-4 text-center">
-              <button
-                type="button"
-                onClick={handleLogout}
-                className="inline-flex items-center text-sm text-slate-500 hover:text-slate-700 transition"
-              >
-                <LogOut className="h-4 w-4 mr-1" />
-                Sign out instead
-              </button>
-            </div>
-          </form>
+      <div className="login-card glass">
+        <div className="login-header">
+           <div className="login-logo">
+             <Store size={40} />
+           </div>
+           <h1>Welcome to NexusPOS</h1>
+           <p>Let's get your workspace set up.</p>
         </div>
+
+        <form onSubmit={handleCreateBusiness} style={{ width: '100%' }}>
+          <div style={{ marginBottom: 20, textAlign: 'left' }}>
+            <label htmlFor="name" style={{ display: 'block', marginBottom: 8, fontWeight: 600, color: 'var(--text-muted)' }}>
+              Business Name
+            </label>
+            <input
+              id="name"
+              name="name"
+              type="text"
+              required
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="input-premium"
+              placeholder="e.g. Alpha Retail"
+            />
+          </div>
+
+          {error && (
+            <div className="settings-alert error" style={{ padding: '10px 14px', marginBottom: 20 }}>
+              {error}
+            </div>
+          )}
+
+          <button
+            type="submit"
+            disabled={loading || !name.trim()}
+            className="hero-btn-primary"
+            style={{ width: '100%', display: 'flex', justifyContent: 'center', gap: 8, padding: '12px' }}
+          >
+            {loading ? (
+              <><Loader2 className="animate-spin" size={20} /> Provisioning Workspace...</>
+            ) : (
+              'Create Workspace'
+            )}
+          </button>
+          
+          <button
+            type="button"
+            onClick={handleLogout}
+            style={{ 
+              width: '100%', 
+              marginTop: 16, 
+              background: 'transparent', 
+              border: 'none', 
+              color: 'var(--text-muted)',
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              gap: 8,
+              cursor: 'pointer',
+              fontWeight: 600
+            }}
+          >
+            <LogOut size={16} />
+            Sign Out Instead
+          </button>
+        </form>
       </div>
     </div>
   );

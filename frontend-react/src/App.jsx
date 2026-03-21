@@ -13,6 +13,7 @@ import Sales from './pages/Sales';
 import Expenses from './pages/Expenses';
 import Debts from './pages/Debts';
 import Reports from './pages/Reports';
+import Settings from './pages/Settings';
 import SalesRecords from './pages/SalesRecords';
 
 // Protected Route Guard
@@ -87,6 +88,7 @@ function App() {
                   <Route path="expenses" element={<Expenses />} />
                   <Route path="debts" element={<Debts />} />
                   <Route path="reports" element={<Reports />} />
+                  <Route path="settings" element={<Settings />} />
                 </Route>
                 
                 {/* Fallback */}

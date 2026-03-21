@@ -1,9 +1,12 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { useNavigate } from 'react-router-dom';
+import { Store, ArrowLeft, Sun, Moon } from 'lucide-react';
 
 export default function Login() {
   const { loginWithEmail, loginWithGoogle } = useAuth();
+  const { isDarkMode, toggleTheme } = useTheme();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -31,7 +34,23 @@ export default function Login() {
   };
 
   return (
-    <div className="login-page">
+    <div className="login-page" style={{ position: 'relative' }}>
+      <div style={{ position: 'absolute', top: 32, left: 32, right: 32, display: 'flex', justifyContent: 'space-between', zIndex: 10 }}>
+        <button 
+          onClick={() => navigate('/')}
+          style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'transparent', color: 'var(--text-muted)', fontWeight: 600, fontSize: '15px', padding: 0 }}
+        >
+          <ArrowLeft size={20} /> Back to Home
+        </button>
+        <button 
+          onClick={toggleTheme}
+          style={{ background: 'transparent', color: 'var(--text-muted)', padding: 0 }}
+          title="Toggle Theme"
+        >
+          {isDarkMode ? <Sun size={24} /> : <Moon size={24} />}
+        </button>
+      </div>
+
       <div className="login-card glass">
         <div className="login-header">
           <div className="login-logo">

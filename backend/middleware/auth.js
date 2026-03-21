@@ -11,7 +11,7 @@ const requireBusinessAuth = async (req, res, next) => {
     const userEmail = req.headers['x-user-email'];
     
     // Bypass for creating a new business (onboarding)
-    if (req.path === '/api/business' && req.method === 'POST') {
+    if (req.baseUrl === '/api/business' && req.method === 'POST') {
       return next();
     }
 

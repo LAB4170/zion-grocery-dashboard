@@ -83,10 +83,12 @@ const salesRoutes = require('./routes/sales');
 const expenseRoutes = require('./routes/expenses');
 const debtRoutes = require('./routes/debts');
 const businessRoutes = require('./routes/businesses');
+const paymentsRoutes = require('./routes/payments');
 
 // Import middleware
 const { errorHandler } = require('./middleware/errorHandler');
 const { requireBusinessAuth } = require('./middleware/auth');
+const { requireActiveSubscription } = require('./middleware/subscription');
 
 // Security middleware
 app.use(helmet({
@@ -285,12 +287,13 @@ app.get('/api/test-db', async (req, res) => {
 });
 
 // API routes
-app.use('/api/business', requireBusinessAuth, businessRoutes);
-app.use('/api/products', requireBusinessAuth, productRoutes);
-app.use('/api/sales', requireBusinessAuth, salesRoutes);
-app.use('/api/expenses', requireBusinessAuth, expenseRoutes);
-app.use('/api/debts', requireBusinessAuth, debtRoutes);
-app.use('/api/dashboard', requireBusinessAuth, dashboardRoutes);
+app.use('/api/business', requireBusinessAuth, requireActiveSubscription, businessRoutes);
+app.use('/api/products', requireBusinessAuth, requireActiveSubscription, productRoutes);
+app.use('/api/sales', requireBusinessAuth, requireActiveSubscription, salesRoutes);
+app.use('/api/expenses', requireBusinessAuth, requireActiveSubscription, expenseRoutes);
+app.use('/api/debts', requireBusinessAuth, requireActiveSubscription, debtRoutes);
+app.use('/api/dashboard', requireBusinessAuth, requireActiveSubscription, dashboardRoutes);
+app.use('/api/payments', requireBusinessAuth, paymentsRoutes);
 
 // Handle React frontend routing - Catch all to serve index.html
 app.get('*', (req, res) => {

@@ -757,14 +757,16 @@ class Sale {
   }
 
   // Get daily sales breakdown for last N days — used for dashboard chart
-  static async getDailySales(days = 7) {
+  static async getDailySales(days = 7, businessId) {
+    if (!businessId) throw new Error('businessId is required for logical data isolation');
     const dbx = getDatabase();
     const since = new Date();
     since.setDate(since.getDate() - (days - 1));
     since.setHours(0, 0, 0, 0);
 
     const rows = await dbx('sales')
-      .where('created_at', '>=', since.toISOString())
+      .where('business_id', businessId)
+      .andWhere('created_at', '>=', since.toISOString())
       .select(
         dbx.raw(`DATE(created_at) as date`),
         dbx.raw('COUNT(*) as total_sales'),
