@@ -15,7 +15,7 @@ export default function Login() {
       setError('');
       await loginWithEmail(email, password);
       navigate('/dashboard');
-    } catch (err) {
+    } catch (_err) {
       setError('Failed to login. Check credentials or Firebase Auth rules.');
     }
   };
@@ -25,7 +25,7 @@ export default function Login() {
       setError('');
       await loginWithGoogle();
       navigate('/dashboard');
-    } catch (err) {
+    } catch (_err) {
       setError('Google Sign-In failed.');
     }
   };
