@@ -1,5 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { useAuth } from './context/AuthContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import { ThemeProvider } from './context/ThemeContext';
+import { SocketProvider } from './context/SocketContext';
 import Login from './pages/Login';
 import DashboardLayout from './pages/DashboardLayout';
 import Dashboard from './pages/Dashboard';
@@ -19,25 +21,31 @@ function ProtectedRoute({ children }) {
 
 function App() {
   return (
-    <Router>
-      <Routes>
-        {/* Public Route */}
-        <Route path="/login" element={<Login />} />
-        
-        {/* Protected Dashboard Routes */}
-        <Route path="/" element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
-          <Route index element={<Navigate to="/dashboard" replace />} />
-          <Route path="dashboard" element={<Dashboard />} />
-          <Route path="products" element={<Products />} />
-          <Route path="sales" element={<Sales />} />
-          <Route path="expenses" element={<Expenses />} />
-          <Route path="debts" element={<Debts />} />
-        </Route>
-        
-        {/* Fallback */}
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </Router>
+    <ThemeProvider>
+      <AuthProvider>
+        <SocketProvider>
+          <Router>
+            <Routes>
+              {/* Public Route */}
+              <Route path="/login" element={<Login />} />
+              
+              {/* Protected Dashboard Routes */}
+              <Route path="/" element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
+                <Route index element={<Navigate to="/dashboard" replace />} />
+                <Route path="dashboard" element={<Dashboard />} />
+                <Route path="products" element={<Products />} />
+                <Route path="sales" element={<Sales />} />
+                <Route path="expenses" element={<Expenses />} />
+                <Route path="debts" element={<Debts />} />
+              </Route>
+              
+              {/* Fallback */}
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </Router>
+        </SocketProvider>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
 

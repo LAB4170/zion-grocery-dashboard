@@ -1,102 +1,116 @@
-import { useState } from 'react';
-import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, useLocation, Outlet } from 'react-router-dom';
+import { 
+  Menu, X, LayoutDashboard, Package, ShoppingCart, 
+  ArrowRightLeft, Users, Sun, Moon, LogOut, ChevronRight
+} from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import { 
-  LogOut, 
-  LayoutDashboard, 
-  Package, 
-  DollarSign, 
-  ArrowRightLeft, 
-  Calendar,
-  Menu,
-  X,
-  Sun,
-  Moon
-} from 'lucide-react';
 
 export default function DashboardLayout() {
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const { currentUser, logout } = useAuth();
-  const { theme, toggleTheme } = useTheme();
+  const { isDarkMode, toggleTheme } = useTheme();
   const navigate = useNavigate();
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const location = useLocation();
 
-  const handleLogout = async () => {
-    await logout();
-    navigate('/login');
-  };
-
-  const navItems = [
+  const menuItems = [
     { name: 'Overview', path: '/dashboard', icon: LayoutDashboard },
     { name: 'Inventory', path: '/products', icon: Package },
-    { name: 'Sales', path: '/sales', icon: DollarSign },
+    { name: 'Sales', path: '/sales', icon: ShoppingCart },
     { name: 'Expenses', path: '/expenses', icon: ArrowRightLeft },
-    { name: 'Debts', path: '/debts', icon: Calendar },
+    { name: 'Debts', path: '/debts', icon: Users },
   ];
 
-  const toggleMobileMenu = () => setIsMobileMenuOpen(!isMobileMenuOpen);
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate('/login');
+    } catch (error) {
+      console.error('Failed to log out', error);
+    }
+  };
 
   return (
     <div className="layout-root">
-      {/* Mobile Top Bar */}
-      <div className="mobile-header glass">
+      <header className="mobile-header glass">
         <div className="brand">ZION</div>
-        <button onClick={toggleMobileMenu} className="menu-toggle">
-          {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+        <button className="menu-toggle" onClick={() => setIsSidebarOpen(!isSidebarOpen)}>
+          {isSidebarOpen ? <X size={24} /> : <Menu size={24} />}
         </button>
-      </div>
+      </header>
 
-      {/* Sidebar */}
-      <aside className={`sidebar glass ${isMobileMenuOpen ? 'open' : ''}`}>
+      <aside className={`sidebar glass ${isSidebarOpen ? 'open' : ''}`}>
         <div className="sidebar-header">
-          <div className="brand">ZION</div>
-          <p className="sub-brand">Grocery POS</p>
+          <div className="brand" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ width: '32px', height: '32px', background: 'var(--accent)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>Z</div>
+            ZION
+          </div>
+          <p className="sub-brand">Grocery POS v2</p>
         </div>
-        
+
         <nav className="nav-menu">
-          {navItems.map(item => (
-            <NavLink 
-              key={item.path} 
-              to={item.path} 
-              className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
-              onClick={() => setIsMobileMenuOpen(false)}
-            >
-              <item.icon size={20} />
-              <span>{item.name}</span>
-            </NavLink>
-          ))}
+          {menuItems.map((item) => {
+            const isActive = location.pathname === item.path;
+            const Icon = item.icon;
+            return (
+              <button 
+                key={item.name}
+                className={`nav-item ${isActive ? 'active' : ''}`}
+                onClick={() => {
+                  navigate(item.path);
+                  setIsSidebarOpen(false);
+                }}
+              >
+                <Icon size={20} />
+                <span style={{ flex: 1 }}>{item.name}</span>
+                {isActive && <ChevronRight size={14} opacity={0.6} />}
+              </button>
+            );
+          })}
         </nav>
 
         <div className="sidebar-footer">
-          <button onClick={toggleTheme} className="theme-toggle">
-            {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
-            <span>{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
+          <button className="theme-toggle" onClick={toggleTheme}>
+            {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
+            <span>{isDarkMode ? 'Light Mode' : 'Dark Mode'}</span>
           </button>
-          
+
           <div className="user-info">
-            <div className="user-avatar">{currentUser?.email?.charAt(0).toUpperCase()}</div>
+            <div className="user-avatar">
+              {currentUser?.email ? currentUser.email[0].toUpperCase() : 'U'}
+            </div>
             <div className="user-details">
-              <span className="user-email">{currentUser?.email?.split('@')[0]}</span>
+              <span className="user-email">{currentUser?.email?.split('@')[0] || 'User'}</span>
               <span className="user-role">Administrator</span>
             </div>
           </div>
 
-          <button onClick={handleLogout} className="btn-logout">
-            <LogOut size={18} /> <span>Logout</span>
+          <button className="btn-logout" onClick={handleLogout}>
+            <LogOut size={18} />
+            <span>Logout</span>
           </button>
         </div>
       </aside>
 
-      {/* Main Content */}
       <main className="main-content">
-        <header className="content-header">
-           {/* Add context-specific header info here if needed */}
-        </header>
         <div className="content-inner">
           <Outlet />
         </div>
       </main>
 
+      {isSidebarOpen && (
+        <div 
+          className="sidebar-overlay" 
+          onClick={() => setIsSidebarOpen(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.5)',
+            zIndex: 850
+          }}
+        />
+      )}
     </div>
   );
 }

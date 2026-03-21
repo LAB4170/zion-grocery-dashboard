@@ -15,7 +15,7 @@ export default function Login() {
       setError('');
       await loginWithEmail(email, password);
       navigate('/dashboard');
-    } catch (_err) {
+    } catch {
       setError('Invalid credentials. Please try again.');
     }
   };
@@ -25,7 +25,7 @@ export default function Login() {
       setError('');
       await loginWithGoogle();
       navigate('/dashboard');
-    } catch (_err) {
+    } catch {
       setError('Google Sign-In failed. Please try again.');
     }
   };

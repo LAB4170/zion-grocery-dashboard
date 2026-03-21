@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react';
-import { Plus, Search, Filter } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, X, Package, Tag, DollarSign, List } from 'lucide-react';
 import api from '../services/api';
 
 export default function Products() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState(null);
+  const [formData, setFormData] = useState({ name: '', category: '', price: '', stockQuantity: '' });
 
   useEffect(() => {
     fetchProducts();
@@ -15,63 +18,123 @@ export default function Products() {
     try {
       setLoading(true);
       const response = await api.get('/products');
-      setProducts(response.data);
+      setProducts(response.data.data || []);
     } catch (err) {
-      setError(err.message || 'Failed to fetch inventory from backend');
+      setError(err.message || 'Failed to fetch inventory');
     } finally {
       setLoading(false);
     }
   };
 
-  if (loading) return <div className="loading-state">Loading Inventory...</div>;
-  if (error) return <div className="error-message">{error}</div>;
+  const handleOpenModal = (product = null) => {
+    if (product) {
+      setEditingProduct(product);
+      setFormData({ 
+        name: product.name, 
+        category: product.category, 
+        price: product.price, 
+        stockQuantity: product.stockQuantity 
+      });
+    } else {
+      setEditingProduct(null);
+      setFormData({ name: '', category: '', price: '', stockQuantity: '' });
+    }
+    setIsModalOpen(true);
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      if (editingProduct) {
+        await api.put(`/products/${editingProduct.id}`, formData);
+      } else {
+        await api.post('/products', formData);
+      }
+      setIsModalOpen(false);
+      fetchProducts();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Action failed');
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this product?')) return;
+    try {
+      await api.delete(`/products/${id}`);
+      fetchProducts();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Delete failed');
+    }
+  };
+
+  if (loading) return <div className="loading-state">Syncing Inventory...</div>;
 
   return (
     <div className="products">
-      <header className="page-header">
-        <h1>Inventory Management</h1>
+      <header className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <h1>Inventory Management</h1>
+          <p style={{ color: 'var(--text-muted)', fontSize: '14px' }}>Monitor and manage your grocery stock levels.</p>
+        </div>
         <div className="header-actions">
-          <div className="search-box">
-             <Search size={18} />
-             <input type="text" placeholder="Search products..." />
+          <div className="search-box card-elevated" style={{ background: 'var(--surface)', border: 'none' }}>
+             <Search size={18} style={{ color: 'var(--text-muted)' }} />
+             <input type="text" placeholder="Search by name or category..." />
           </div>
-          <button className="btn-primary">
+          <button onClick={() => handleOpenModal()} className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px' }}>
             <Plus size={20} /> Add Product
           </button>
         </div>
       </header>
 
-      <div className="table-card glass">
+      <div className="card-elevated" style={{ overflow: 'hidden', padding: '0' }}>
         <table className="pos-table">
           <thead>
             <tr>
               <th>Product Name</th>
               <th>Category</th>
-              <th>Price</th>
-              <th>Stock Level</th>
-              <th>Status</th>
+              <th>Unit Price</th>
+              <th>Stock Status</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
             {products.length === 0 ? (
-              <tr><td colSpan="5" className="empty-row">No active products found.</td></tr>
+              <tr><td colSpan="5" className="empty-row">No active products found in the database.</td></tr>
             ) : (
               products.map(product => (
-                <tr key={product.id}>
-                  <td className="product-name">{product.name}</td>
-                  <td>{product.category}</td>
-                  <td className="price">KSh {Number(product.price).toLocaleString()}</td>
-                  <td>
-                    <div className="stock-badge" style={{ 
-                      backgroundColor: product.stock_quantity < 10 ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)',
-                      color: product.stock_quantity < 10 ? 'var(--danger)' : 'var(--accent)'
-                    }}>
-                      {product.stock_quantity} in stock
+                <tr key={product.id} style={{ transition: 'var(--transition)' }}>
+                  <td className="product-name" style={{ padding: '20px 24px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                       <div style={{ width: 32, height: 32, background: 'var(--bg)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)' }}>
+                         <Package size={16} />
+                       </div>
+                       {product.name}
                     </div>
                   </td>
-                  <td>
-                    <span className={`status-dot ${product.stock_quantity > 0 ? 'active' : 'inactive'}`}></span>
-                    {product.stock_quantity > 0 ? 'Available' : 'Out of Stock'}
+                  <td data-label="Category" style={{ color: 'var(--text-muted)' }}>{product.category}</td>
+                  <td data-label="Unit Price" className="price" style={{ fontWeight: 800 }}>KSh {Number(product.price).toLocaleString()}</td>
+                  <td data-label="Stock Status">
+                    <div className="stock-badge" style={{ 
+                      backgroundColor: product.stockQuantity < 10 ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)',
+                      color: product.stockQuantity < 10 ? 'var(--danger)' : 'var(--accent)',
+                      padding: '6px 12px',
+                      borderRadius: '8px',
+                      fontSize: '12px',
+                      fontWeight: 700
+                    }}>
+                      {product.stockQuantity} units left
+                    </div>
+                  </td>
+                  <td data-label="Actions">
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button onClick={() => handleOpenModal(product)} className="glass" style={{ padding: '8px', borderRadius: '8px', color: 'var(--accent)' }}>
+                        <Edit2 size={16} />
+                      </button>
+                      <button onClick={() => handleDelete(product.id)} className="glass" style={{ padding: '8px', borderRadius: '8px', color: 'var(--danger)' }}>
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))
@@ -80,6 +143,62 @@ export default function Products() {
         </table>
       </div>
 
+      {isModalOpen && (
+        <div className="modal-overlay glass" style={{ position: 'fixed', inset: 0, zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(8px)' }}>
+          <div className="card-elevated" style={{ width: '100%', maxWidth: '480px', padding: '32px', position: 'relative' }}>
+            <button onClick={() => setIsModalOpen(false)} style={{ position: 'absolute', top: '24px', right: '24px', background: 'transparent', color: 'var(--text-muted)' }}>
+              <X size={20} />
+            </button>
+            <h2 style={{ marginBottom: '24px', fontSize: '24px' }}>{editingProduct ? 'Edit Product' : 'Add New Product'}</h2>
+            
+            <form onSubmit={handleSubmit} style={{ display: 'grid', gap: '20px' }}>
+              <div className="input-group">
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Tag size={14} /> Product Name</label>
+                <input 
+                  type="text" 
+                  value={formData.name} 
+                  onChange={e => setFormData({...formData, name: e.target.value})} 
+                  required 
+                  placeholder="e.g. Fresh Milk 1L"
+                />
+              </div>
+              <div className="input-group">
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><List size={14} /> Category</label>
+                <input 
+                  type="text" 
+                  value={formData.category} 
+                  onChange={e => setFormData({...formData, category: e.target.value})} 
+                  required 
+                  placeholder="e.g. Dairy"
+                />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <div className="input-group">
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><DollarSign size={14} /> Price (KSh)</label>
+                  <input 
+                    type="number" 
+                    value={formData.price} 
+                    onChange={e => setFormData({...formData, price: e.target.value})} 
+                    required 
+                  />
+                </div>
+                <div className="input-group">
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Package size={14} /> Stock Qty</label>
+                  <input 
+                    type="number" 
+                    value={formData.stockQuantity} 
+                    onChange={e => setFormData({...formData, stockQuantity: e.target.value})} 
+                    required 
+                  />
+                </div>
+              </div>
+              <button type="submit" className="btn-primary" style={{ padding: '14px', fontSize: '16px', marginTop: '12px' }}>
+                {editingProduct ? 'Update Changes' : 'Create Product'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
