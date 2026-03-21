@@ -79,10 +79,16 @@ const sendErrorDev = (err, req, res) => {
 
   // RENDERED WEBSITE
   console.error('ERROR ', err);
-  return res.status(err.statusCode).render('error', {
-    title: 'Something went wrong!',
-    msg: err.message
-  });
+  return res.status(err.statusCode).send(`
+    <html>
+      <head><title>Something went wrong!</title></head>
+      <body>
+        <h1>Something went wrong!</h1>
+        <p>${err.message}</p>
+        ${err.stack ? `<pre>${err.stack}</pre>` : ''}
+      </body>
+    </html>
+  `);
 };
 
 // Send error in production
@@ -109,17 +115,27 @@ const sendErrorProd = (err, req, res) => {
   // RENDERED WEBSITE
   // Operational, trusted error: send message to client
   if (err.isOperational) {
-    return res.status(err.statusCode).render('error', {
-      title: 'Something went wrong!',
-      msg: err.message
-    });
+    return res.status(err.statusCode).send(`
+      <html>
+        <head><title>Something went wrong!</title></head>
+        <body>
+          <h1>Something went wrong!</h1>
+          <p>${err.message}</p>
+        </body>
+      </html>
+    `);
   }
   // Programming or other unknown error: don't leak error details
   console.error('ERROR ', err);
-  return res.status(err.statusCode).render('error', {
-    title: 'Something went wrong!',
-    msg: 'Please try again later.'
-  });
+  return res.status(err.statusCode).send(`
+    <html>
+      <head><title>Something went wrong!</title></head>
+      <body>
+        <h1>Something went wrong!</h1>
+        <p>Please try again later.</p>
+      </body>
+    </html>
+  `);
 };
 
 // Global error handling middleware
