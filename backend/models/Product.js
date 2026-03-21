@@ -18,6 +18,7 @@ class Product {
     this.category = data.category;
     this.price = parseFloat(data.price);
     this.stockQuantity = parseFloat(data.stockQuantity || data.stock_quantity || 0);
+    this.unit = data.unit || 'pcs';
     this.createdAt = data.createdAt || data.created_at || new Date().toISOString();
     this.updatedAt = data.updatedAt || data.updated_at;
   }
@@ -27,10 +28,12 @@ class Product {
     const db = getDatabase();
     const dbData = {
       id: productData.id || uuidv4(),
+      business_id: productData.businessId,
       name: productData.name,
       category: productData.category,
       price: parseFloat(productData.price),
       stock_quantity: parseFloat(productData.stockQuantity || productData.stock_quantity || 0),
+      unit: productData.unit || 'pcs',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
@@ -46,9 +49,10 @@ class Product {
   }
 
   // Get all products with basic filters
-  static async findAll(filters = {}) {
+  static async findAll(filters = {}, businessId) {
+    if (!businessId) throw new Error('businessId is required');
     const db = getDatabase();
-    let query = db('products');
+    let query = db('products').where('business_id', businessId);
     
     if (filters.category) {
       query = query.where('category', filters.category);
@@ -67,15 +71,17 @@ class Product {
       category: product.category,
       price: product.price,
       stockQuantity: parseFloat(product.stock_quantity),
+      unit: product.unit || 'pcs',
       createdAt: product.created_at,
       updatedAt: product.updated_at
     }));
   }
 
   // New: server-side pagination with filters and sorting
-  static async findPaginated({ category, search } = {}, { page = 1, perPage = 25, sortBy = 'name', sortDir = 'asc' } = {}) {
+  static async findPaginated({ category, search } = {}, { page = 1, perPage = 25, sortBy = 'name', sortDir = 'asc' } = {}, businessId) {
+    if (!businessId) throw new Error('businessId is required');
     const dbx = getDatabase();
-    let base = dbx('products');
+    let base = dbx('products').where('business_id', businessId);
 
     if (category) base = base.where('category', category);
     if (search) base = base.where('name', 'ilike', `%${search}%`);
@@ -100,6 +106,7 @@ class Product {
       category: product.category,
       price: product.price,
       stockQuantity: parseFloat(product.stock_quantity),
+      unit: product.unit || 'pcs',
       createdAt: product.created_at,
       updatedAt: product.updated_at
     }));
@@ -114,9 +121,10 @@ class Product {
   }
 
   // Get product by ID
-  static async findById(id) {
+  static async findById(id, businessId) {
+    if (!businessId) throw new Error('businessId is required');
     const db = getDatabase();
-    const product = await db('products').where('id', id).first();
+    const product = await db('products').where('id', id).andWhere('business_id', businessId).first();
     if (!product) return null;
     
     // Transform to frontend format (camelCase)
@@ -126,13 +134,15 @@ class Product {
       category: product.category,
       price: product.price,
       stockQuantity: parseFloat(product.stock_quantity),
+      unit: product.unit || 'pcs',
       createdAt: product.created_at,
       updatedAt: product.updated_at
     };
   }
 
   // Update product
-  static async update(id, updateData) {
+  static async update(id, updateData, businessId) {
+    if (!businessId) throw new Error('businessId is required');
     const db = getDatabase();
     const dbData = { updated_at: new Date().toISOString() };
 
@@ -157,8 +167,13 @@ class Product {
       dbData.stock_quantity = parsed;
     }
     
+    if (updateData.hasOwnProperty('unit')) {
+      dbData.unit = updateData.unit;
+    }
+    
     const [updatedProduct] = await db('products')
       .where('id', id)
+      .andWhere('business_id', businessId)
       .update(dbData)
       .returning('*');
     
@@ -166,10 +181,12 @@ class Product {
   }
 
   // Check if product has sales records
-  static async hasSalesRecords(productId) {
+  static async hasSalesRecords(productId, businessId) {
+    if (!businessId) throw new Error('businessId is required');
     const db = getDatabase();
     const salesCount = await db('sales')
       .where('product_id', productId)
+      .andWhere('business_id', businessId)
       .count('id as count')
       .first();
     
@@ -177,19 +194,20 @@ class Product {
   }
 
   // Delete product
-  static async delete(id) {
-    if (await Product.hasSalesRecords(id)) {
+  static async delete(id, businessId) {
+    if (!businessId) throw new Error('businessId is required');
+    if (await Product.hasSalesRecords(id, businessId)) {
       throw new Error('Cannot delete product that has sales records');
     }
     
     const db = getDatabase();
-    return await db('products').where('id', id).del();
+    return await db('products').where('id', id).andWhere('business_id', businessId).del();
   }
 
   // Update stock (for sales)
-  static async updateStock(id, quantity, operation = 'subtract') {
+  static async updateStock(id, quantity, operation = 'subtract', businessId) {
     const db = getDatabase();
-    const product = await Product.findById(id);
+    const product = await Product.findById(id, businessId);
     if (!product) {
       throw new Error('Product not found');
     }
@@ -206,7 +224,7 @@ class Product {
       throw new Error('Invalid operation. Use "add" or "subtract"');
     }
     
-    return await Product.update(id, { stockQuantity: newStock });
+    return await Product.update(id, { stockQuantity: newStock }, businessId);
   }
 
   // Get total inventory valuation
@@ -219,10 +237,12 @@ class Product {
   }
 
   // Get low stock products
-  static async getLowStock(threshold = 10) {
+  static async getLowStock(businessId, threshold = 10) {
+    if (!businessId) throw new Error('businessId is required');
     const db = getDatabase();
     const products = await db('products')
-      .where('stock_quantity', '<=', threshold)
+      .where('business_id', businessId)
+      .andWhere('stock_quantity', '<=', threshold)
       .orderBy('stock_quantity', 'asc');
     
     return products.map(p => ({
@@ -237,7 +257,8 @@ class Product {
   }
 
   // Get product categories
-  static async getCategories() {
+  static async getCategories(businessId) {
+    if (!businessId) throw new Error('businessId is required');
     const db = getDatabase();
     const categories = await db('products')
       .distinct('category')

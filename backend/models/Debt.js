@@ -30,11 +30,13 @@ class Debt {
 
   // Create new debt
   static async create(debtData) {
+    if (!debtData.businessId) throw new Error('businessId is required');
     const debt = new Debt(debtData);
     
     const [newDebt] = await getDatabase()('debts')
       .insert({
         id: debt.id,
+        business_id: debtData.businessId,
         sale_id: debt.saleId,
         customer_name: debt.customerName,
         customer_phone: debt.customerPhone,
@@ -54,8 +56,9 @@ class Debt {
   }
 
   // Get all debts with basic filters
-  static async findAll(filters = {}) {
-    let query = getDatabase()('debts').select('*');
+  static async findAll(filters = {}, businessId) {
+    if (!businessId) throw new Error('businessId is required');
+    let query = getDatabase()('debts').where('business_id', businessId).select('*');
     
     if (filters.status) {
       query = query.where('status', filters.status);
@@ -90,8 +93,9 @@ class Debt {
   }
 
   // Get debt by ID
-  static async findById(id) {
-    const debt = await getDatabase()('debts').where('id', id).first();
+  static async findById(id, businessId) {
+    if (!businessId) throw new Error('businessId is required');
+    const debt = await getDatabase()('debts').where('id', id).andWhere('business_id', businessId).first();
     if (!debt) return null;
     
     // Transform to frontend format (camelCase)
@@ -113,7 +117,8 @@ class Debt {
   }
 
   // Update debt
-  static async update(id, updateData) {
+  static async update(id, updateData, businessId) {
+    if (!businessId) throw new Error('businessId is required');
     const db = getDatabase();
     const dbData = { updated_at: new Date().toISOString() };
 
@@ -150,6 +155,7 @@ class Debt {
      
     const [updatedDebt] = await db('debts')
       .where('id', id)
+      .andWhere('business_id', businessId)
       .update(dbData)
       .returning('*');
      
@@ -157,9 +163,11 @@ class Debt {
   }
 
   // Mark debt as paid (simple status change)
-  static async markAsPaid(id) {
+  static async markAsPaid(id, businessId) {
+    if (!businessId) throw new Error('businessId is required');
     const [paidDebt] = await getDatabase()('debts')
       .where('id', id)
+      .andWhere('business_id', businessId)
       .update({
         status: 'paid',
         updated_at: new Date().toISOString()
@@ -170,13 +178,15 @@ class Debt {
   }
 
   // Delete debt
-  static async delete(id) {
-    return await getDatabase()('debts').where('id', id).del();
+  static async delete(id, businessId) {
+    if (!businessId) throw new Error('businessId is required');
+    return await getDatabase()('debts').where('id', id).andWhere('business_id', businessId).del();
   }
 
   // Get basic debt summary for dashboard
-  static async getSummary(filters = {}) {
-    let query = getDatabase()('debts');
+  static async getSummary(filters = {}, businessId) {
+    if (!businessId) throw new Error('businessId is required');
+    let query = getDatabase()('debts').where('business_id', businessId);
     
     if (filters.date_from) {
       query = query.where('created_at', '>=', filters.date_from);
@@ -204,9 +214,11 @@ class Debt {
   }
 
   // Group debts by customer (name + phone) with aggregates
-  static async getGroupedByCustomer() {
+  static async getGroupedByCustomer(businessId) {
+    if (!businessId) throw new Error('businessId is required');
     const dbx = getDatabase();
     const rows = await dbx('debts')
+      .where('business_id', businessId)
       .select('customer_name', 'customer_phone')
       .sum({ total_amount: 'amount' })
       .sum({ total_paid: 'amount_paid' })
@@ -226,11 +238,13 @@ class Debt {
   }
 
   // Get overdue debts (due_date < today and not paid)
-  static async getOverdue() {
+  static async getOverdue(businessId) {
+    if (!businessId) throw new Error('businessId is required');
     const dbx = getDatabase();
     const today = new Date().toISOString().split('T')[0];
     const rows = await dbx('debts')
-      .where('status', '!=', 'paid')
+      .where('business_id', businessId)
+      .andWhere('status', '!=', 'paid')
       .andWhereNotNull('due_date')
       .andWhere('due_date', '<', today)
       .orderBy('due_date', 'asc');
@@ -253,10 +267,12 @@ class Debt {
   }
 
   // Get payment history for a debt
-  static async getPaymentHistory(debtId) {
+  static async getPaymentHistory(debtId, businessId) {
+    if (!businessId) throw new Error('businessId is required');
     const dbx = getDatabase();
     const rows = await dbx('debt_payments')
       .where('debt_id', debtId)
+      .andWhere('business_id', businessId)
       .orderBy('created_at', 'desc');
 
     return rows.map(p => ({
@@ -273,7 +289,8 @@ class Debt {
   }
 
   // Make a payment towards a debt (transactional)
-  static async makePayment(debtId, amount, payment_method) {
+  static async makePayment(debtId, amount, payment_method, businessId) {
+    if (!businessId) throw new Error('businessId is required');
     const dbx = getDatabase();
     const trx = await dbx.transaction();
     try {
@@ -283,13 +300,14 @@ class Debt {
       }
 
       // Lock the debt row
-      const debt = await trx('debts').where('id', debtId).forUpdate().first();
+      const debt = await trx('debts').where('id', debtId).andWhere('business_id', businessId).forUpdate().first();
       if (!debt) throw new Error('Debt not found');
 
       // Insert payment
       const [payment] = await trx('debt_payments')
         .insert({
           id: uuidv4(),
+          business_id: businessId,
           debt_id: debtId,
           amount: amt,
           payment_method,
@@ -306,6 +324,7 @@ class Debt {
 
       const [updatedDebt] = await trx('debts')
         .where('id', debtId)
+        .andWhere('business_id', businessId)
         .update({
           amount_paid: newAmountPaid,
           balance: newBalance,

@@ -28,11 +28,13 @@ class Expense {
 
   // Create new expense
   static async create(expenseData) {
+    if (!expenseData.businessId) throw new Error('businessId is required');
     const expense = new Expense(expenseData);
     
     const [newExpense] = await getDatabase()('expenses')
       .insert({
         id: expense.id,
+        business_id: expenseData.businessId,
         description: expense.description,
         amount: expense.amount,
         category: expense.category,
@@ -46,8 +48,9 @@ class Expense {
   }
 
   // Get all expenses with basic filters
-  static async findAll(filters = {}) {
-    let query = getDatabase()('expenses').select('*');
+  static async findAll(filters = {}, businessId) {
+    if (!businessId) throw new Error('businessId is required');
+    let query = getDatabase()('expenses').where('business_id', businessId).select('*');
     
     if (filters.category) {
       query = query.where('category', filters.category);
@@ -83,8 +86,9 @@ class Expense {
   }
 
   // Get expense by ID
-  static async findById(id) {
-    const expense = await getDatabase()('expenses').where('id', id).first();
+  static async findById(id, businessId) {
+    if (!businessId) throw new Error('businessId is required');
+    const expense = await getDatabase()('expenses').where('id', id).andWhere('business_id', businessId).first();
     if (!expense) return null;
     
     // Transform to frontend format (camelCase)
@@ -103,7 +107,8 @@ class Expense {
   }
 
   // Update expense
-  static async update(id, updateData) {
+  static async update(id, updateData, businessId) {
+    if (!businessId) throw new Error('businessId is required');
     const db = getDatabase();
     const dbData = { updated_at: new Date().toISOString() };
 
@@ -121,6 +126,7 @@ class Expense {
      
     const [updatedExpense] = await db('expenses')
       .where('id', id)
+      .andWhere('business_id', businessId)
       .update(dbData)
       .returning('*');
      
@@ -128,7 +134,8 @@ class Expense {
   }
 
   // Approve an expense (requires status/approved_by/approved_at columns)
-  static async approve(id, user = 'system') {
+  static async approve(id, user = 'system', businessId) {
+    if (!businessId) throw new Error('businessId is required');
     const dbx = getDatabase();
     // Check required columns exist to avoid runtime errors
     const hasStatus = await dbx.schema.hasColumn('expenses', 'status');
@@ -140,6 +147,7 @@ class Expense {
 
     const [updated] = await dbx('expenses')
       .where('id', id)
+      .andWhere('business_id', businessId)
       .update({
         status: 'approved',
         approved_by: user,
@@ -152,7 +160,8 @@ class Expense {
   }
 
   // Reject an expense (requires status/approved_by/approved_at columns)
-  static async reject(id, user = 'system') {
+  static async reject(id, user = 'system', businessId) {
+    if (!businessId) throw new Error('businessId is required');
     const dbx = getDatabase();
     const hasStatus = await dbx.schema.hasColumn('expenses', 'status');
     const hasApprovedBy = await dbx.schema.hasColumn('expenses', 'approved_by');
@@ -163,6 +172,7 @@ class Expense {
 
     const [updated] = await dbx('expenses')
       .where('id', id)
+      .andWhere('business_id', businessId)
       .update({
         status: 'rejected',
         approved_by: user,
@@ -175,13 +185,15 @@ class Expense {
   }
 
   // Delete expense
-  static async delete(id) {
-    return await getDatabase()('expenses').where('id', id).del();
+  static async delete(id, businessId) {
+    if (!businessId) throw new Error('businessId is required');
+    return await getDatabase()('expenses').where('id', id).andWhere('business_id', businessId).del();
   }
 
   // Get basic expense summary for dashboard
-  static async getSummary(filters = {}) {
-    let query = getDatabase()('expenses');
+  static async getSummary(filters = {}, businessId) {
+    if (!businessId) throw new Error('businessId is required');
+    let query = getDatabase()('expenses').where('business_id', businessId);
     
     if (filters.date_from) {
       query = query.where('created_at', '>=', filters.date_from);
@@ -205,7 +217,8 @@ class Expense {
   }
 
   // Get monthly aggregates for the last N months, grouped by month (YYYY-MM)
-  static async getMonthlyExpenses(months = 12) {
+  static async getMonthlyExpenses(months = 12, businessId) {
+    if (!businessId) throw new Error('businessId is required');
     const dbx = getDatabase();
     const m = Math.max(parseInt(months) || 12, 1);
 
@@ -216,7 +229,8 @@ class Expense {
 
     // Use date_trunc for monthly buckets
     const rows = await dbx('expenses')
-      .where('created_at', '>=', startISO)
+      .where('business_id', businessId)
+      .andWhere('created_at', '>=', startISO)
       .select(dbx.raw("to_char(date_trunc('month', created_at), 'YYYY-MM') as month"))
       .sum({ total_amount: 'amount' })
       .count({ total_expenses: '*' })
@@ -231,7 +245,8 @@ class Expense {
   }
 
   // Get weekly expenses for the current week (Monday–Sunday), zero-filled
-  static async getWeeklyExpenses() {
+  static async getWeeklyExpenses(businessId) {
+    if (!businessId) throw new Error('businessId is required');
     const dbx = getDatabase();
 
     // Compute Monday of current week (local server time)
@@ -250,7 +265,8 @@ class Expense {
 
     // Aggregate by DATE(created_at)
     const rows = await dbx('expenses')
-      .where('created_at', '>=', days[0])
+      .where('business_id', businessId)
+      .andWhere('created_at', '>=', days[0])
       .andWhere('created_at', '<=', days[6] + 'T23:59:59.999Z')
       .select(dbx.raw("to_char(created_at::date, 'YYYY-MM-DD') as date"))
       .sum({ total_amount: 'amount' })
@@ -278,8 +294,10 @@ class Expense {
   }
 
   // Get expenses by category
-  static async getByCategory() {
+  static async getByCategory(businessId) {
+    if (!businessId) throw new Error('businessId is required');
     const categories = await getDatabase()('expenses')
+      .where('business_id', businessId)
       .select('category')
       .sum('amount as total_amount')
       .count('* as count')

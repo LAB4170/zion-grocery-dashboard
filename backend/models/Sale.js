@@ -16,7 +16,7 @@ class Sale {
     this.id = data.id; 
     this.productId = data.productId || data.product_id;
     this.productName = data.productName || data.product_name;
-    this.quantity = parseInt(data.quantity);
+    this.quantity = parseFloat(data.quantity);
     this.unitPrice = parseFloat(data.unitPrice || data.unit_price);
     this.total = parseFloat(data.total);
     // Normalize payment method to lowercase to avoid case issues
@@ -30,11 +30,13 @@ class Sale {
     this.date = data.date || new Date().toISOString().split('T')[0];
     this.createdBy = data.createdBy || data.created_by || null;
     this.createdAt = data.createdAt || data.created_at || new Date().toISOString();
+    this.businessId = data.businessId || data.business_id;
     this.updatedAt = data.updatedAt || data.updated_at;
   }
 
   // Create new sale
   static async create(saleData) {
+    if (!saleData.businessId) throw new Error('businessId is required');
     const sale = new Sale(saleData);
     
     // Generate UUID if not provided
@@ -47,7 +49,10 @@ class Sale {
     
     try {
       // Check product stock
-      const product = await trx('products').where('id', sale.productId).first();
+      const product = await trx('products')
+        .where('id', sale.productId)
+        .andWhere('business_id', sale.businessId)
+        .first();
       if (!product) {
         throw new Error('Product not found');
       }
@@ -60,6 +65,7 @@ class Sale {
       const [newSale] = await trx('sales')
         .insert({
           id: sale.id,
+          business_id: sale.businessId,
           product_id: sale.productId,
           product_name: sale.productName,
           quantity: sale.quantity,
@@ -81,6 +87,7 @@ class Sale {
       // Update product stock
       await trx('products')
         .where('id', sale.productId)
+        .andWhere('business_id', sale.businessId)
         .decrement('stock_quantity', Number(sale.quantity))
         .update('updated_at', new Date().toISOString());
       
@@ -88,6 +95,7 @@ class Sale {
       if (sale.paymentMethod === 'debt') {
         await trx('debts').insert({
           id: uuidv4(),
+          business_id: sale.businessId,
           sale_id: newSale.id,
           customer_name: sale.customerName,
           customer_phone: sale.customerPhone,
@@ -111,8 +119,9 @@ class Sale {
   }
 
   // Get all sales with basic filters
-  static async findAll(filters = {}) {
-    let query = getDatabase()('sales').select('*');
+  static async findAll(filters = {}, businessId) {
+    if (!businessId) throw new Error('businessId is required');
+    let query = getDatabase()('sales').where('business_id', businessId).select('*');
     
     if (filters.date_from) {
       query = query.where('created_at', '>=', filters.date_from);
@@ -174,11 +183,12 @@ class Sale {
     perPage = 25,
     sortBy = 'created_at',
     sortDir = 'desc'
-  } = {}) {
+  } = {}, businessId) {
+    if (!businessId) throw new Error('businessId is required');
     const dbx = getDatabase();
 
     // Base query with filters
-    let base = dbx('sales');
+    let base = dbx('sales').where('business_id', businessId);
 
     if (date_from) base = base.where('created_at', '>=', date_from);
     if (date_to) {
@@ -216,7 +226,7 @@ class Sale {
         id: sale.id,
         productId: sale.product_id,
         productName: sale.product_name,
-        quantity: sale.quantity,
+        quantity: parseFloat(sale.quantity),
         unitPrice: sale.unit_price,
         total: sale.total,
         paymentMethod: sale.payment_method,
@@ -242,8 +252,9 @@ class Sale {
   }
 
   // Get sale by ID
-  static async findById(id) {
-    const sale = await getDatabase()('sales').where('id', id).first();
+  static async findById(id, businessId) {
+    if (!businessId) throw new Error('businessId is required');
+    const sale = await getDatabase()('sales').where('id', id).andWhere('business_id', businessId).first();
     if (!sale) return null;
     
     // Transform to frontend format (camelCase)
@@ -256,7 +267,7 @@ class Sale {
       id: sale.id,
       productId: sale.product_id,
       productName: sale.product_name,
-      quantity: sale.quantity,
+      quantity: parseFloat(sale.quantity),
       unitPrice: sale.unit_price,
       total: sale.total,
       paymentMethod: sale.payment_method,
@@ -273,20 +284,21 @@ class Sale {
   }
 
   // Update sale (transactional with stock and debt consistency)
-  static async update(id, updateData) {
+  static async update(id, updateData, businessId) {
+    if (!businessId) throw new Error('businessId is required');
     const dbx = getDatabase();
     const trx = await dbx.transaction();
 
     try {
       // Load existing sale
-      const existing = await trx('sales').where('id', id).first();
+      const existing = await trx('sales').where('id', id).andWhere('business_id', businessId).first();
       if (!existing) {
         throw new Error('Sale not found');
       }
 
       // Normalize incoming values
       const nextProductId = updateData.productId;
-      const nextQuantity = parseInt(updateData.quantity);
+      const nextQuantity = parseFloat(updateData.quantity);
       const nextUnitPrice = parseFloat(updateData.unitPrice);
       const nextTotal = parseFloat(updateData.total);
       const nextPaymentMethod = updateData.paymentMethod;
@@ -307,15 +319,17 @@ class Sale {
         if (productChanged) {
           await trx('products')
             .where('id', existing.product_id)
+            .andWhere('business_id', businessId)
             .increment('stock_quantity', existing.quantity)
             .update('updated_at', new Date().toISOString());
 
           // Deduct from new product with availability check
-          const newProduct = await trx('products').where('id', nextProductId).first();
+          const newProduct = await trx('products').where('id', nextProductId).andWhere('business_id', businessId).first();
           if (!newProduct) throw new Error('New product not found');
           if (newProduct.stock_quantity < nextQuantity) throw new Error('Insufficient stock for new product');
           await trx('products')
             .where('id', nextProductId)
+            .andWhere('business_id', businessId)
             .decrement('stock_quantity', nextQuantity)
             .update('updated_at', new Date().toISOString());
         } else if (quantityChanged) {
@@ -324,17 +338,19 @@ class Sale {
           if (diff !== 0) {
             if (diff > 0) {
               // Need more stock
-              const product = await trx('products').where('id', existing.product_id).first();
+              const product = await trx('products').where('id', existing.product_id).andWhere('business_id', businessId).first();
               if (!product) throw new Error('Product not found');
               if (product.stock_quantity < diff) throw new Error('Insufficient stock for quantity increase');
               await trx('products')
                 .where('id', existing.product_id)
+                .andWhere('business_id', businessId)
                 .decrement('stock_quantity', diff)
                 .update('updated_at', new Date().toISOString());
             } else {
               // Return stock
               await trx('products')
                 .where('id', existing.product_id)
+                .andWhere('business_id', businessId)
                 .increment('stock_quantity', Math.abs(diff))
                 .update('updated_at', new Date().toISOString());
             }
@@ -366,20 +382,22 @@ class Sale {
       // Update sale
       const [updatedSale] = await trx('sales')
         .where('id', id)
+        .andWhere('business_id', businessId)
         .update(dbData)
         .returning('*');
 
       // Keep linked debt consistent
-      const hadDebt = await trx('debts').where('sale_id', id).first();
+      const hadDebt = await trx('debts').where('sale_id', id).andWhere('business_id', businessId).first();
       const isDebtNow = (dbData.payment_method === 'debt');
 
       if (hadDebt && !isDebtNow) {
         // Payment changed from debt to non-debt → remove debt
-        await trx('debts').where('sale_id', id).del();
+        await trx('debts').where('sale_id', id).andWhere('business_id', businessId).del();
       } else if (!hadDebt && isDebtNow) {
         // Payment changed to debt → create debt
         await trx('debts').insert({
           id: uuidv4(),
+          business_id: businessId,
           sale_id: id,
           customer_name: dbData.customer_name,
           customer_phone: dbData.customer_phone,
@@ -394,6 +412,7 @@ class Sale {
         // Still a debt sale → update basic fields and amount
         await trx('debts')
           .where('sale_id', id)
+          .andWhere('business_id', businessId)
           .update({
             customer_name: dbData.customer_name,
             customer_phone: dbData.customer_phone,
@@ -412,7 +431,8 @@ class Sale {
   }
 
   // Delete sale - ENHANCED VERSION with better safeguards and logging
-  static async delete(id) {
+  static async delete(id, businessId) {
+    if (!businessId) throw new Error('businessId is required');
     const dbx = getDatabase();
     const trx = await dbx.transaction();
 
@@ -420,6 +440,7 @@ class Sale {
       // 1) Lock the sale row first to serialize concurrent deletes
       const sale = await trx('sales')
         .where('id', id)
+        .andWhere('business_id', businessId)
         .forUpdate()
         .first();
 
@@ -435,6 +456,7 @@ class Sale {
       // 2) Delete the sale FIRST and return the deleted row to enforce idempotency
       const [deletedSale] = await trx('sales')
         .where('id', id)
+        .andWhere('business_id', businessId)
         .del()
         .returning('*');
 
@@ -447,6 +469,7 @@ class Sale {
       // 3) Lock the product row and get current state
       const productRow = await trx('products')
         .where('id', deletedSale.product_id)
+        .andWhere('business_id', businessId)
         .forUpdate()
         .first();
 
@@ -463,6 +486,7 @@ class Sale {
           // Restore the stock that was deducted for this sale
           await trx('products')
             .where('id', deletedSale.product_id)
+            .andWhere('business_id', businessId)
             .increment('stock_quantity', Number(deletedSale.quantity))
             .update('updated_at', new Date().toISOString());
 
@@ -474,14 +498,14 @@ class Sale {
       }
 
       // 4) Remove any associated debts for this sale
-      const deletedDebts = await trx('debts').where('sale_id', id).del();
+      const deletedDebts = await trx('debts').where('sale_id', id).andWhere('business_id', businessId).del();
       if (deletedDebts > 0) {
         console.log(`💳 Deleted ${deletedDebts} debt record(s) associated with sale ${id}`);
       }
 
       // 5) Read back product for response (may be null if product missing)
       const updatedProduct = productRow
-        ? await trx('products').where('id', deletedSale.product_id).first()
+        ? await trx('products').where('id', deletedSale.product_id).andWhere('business_id', businessId).first()
         : null;
 
       await trx.commit();
@@ -593,7 +617,8 @@ class Sale {
   }
 
   // Get daily sales aggregates for the last N days (inclusive)
-  static async getDailySales(days = 7) {
+  static async getDailySales(days = 7, businessId) {
+    if (!businessId) throw new Error('businessId is required');
     const dbx = getDatabase();
     const n = Math.max(parseInt(days) || 7, 1);
     const since = new Date(Date.now() - (n - 1) * 24 * 60 * 60 * 1000)
@@ -601,7 +626,8 @@ class Sale {
       .split('T')[0];
 
     const rows = await dbx('sales')
-      .where('date', '>=', since)
+      .where('business_id', businessId)
+      .andWhere('date', '>=', since)
       .select('date')
       .sum({ total_revenue: 'total' })
       .count({ total_sales: '*' })
@@ -617,7 +643,8 @@ class Sale {
   }
 
   // Get weekly sales for the current week (Monday–Sunday), zero-filled
-  static async getWeeklySales() {
+  static async getWeeklySales(businessId) {
+    if (!businessId) throw new Error('businessId is required');
     const dbx = getDatabase();
 
     // Compute Monday of current week based on local time
@@ -642,7 +669,8 @@ class Sale {
 
     // Query aggregated sums within the week range by sales.date
     const rows = await dbx('sales')
-      .where('date', '>=', days[0])
+      .where('business_id', businessId)
+      .andWhere('date', '>=', days[0])
       .andWhere('date', '<=', days[6])
       .select('date')
       .sum({ total_revenue: 'total' })
@@ -674,11 +702,13 @@ class Sale {
   }
 
   // Get top products by quantity sold
-  static async getTopProducts(limit = 10) {
+  static async getTopProducts(limit = 10, businessId) {
+    if (!businessId) throw new Error('businessId is required');
     const dbx = getDatabase();
     const lim = Math.max(Math.min(parseInt(limit) || 10, 100), 1);
 
     const rows = await dbx('sales')
+      .where('business_id', businessId)
       .select('product_id', 'product_name')
       .sum({ quantity_sold: 'quantity' })
       .sum({ revenue: 'total' })
@@ -695,8 +725,9 @@ class Sale {
   }
 
   // Get basic sales summary for dashboard
-  static async getSummary(filters = {}) {
-    let query = getDatabase()('sales');
+  static async getSummary(filters = {}, businessId) {
+    if (!businessId) throw new Error('businessId is required');
+    let query = getDatabase()('sales').where('business_id', businessId);
     
     if (filters.date_from) {
       query = query.where('created_at', '>=', filters.date_from);
@@ -775,7 +806,7 @@ class Sale {
       errors.push('Product ID is required');
     }
     
-    if ((!data.quantity) || isNaN(parseInt(data.quantity)) || parseInt(data.quantity) <= 0) {
+    if ((!data.quantity) || isNaN(parseFloat(data.quantity)) || parseFloat(data.quantity) <= 0) {
       errors.push('Valid quantity is required');
     }
     

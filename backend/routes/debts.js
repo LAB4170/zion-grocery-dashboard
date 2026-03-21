@@ -14,7 +14,7 @@ router.get('/', catchAsync(async (req, res) => {
     overdue: req.query.overdue === 'true'
   };
 
-  const debts = await Debt.findAll(filters);
+  const debts = await Debt.findAll(filters, req.businessId);
   
   res.json({
     success: true,
@@ -30,7 +30,7 @@ router.get('/summary', catchAsync(async (req, res) => {
     date_to: req.query.date_to
   };
 
-  const summary = await Debt.getSummary(filters);
+  const summary = await Debt.getSummary(filters, req.businessId);
   
   res.json({
     success: true,
@@ -40,7 +40,7 @@ router.get('/summary', catchAsync(async (req, res) => {
 
 // GET /api/debts/grouped - Get debts grouped by customer
 router.get('/grouped', catchAsync(async (req, res) => {
-  const groupedDebts = await Debt.getGroupedByCustomer();
+  const groupedDebts = await Debt.getGroupedByCustomer(req.businessId);
   
   res.json({
     success: true,
@@ -50,7 +50,7 @@ router.get('/grouped', catchAsync(async (req, res) => {
 
 // GET /api/debts/overdue - Get overdue debts
 router.get('/overdue', catchAsync(async (req, res) => {
-  const overdueDebts = await Debt.getOverdue();
+  const overdueDebts = await Debt.getOverdue(req.businessId);
   
   res.json({
     success: true,
@@ -61,7 +61,7 @@ router.get('/overdue', catchAsync(async (req, res) => {
 
 // GET /api/debts/:id - Get debt by ID
 router.get('/:id', catchAsync(async (req, res) => {
-  const debt = await Debt.findById(req.params.id);
+  const debt = await Debt.findById(req.params.id, req.businessId);
   
   if (!debt) {
     throw new AppError('Debt not found', 404);
@@ -75,12 +75,12 @@ router.get('/:id', catchAsync(async (req, res) => {
 
 // GET /api/debts/:id/payments - Get payment history for a debt
 router.get('/:id/payments', catchAsync(async (req, res) => {
-  const debt = await Debt.findById(req.params.id);
+  const debt = await Debt.findById(req.params.id, req.businessId);
   if (!debt) {
     throw new AppError('Debt not found', 404);
   }
 
-  const payments = await Debt.getPaymentHistory(req.params.id);
+  const payments = await Debt.getPaymentHistory(req.params.id, req.businessId);
   
   res.json({
     success: true,
@@ -97,7 +97,8 @@ router.post('/', catchAsync(async (req, res) => {
   }
 
   const debtData = {
-    ...req.body
+    ...req.body,
+    businessId: req.businessId
   };
 
   const debt = await Debt.create(debtData);
@@ -115,7 +116,7 @@ router.post('/', catchAsync(async (req, res) => {
 
 // PUT /api/debts/:id - Update debt
 router.put('/:id', catchAsync(async (req, res) => {
-  const debt = await Debt.findById(req.params.id);
+  const debt = await Debt.findById(req.params.id, req.businessId);
   if (!debt) {
     throw new AppError('Debt not found', 404);
   }
@@ -126,7 +127,7 @@ router.put('/:id', catchAsync(async (req, res) => {
     throw new AppError(`Validation failed: ${errors.join(', ')}`, 400);
   }
 
-  const updatedDebt = await Debt.update(req.params.id, req.body);
+  const updatedDebt = await Debt.update(req.params.id, req.body, req.businessId);
   
   // Real-time broadcast
   req.app.locals.broadcastDataChange('debt', updatedDebt);
@@ -151,12 +152,12 @@ router.post('/:id/payment', catchAsync(async (req, res) => {
     throw new AppError('Valid payment method is required (cash, mpesa, bank)', 400);
   }
 
-  const debt = await Debt.findById(req.params.id);
+  const debt = await Debt.findById(req.params.id, req.businessId);
   if (!debt) {
     throw new AppError('Debt not found', 404);
   }
 
-  const updatedDebt = await Debt.makePayment(req.params.id, amount, payment_method);
+  const updatedDebt = await Debt.makePayment(req.params.id, amount, payment_method, req.businessId);
   
   // Real-time broadcast
   req.app.locals.broadcastDataChange('debt', updatedDebt);
@@ -171,12 +172,12 @@ router.post('/:id/payment', catchAsync(async (req, res) => {
 
 // DELETE /api/debts/:id - Delete debt
 router.delete('/:id', catchAsync(async (req, res) => {
-  const debt = await Debt.findById(req.params.id);
+  const debt = await Debt.findById(req.params.id, req.businessId);
   if (!debt) {
     throw new AppError('Debt not found', 404);
   }
 
-  await Debt.delete(req.params.id);
+  await Debt.delete(req.params.id, req.businessId);
   
   // Real-time broadcast
   req.app.locals.broadcastDataChange('debt', { id: req.params.id, deleted: true });

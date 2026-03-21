@@ -40,7 +40,7 @@ const clearDashboardCache = () => {
 
 // GET /api/dashboard/stats - Get dashboard statistics
 router.get('/stats', catchAsync(async (req, res) => {
-  const cacheKey = 'dashboard:stats';
+  const cacheKey = `dashboard:stats:${req.businessId}`;
   
   try {
     // Try to get from cache first
@@ -53,23 +53,23 @@ router.get('/stats', catchAsync(async (req, res) => {
       const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
       
       // Get sales summary
-      const salesSummary = (await Sale.getSummary()) || {};
-      const todaySales = (await Sale.getSummary({ date_from: startOfDay, date_to: today })) || {};
-      const monthlySales = (await Sale.getSummary({ date_from: startOfMonth, date_to: today })) || {};
+      const salesSummary = (await Sale.getSummary({}, req.businessId)) || {};
+      const todaySales = (await Sale.getSummary({ date_from: startOfDay, date_to: today }, req.businessId)) || {};
+      const monthlySales = (await Sale.getSummary({ date_from: startOfMonth, date_to: today }, req.businessId)) || {};
       
       // Get expenses summary
-      const expensesSummary = (await Expense.getSummary()) || {};
-      const todayExpenses = (await Expense.getSummary({ date_from: startOfDay, date_to: today })) || {};
-      const monthlyExpenses = (await Expense.getSummary({ date_from: startOfMonth, date_to: today })) || {};
+      const expensesSummary = (await Expense.getSummary({}, req.businessId)) || {};
+      const todayExpenses = (await Expense.getSummary({ date_from: startOfDay, date_to: today }, req.businessId)) || {};
+      const monthlyExpenses = (await Expense.getSummary({ date_from: startOfMonth, date_to: today }, req.businessId)) || {};
       
       // Get debts summary
-      const debtsSummary = (await Debt.getSummary()) || {};
-      const todayDebts = (await Debt.getSummary({ date_from: startOfDay, date_to: today })) || {};
-      const monthlyDebts = (await Debt.getSummary({ date_from: startOfMonth, date_to: today })) || {};
+      const debtsSummary = (await Debt.getSummary({}, req.businessId)) || {};
+      const todayDebts = (await Debt.getSummary({ date_from: startOfDay, date_to: today }, req.businessId)) || {};
+      const monthlyDebts = (await Debt.getSummary({ date_from: startOfMonth, date_to: today }, req.businessId)) || {};
       
       // Get low stock
-      const lowStockProducts = (await Product.getLowStock()) || [];
-      const inventoryValuation = (await Product.getValuation()) || 0;
+      const lowStockProducts = (await Product.getLowStock(req.businessId)) || [];
+      const inventoryValuation = (await Product.getValuation(req.businessId)) || 0;
       
       stats = {
         sales: {
@@ -124,20 +124,20 @@ router.get('/stats', catchAsync(async (req, res) => {
 
 // GET /api/dashboard/charts - Get chart data
 router.get('/charts', catchAsync(async (req, res) => {
-  const cacheKey = 'dashboard:charts';
+  const cacheKey = `dashboard:charts:${req.businessId}`;
   
   try {
     let chartData = getFromCache(cacheKey);
     
     if (!chartData) {
       // Get daily sales for the last 7 days
-      const dailySales = (await Sale.getDailySales(7)) || [];
+      const dailySales = (await Sale.getDailySales(7, req.businessId)) || [];
       
       // Get top selling products
-      const topProducts = (await Sale.getTopProducts(10)) || [];
+      const topProducts = (await Sale.getTopProducts(10, req.businessId)) || [];
       
       // Get sales by payment method
-      const salesSummary = (await Sale.getSummary()) || {};
+      const salesSummary = (await Sale.getSummary({}, req.businessId)) || {};
       const paymentDistribution = {
         cash: Number(salesSummary.cash_sales || 0),
         mpesa: Number(salesSummary.mpesa_sales || 0),
@@ -145,7 +145,7 @@ router.get('/charts', catchAsync(async (req, res) => {
       };
       
       // Get expenses by category
-      const expensesByCategory = (await Expense.getByCategory()) || [];
+      const expensesByCategory = (await Expense.getByCategory(req.businessId)) || [];
       
       chartData = {
         daily_sales: dailySales,
@@ -175,7 +175,7 @@ router.get('/charts', catchAsync(async (req, res) => {
 // GET /api/dashboard/weekly-expenses - Get weekly expenses (Mon–Sun)
 router.get('/weekly-expenses', catchAsync(async (req, res) => {
   try {
-    const weekly = await Expense.getWeeklyExpenses();
+    const weekly = await Expense.getWeeklyExpenses(req.businessId);
     res.json({ success: true, data: weekly });
   } catch (error) {
     console.error('Weekly expenses fetch failed:', error);
@@ -190,11 +190,11 @@ router.get('/recent-activities', catchAsync(async (req, res) => {
     const halfLimit = Math.ceil(limit / 2);
 
     // Use findPaginated for proper limit support
-    const salesResult = await Sale.findPaginated({}, { page: 1, perPage: halfLimit, sortBy: 'created_at', sortDir: 'desc' });
+    const salesResult = await Sale.findPaginated({}, { page: 1, perPage: halfLimit, sortBy: 'created_at', sortDir: 'desc' }, req.businessId);
     const recentSales = salesResult.items || [];
 
     // Get recent expenses (findAll supports ordering already)
-    const allExpenses = await Expense.findAll({});
+    const allExpenses = await Expense.findAll({}, req.businessId);
     const recentExpenses = (allExpenses || []).slice(0, halfLimit);
 
     // Normalize to a safe ISO date string
@@ -240,7 +240,7 @@ router.get('/alerts', catchAsync(async (req, res) => {
 
   // Each block is independently guarded so one failure can't produce a 500
   try {
-    const lowStockProducts = (await Product.getLowStock()) || [];
+    const lowStockProducts = (await Product.getLowStock(req.businessId)) || [];
     lowStockProducts.slice(0, 5).forEach(product => {
       alerts.push({
         type: 'warning',
@@ -253,7 +253,7 @@ router.get('/alerts', catchAsync(async (req, res) => {
 
   try {
     // Use getSummary instead of getOverdue (which doesn't exist)
-    const debtSummary = (await Debt.getSummary()) || {};
+    const debtSummary = (await Debt.getSummary({}, req.businessId)) || {};
     const pending = Number(debtSummary.pending_amount || debtSummary.total_outstanding || 0);
     const total = Number(debtSummary.total_debts || 0);
     if (total > 0) {
@@ -271,8 +271,8 @@ router.get('/alerts', catchAsync(async (req, res) => {
     const today = new Date();
     const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
     const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-    const todayExp = (await Expense.getSummary({ date_from: startOfDay, date_to: today })) || {};
-    const monthlyExp = (await Expense.getSummary({ date_from: startOfMonth, date_to: today })) || {};
+    const todayExp = (await Expense.getSummary({ date_from: startOfDay, date_to: today }, req.businessId)) || {};
+    const monthlyExp = (await Expense.getSummary({ date_from: startOfMonth, date_to: today }, req.businessId)) || {};
     const todayAmt = Number(todayExp.total_amount || 0);
     const monthlyAmt = Number(monthlyExp.total_amount || 0);
     const avgDaily = monthlyAmt / (today.getDate() || 1);

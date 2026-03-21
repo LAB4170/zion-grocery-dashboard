@@ -9,7 +9,7 @@ export default function Products() {
   const [error, setError] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
-  const [formData, setFormData] = useState({ name: '', category: '', price: '', stockQuantity: '' });
+  const [formData, setFormData] = useState({ name: '', category: '', price: '', stockQuantity: '', unit: 'pcs' });
 
   const socket = useSocket();
 
@@ -42,11 +42,12 @@ export default function Products() {
         name: product.name, 
         category: product.category, 
         price: product.price, 
-        stockQuantity: product.stockQuantity 
+        stockQuantity: product.stockQuantity,
+        unit: product.unit || 'pcs'
       });
     } else {
       setEditingProduct(null);
-      setFormData({ name: '', category: '', price: '', stockQuantity: '' });
+      setFormData({ name: '', category: '', price: '', stockQuantity: '', unit: 'pcs' });
     }
     setIsModalOpen(true);
   };
@@ -132,7 +133,7 @@ export default function Products() {
                       fontSize: '12px',
                       fontWeight: 700
                     }}>
-                      {product.stockQuantity} units left
+                      {product.stockQuantity} {product.unit || 'pcs'} left
                     </div>
                   </td>
                   <td data-label="Actions">
@@ -193,12 +194,27 @@ export default function Products() {
                 </div>
                 <div className="input-group">
                   <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Package size={14} /> Stock Qty</label>
-                  <input 
-                    type="number" 
-                    value={formData.stockQuantity} 
-                    onChange={e => setFormData({...formData, stockQuantity: e.target.value})} 
-                    required 
-                  />
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <input 
+                      type="number" 
+                      step="0.01"
+                      value={formData.stockQuantity} 
+                      onChange={e => setFormData({...formData, stockQuantity: e.target.value})} 
+                      required 
+                      style={{ flex: 1 }}
+                    />
+                    <select 
+                      value={formData.unit} 
+                      onChange={e => setFormData({...formData, unit: e.target.value})}
+                      style={{ padding: '0 12px', borderRadius: '10px', background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }}
+                    >
+                      <option value="pcs">Pieces (pcs)</option>
+                      <option value="kg">Kilograms (kg)</option>
+                      <option value="g">Grams (g)</option>
+                      <option value="l">Liters (L)</option>
+                      <option value="ml">Milliliters (ml)</option>
+                    </select>
+                  </div>
                 </div>
               </div>
               <button type="submit" className="btn-primary" style={{ padding: '14px', fontSize: '16px', marginTop: '12px' }}>

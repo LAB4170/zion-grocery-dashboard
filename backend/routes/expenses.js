@@ -13,7 +13,7 @@ router.get('/', catchAsync(async (req, res) => {
     search: req.query.search
   };
 
-  const expenses = await Expense.findAll(filters);
+  const expenses = await Expense.findAll(filters, req.businessId);
   
   res.json({
     success: true,
@@ -29,7 +29,7 @@ router.get('/summary', catchAsync(async (req, res) => {
     date_to: req.query.date_to
   };
 
-  const summary = await Expense.getSummary(filters);
+  const summary = await Expense.getSummary(filters, req.businessId);
   
   res.json({
     success: true,
@@ -42,7 +42,7 @@ router.get('/categories', catchAsync(async (req, res) => {
   if (typeof Expense.getByCategory !== 'function') {
     return res.status(501).json({ success: false, message: 'Expenses categories endpoint not implemented' });
   }
-  const categories = await Expense.getByCategory();
+  const categories = await Expense.getByCategory(req.businessId);
   
   res.json({
     success: true,
@@ -56,7 +56,7 @@ router.get('/monthly', catchAsync(async (req, res) => {
   if (typeof Expense.getMonthlyExpenses !== 'function') {
     return res.status(501).json({ success: false, message: 'Expenses monthly endpoint not implemented' });
   }
-  const monthlyExpenses = await Expense.getMonthlyExpenses(months);
+  const monthlyExpenses = await Expense.getMonthlyExpenses(months, req.businessId);
   
   res.json({
     success: true,
@@ -66,7 +66,7 @@ router.get('/monthly', catchAsync(async (req, res) => {
 
 // GET /api/expenses/:id - Get expense by ID
 router.get('/:id', catchAsync(async (req, res) => {
-  const expense = await Expense.findById(req.params.id);
+  const expense = await Expense.findById(req.params.id, req.businessId);
   
   if (!expense) {
     throw new AppError('Expense not found', 404);
@@ -88,7 +88,8 @@ router.post('/', catchAsync(async (req, res) => {
 
   const expenseData = {
     ...req.body,
-    created_by: req.body.created_by || 'system'
+    created_by: req.body.created_by || 'system',
+    businessId: req.businessId
   };
 
   const expense = await Expense.create(expenseData);
@@ -106,7 +107,7 @@ router.post('/', catchAsync(async (req, res) => {
 
 // PUT /api/expenses/:id - Update expense
 router.put('/:id', catchAsync(async (req, res) => {
-  const expense = await Expense.findById(req.params.id);
+  const expense = await Expense.findById(req.params.id, req.businessId);
   if (!expense) {
     throw new AppError('Expense not found', 404);
   }
@@ -117,7 +118,7 @@ router.put('/:id', catchAsync(async (req, res) => {
     throw new AppError(`Validation failed: ${errors.join(', ')}`, 400);
   }
 
-  const updatedExpense = await Expense.update(req.params.id, req.body);
+  const updatedExpense = await Expense.update(req.params.id, req.body, req.businessId);
   
   // Real-time broadcast
   req.app.locals.broadcastDataChange('expense', updatedExpense);
@@ -132,7 +133,7 @@ router.put('/:id', catchAsync(async (req, res) => {
 
 // PATCH /api/expenses/:id/approve - Approve expense
 router.patch('/:id/approve', catchAsync(async (req, res) => {
-  const expense = await Expense.findById(req.params.id);
+  const expense = await Expense.findById(req.params.id, req.businessId);
   if (!expense) {
     throw new AppError('Expense not found', 404);
   }
@@ -140,7 +141,7 @@ router.patch('/:id/approve', catchAsync(async (req, res) => {
   if (typeof Expense.approve !== 'function') {
     return res.status(501).json({ success: false, message: 'Expense approve endpoint not implemented' });
   }
-  const approvedExpense = await Expense.approve(req.params.id, 'system');
+  const approvedExpense = await Expense.approve(req.params.id, 'system', req.businessId);
   
   res.json({
     success: true,
@@ -152,7 +153,7 @@ router.patch('/:id/approve', catchAsync(async (req, res) => {
 
 // PATCH /api/expenses/:id/reject - Reject expense
 router.patch('/:id/reject', catchAsync(async (req, res) => {
-  const expense = await Expense.findById(req.params.id);
+  const expense = await Expense.findById(req.params.id, req.businessId);
   if (!expense) {
     throw new AppError('Expense not found', 404);
   }
@@ -160,7 +161,7 @@ router.patch('/:id/reject', catchAsync(async (req, res) => {
   if (typeof Expense.reject !== 'function') {
     return res.status(501).json({ success: false, message: 'Expense reject endpoint not implemented' });
   }
-  const rejectedExpense = await Expense.reject(req.params.id, 'system');
+  const rejectedExpense = await Expense.reject(req.params.id, 'system', req.businessId);
   
   res.json({
     success: true,
@@ -172,12 +173,12 @@ router.patch('/:id/reject', catchAsync(async (req, res) => {
 
 // DELETE /api/expenses/:id - Delete expense
 router.delete('/:id', catchAsync(async (req, res) => {
-  const expense = await Expense.findById(req.params.id);
+  const expense = await Expense.findById(req.params.id, req.businessId);
   if (!expense) {
     throw new AppError('Expense not found', 404);
   }
 
-  await Expense.delete(req.params.id);
+  await Expense.delete(req.params.id, req.businessId);
   
   // Real-time broadcast
   req.app.locals.broadcastDataChange('expense', { id: req.params.id, deleted: true });

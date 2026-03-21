@@ -52,13 +52,14 @@ export default function Sales() {
     }
   };
 
-  const updateQuantity = (id, delta) => {
+  const setQuantity = (id, newQty) => {
     setCart(cart.map(item => {
       if (item.id === id) {
-        const newQty = item.quantity + delta;
+        const val = parseFloat(newQty);
+        if (isNaN(val)) return item;
         const product = products.find(p => p.id === id);
-        if (newQty > product.stockQuantity) return item;
-        return newQty > 0 ? { ...item, quantity: newQty } : item;
+        if (val > product.stockQuantity) return item;
+        return val > 0 ? { ...item, quantity: val } : item;
       }
       return item;
     }));
@@ -140,7 +141,7 @@ export default function Sales() {
               <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '12px' }}>{p.category}</p>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
                 <span style={{ fontWeight: 800, fontSize: '16px' }}>KSh {p.price}</span>
-                <span style={{ fontSize: '11px', color: p.stockQuantity < 5 ? 'var(--danger)' : 'var(--text-muted)' }}>{p.stockQuantity} in stock</span>
+                <span style={{ fontSize: '11px', color: p.stockQuantity < 5 ? 'var(--danger)' : 'var(--text-muted)' }}>{p.stockQuantity} {p.unit || 'pcs'}</span>
               </div>
             </div>
           ))}
@@ -167,12 +168,19 @@ export default function Sales() {
                 <button onClick={() => removeFromCart(item.id)} style={{ color: 'var(--danger)', opacity: 0.6 }}><Trash2 size={14} /></button>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', background: 'var(--bg)', padding: '4px 8px', borderRadius: '8px' }}>
-                    <button onClick={() => updateQuantity(item.id, -1)}><Minus size={14} /></button>
-                    <span style={{ fontWeight: 800, minWidth: '20px', textAlign: 'center' }}>{item.quantity}</span>
-                    <button onClick={() => updateQuantity(item.id, 1)}><Plus size={14} /></button>
+                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--bg)', padding: '4px 8px', borderRadius: '8px' }}>
+                    <button onClick={() => setQuantity(item.id, item.quantity - 1)}><Minus size={14} /></button>
+                    <input 
+                      type="number" 
+                      step="0.01"
+                      value={item.quantity}
+                      onChange={(e) => setQuantity(item.id, e.target.value)}
+                      style={{ width: '40px', textAlign: 'center', background: 'transparent', border: 'none', fontWeight: 800, color: 'var(--text)', outline: 'none', fontSize: '14px' }}
+                    />
+                    <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 700 }}>{item.unit || 'pcs'}</span>
+                    <button onClick={() => setQuantity(item.id, item.quantity + 1)}><Plus size={14} /></button>
                  </div>
-                 <span style={{ fontWeight: 800 }}>KSh {item.price * item.quantity}</span>
+                 <span style={{ fontWeight: 800 }}>KSh {(item.price * item.quantity).toFixed(2)}</span>
               </div>
             </div>
           ))}

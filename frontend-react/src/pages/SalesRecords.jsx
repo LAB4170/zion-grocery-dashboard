@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Search, Download, Pencil, Trash2, Eye, X, Save, AlertTriangle, CheckCircle } from 'lucide-react';
 import api from '../services/api';
 import { useSocket } from '../context/SocketContext';
+import { useBusiness } from '../context/BusinessContext';
 
 const METHOD_COLORS = {
   cash:  { bg: '#10B98118', color: '#10B981', label: 'CASH' },
@@ -118,7 +119,7 @@ function EditModal({ sale, onClose, onSaved }) {
           {opts.select.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
       ) : (
-        <input type={type} value={form[key]} onChange={e => set(key, e.target.value)}
+        <input type={type} step={type === 'number' ? '0.01' : undefined} value={form[key]} onChange={e => set(key, e.target.value)}
           style={{ padding: '10px 12px', borderRadius: '10px', background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)', fontSize: '14px', fontWeight: 600 }} />
       )}
     </div>
@@ -167,6 +168,7 @@ function EditModal({ sale, onClose, onSaved }) {
 
 // ── Main Component ──
 export default function SalesRecords() {
+  const { business } = useBusiness();
   const [sales, setSales] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -238,11 +240,13 @@ export default function SalesRecords() {
       s.paymentMethod, s.customerName || '', s.customerPhone || '', s.status,
       new Date(s.createdAt).toLocaleString('en-KE')
     ]);
-    const csv = [headers, ...rows].map(r => r.map(c => `"${c}"`).join(',')).join('\n');
-    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+    const csvContent = [headers, ...rows].map(r => r.map(c => `"${c}"`).join(',')).join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url; a.download = `zion-sales-${new Date().toISOString().slice(0, 10)}.csv`; a.click();
-    URL.revokeObjectURL(url);
+    const prefix = business?.name ? `${business.name.toLowerCase().replace(/\s+/g, '-')}-` : '';
+    a.href = url; a.download = `${prefix}sales-${new Date().toISOString().slice(0, 10)}.csv`; a.click();
+    window.URL.revokeObjectURL(url);
   };
 
   const filteredSales = sales.filter(s => {

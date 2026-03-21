@@ -82,10 +82,11 @@ const productRoutes = require('./routes/products');
 const salesRoutes = require('./routes/sales');
 const expenseRoutes = require('./routes/expenses');
 const debtRoutes = require('./routes/debts');
+const businessRoutes = require('./routes/businesses');
 
 // Import middleware
 const { errorHandler } = require('./middleware/errorHandler');
-const { verifyToken } = require('./middleware/firebase-auth');
+const { requireBusinessAuth } = require('./middleware/auth');
 
 // Security middleware
 app.use(helmet({
@@ -284,11 +285,12 @@ app.get('/api/test-db', async (req, res) => {
 });
 
 // API routes
-app.use('/api/products', verifyToken, productRoutes);
-app.use('/api/sales', verifyToken, salesRoutes);
-app.use('/api/expenses', verifyToken, expenseRoutes);
-app.use('/api/debts', verifyToken, debtRoutes);
-app.use('/api/dashboard', verifyToken, dashboardRoutes);
+app.use('/api/business', requireBusinessAuth, businessRoutes);
+app.use('/api/products', requireBusinessAuth, productRoutes);
+app.use('/api/sales', requireBusinessAuth, salesRoutes);
+app.use('/api/expenses', requireBusinessAuth, expenseRoutes);
+app.use('/api/debts', requireBusinessAuth, debtRoutes);
+app.use('/api/dashboard', requireBusinessAuth, dashboardRoutes);
 
 // Handle React frontend routing - Catch all to serve index.html
 app.get('*', (req, res) => {

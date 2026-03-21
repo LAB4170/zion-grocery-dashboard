@@ -25,7 +25,7 @@ router.get('/', catchAsync(async (req, res) => {
       perPage: perPage || 25,
       sortBy,
       sortDir
-    });
+    }, req.businessId);
 
     return res.json({
       success: true,
@@ -42,7 +42,7 @@ router.get('/', catchAsync(async (req, res) => {
   }
 
   // Backward compatible: return full list if no pagination requested
-  const sales = await Sale.findAll(filters);
+  const sales = await Sale.findAll(filters, req.businessId);
   
   res.json({
     success: true,
@@ -58,7 +58,7 @@ router.get('/summary', catchAsync(async (req, res) => {
     date_to: req.query.date_to
   };
 
-  const summary = await Sale.getSummary(filters);
+  const summary = await Sale.getSummary(filters, req.businessId);
   
   res.json({
     success: true,
@@ -72,7 +72,7 @@ router.get('/daily', catchAsync(async (req, res) => {
   if (typeof Sale.getDailySales !== 'function') {
     return res.status(501).json({ success: false, message: 'Sales daily stats endpoint not implemented' });
   }
-  const dailySales = await Sale.getDailySales(days);
+  const dailySales = await Sale.getDailySales(days, req.businessId);
   
   res.json({
     success: true,
@@ -85,7 +85,7 @@ router.get('/weekly', catchAsync(async (req, res) => {
   if (typeof Sale.getWeeklySales !== 'function') {
     return res.status(501).json({ success: false, message: 'Sales weekly endpoint not implemented' });
   }
-  const weekly = await Sale.getWeeklySales();
+  const weekly = await Sale.getWeeklySales(req.businessId);
   res.json({ success: true, data: weekly });
 }));
 
@@ -95,7 +95,7 @@ router.get('/top-products', catchAsync(async (req, res) => {
   if (typeof Sale.getTopProducts !== 'function') {
     return res.status(501).json({ success: false, message: 'Sales top-products endpoint not implemented' });
   }
-  const topProducts = await Sale.getTopProducts(limit);
+  const topProducts = await Sale.getTopProducts(limit, req.businessId);
   
   res.json({
     success: true,
@@ -105,7 +105,7 @@ router.get('/top-products', catchAsync(async (req, res) => {
 
 // GET /api/sales/:id - Get sale by ID
 router.get('/:id', catchAsync(async (req, res) => {
-  const sale = await Sale.findById(req.params.id);
+  const sale = await Sale.findById(req.params.id, req.businessId);
   
   if (!sale) {
     throw new AppError('Sale not found', 404);
@@ -128,7 +128,7 @@ router.post('/', catchAsync(async (req, res) => {
   // FIX: Pass complete sale data without modifying it
   const saleData = {
     ...req.body,
-    // Don't override total if already calculated correctly in frontend
+    businessId: req.businessId,
     total: req.body.total || (parseFloat(req.body.unit_price) * parseFloat(req.body.quantity))
   };
 

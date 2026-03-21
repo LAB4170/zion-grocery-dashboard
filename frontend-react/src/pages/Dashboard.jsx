@@ -9,6 +9,9 @@ import {
   Tooltip, ResponsiveContainer, Legend,
   BarChart, Bar
 } from 'recharts';
+import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
+import { useBusiness } from '../context/BusinessContext';
 import api from '../services/api';
 import { useSocket } from '../context/SocketContext';
 
@@ -75,6 +78,10 @@ const MultiLineTooltip = ({ active, payload, label }) => {
 };
 
 export default function Dashboard() {
+  const { currentUser } = useAuth();
+  const { theme } = useTheme();
+  const { business } = useBusiness();
+  
   const [stats, setStats] = useState(null);
   const [chartData, setChartData] = useState([]);
   const [categoryData, setCategoryData] = useState([]);
@@ -225,8 +232,8 @@ export default function Dashboard() {
       {/* Page Header */}
       <header className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '24px' }}>
         <div>
-          <h1 style={{ fontSize: '24px', fontWeight: 800 }}>Dashboard Overview</h1>
-          <p style={{ color: 'var(--text-muted)', marginTop: '4px' }}>Real-time analytics for Zion Grocery.</p>
+          <h2>Dashboard Overview</h2>
+          <p style={{ color: 'var(--text-muted)', marginTop: '4px' }}>Real-time analytics for {business?.name || 'your business'}.</p>
         </div>
         <div className="glass" style={{ padding: '6px 16px', borderRadius: '20px', fontSize: '13px', fontWeight: 700, color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: '6px' }}>
           <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--accent)', display: 'inline-block', animation: 'pulse 2s infinite' }} />
@@ -259,7 +266,7 @@ export default function Dashboard() {
               <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: 2 }}>Cash • M-Pesa • Debt — last 7 days</p>
             </div>
             <button
-              onClick={() => navigate('/sales-records')}
+              onClick={() => navigate('/app/sales/history')}
               style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 14px', borderRadius: '8px', background: 'var(--accent)', color: '#fff', fontWeight: 700, fontSize: '12px', border: 'none', cursor: 'pointer' }}
             >
               View Records →

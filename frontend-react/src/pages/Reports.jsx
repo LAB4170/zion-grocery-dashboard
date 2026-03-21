@@ -8,6 +8,9 @@ import {
   ShoppingCart, FileText, Download, RefreshCw, AlertTriangle, CheckCircle
 } from 'lucide-react';
 import api from '../services/api';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
+import { useBusiness } from '../context/BusinessContext';
 import { useSocket } from '../context/SocketContext';
 
 const COLORS = ['#10B981', '#3B82F6', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'];
@@ -45,6 +48,7 @@ const ChartTooltip = ({ active, payload, label }) => {
 };
 
 export default function Reports() {
+  const { business } = useBusiness();
   const [data, setData] = useState(null);
   const [allSales, setAllSales] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -121,12 +125,13 @@ export default function Reports() {
     ]);
     const csv = [headers, ...rows].map(r => r.map(v => `"${v}"`).join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
+    const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `zion-sales-report-${new Date().toISOString().slice(0, 10)}.csv`;
+    const prefix = business?.name ? `${business.name.toLowerCase().replace(/\s+/g, '-')}-` : '';
+    a.download = `${prefix}sales-report-${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
-    URL.revokeObjectURL(url);
+    window.URL.revokeObjectURL(url);
     setExporting(false);
   };
 

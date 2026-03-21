@@ -7,22 +7,24 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import { useBusiness } from '../context/BusinessContext';
 
 export default function DashboardLayout() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const { currentUser, logout } = useAuth();
   const { isDarkMode, toggleTheme } = useTheme();
+  const { business } = useBusiness();
   const navigate = useNavigate();
   const location = useLocation();
 
   const menuItems = [
-    { name: 'Overview', path: '/dashboard', icon: LayoutDashboard },
-    { name: 'Reports', path: '/reports', icon: BarChart3 },
-    { name: 'Inventory', path: '/products', icon: Package },
-    { name: 'Sales POS', path: '/sales', icon: ShoppingCart },
-    { name: 'Sales History', path: '/sales/history', icon: History },
-    { name: 'Expenses', path: '/expenses', icon: ArrowRightLeft },
-    { name: 'Debts', path: '/debts', icon: Users },
+    { name: 'Overview', path: '/app/dashboard', icon: LayoutDashboard },
+    { name: 'Reports', path: '/app/reports', icon: BarChart3 },
+    { name: 'Inventory', path: '/app/products', icon: Package },
+    { name: 'Sales POS', path: '/app/sales', icon: ShoppingCart },
+    { name: 'Sales History', path: '/app/sales/history', icon: History },
+    { name: 'Expenses', path: '/app/expenses', icon: ArrowRightLeft },
+    { name: 'Debts', path: '/app/debts', icon: Users },
   ];
 
   const handleLogout = async () => {
@@ -37,7 +39,7 @@ export default function DashboardLayout() {
   return (
     <div className="layout-root">
       <header className="mobile-header glass">
-        <div className="brand">ZION</div>
+        <div className="brand">{business?.name || 'NEXUS'}</div>
         <button className="menu-toggle" onClick={() => setIsSidebarOpen(!isSidebarOpen)}>
           {isSidebarOpen ? <X size={24} /> : <Menu size={24} />}
         </button>
@@ -47,7 +49,7 @@ export default function DashboardLayout() {
         <div className="sidebar-header">
           <div className="brand" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div style={{ width: '32px', height: '32px', background: 'var(--accent)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>Z</div>
-            ZION
+            {business?.name || 'NEXUS'}
           </div>
           <p className="sub-brand">Grocery POS v2</p>
         </div>
@@ -109,14 +111,14 @@ export default function DashboardLayout() {
           <button 
             className="glass" 
             style={{ padding: '8px 16px', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: 700, color: 'var(--text-muted)' }}
-            onClick={() => navigate('/products')}
+            onClick={() => navigate('/app/products')}
           >
             <Package size={16} /> + Product
           </button>
           <button 
             className="btn-primary" 
             style={{ padding: '8px 20px', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: 700 }}
-            onClick={() => navigate('/sales')}
+            onClick={() => navigate('/app/sales')}
           >
             <ShoppingCart size={16} /> New Sale
           </button>

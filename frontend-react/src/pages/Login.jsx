@@ -14,7 +14,7 @@ export default function Login() {
     try {
       setError('');
       await loginWithEmail(email, password);
-      navigate('/dashboard');
+      navigate('/app/dashboard');
     } catch {
       setError('Invalid credentials. Please try again.');
     }
@@ -24,7 +24,7 @@ export default function Login() {
     try {
       setError('');
       await loginWithGoogle();
-      navigate('/dashboard');
+      navigate('/app/dashboard');
     } catch {
       setError('Google Sign-In failed. Please try again.');
     }
@@ -33,10 +33,13 @@ export default function Login() {
   return (
     <div className="login-page">
       <div className="login-card glass">
-        <header>
-          <h1>ZION</h1>
-          <p>POS Dashboard v2.0</p>
-        </header>
+        <div className="login-header">
+          <div className="login-logo">
+            <Store size={40} />
+          </div>
+          <h1>NexusPOS</h1>
+          <p>Sign in to your account</p>
+        </div>
 
         {error && <div className="error-alert">{error}</div>}
 
