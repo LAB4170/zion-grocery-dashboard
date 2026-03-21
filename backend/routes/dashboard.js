@@ -9,8 +9,8 @@ const { catchAsync } = require('../middleware/errorHandler');
 // Simple in-memory cache
 const cache = new Map();
 const CACHE_TTL = {
-  stats: 5 * 60 * 1000, // 5 minutes
-  charts: 10 * 60 * 1000 // 10 minutes
+  stats: 60 * 1000,       // 60 seconds — short TTL so daily cards stay accurate
+  charts: 5 * 60 * 1000   // 5 minutes for charts
 };
 
 // Simple cache helper functions
@@ -186,33 +186,44 @@ router.get('/weekly-expenses', catchAsync(async (req, res) => {
 // GET /api/dashboard/recent-activities - Get recent activities
 router.get('/recent-activities', catchAsync(async (req, res) => {
   try {
-    const limit = parseInt(req.query.limit) || 10;
-    
-    // Get recent sales
-    const recentSales = await Sale.findAll({ limit: Math.ceil(limit / 2) });
-    
-    // Get recent expenses
-    const recentExpenses = await Expense.findAll({ limit: Math.ceil(limit / 2) });
-    
+    const limit = Math.min(parseInt(req.query.limit) || 10, 50);
+    const halfLimit = Math.ceil(limit / 2);
+
+    // Use findPaginated for proper limit support
+    const salesResult = await Sale.findPaginated({}, { page: 1, perPage: halfLimit, sortBy: 'created_at', sortDir: 'desc' });
+    const recentSales = salesResult.items || [];
+
+    // Get recent expenses (findAll supports ordering already)
+    const allExpenses = await Expense.findAll({});
+    const recentExpenses = (allExpenses || []).slice(0, halfLimit);
+
+    // Normalize to a safe ISO date string
+    const toISO = (val) => {
+      if (!val) return new Date().toISOString();
+      try { return new Date(val).toISOString(); } catch { return new Date().toISOString(); }
+    };
+
     // Combine and sort by date
     const activities = [
-      ...(recentSales || []).map(sale => ({
+      ...recentSales.map(sale => ({
         id: sale.id,
         type: 'sale',
-        description: `Sale: ${sale.productName || sale.product_name} (${sale.quantity} units)`,
-        amount: sale.total,
-        created_at: sale.createdAt || sale.created_at
+        description: `Sale: ${sale.productName || 'Unknown Product'} (${parseInt(sale.quantity) || 0} units)`,
+        amount: parseFloat(sale.total) || 0,
+        payment_method: sale.paymentMethod || 'cash',
+        created_at: toISO(sale.createdAt || sale.created_at)
       })),
-      ...(recentExpenses || []).map(expense => ({
+      ...recentExpenses.map(expense => ({
         id: expense.id,
         type: 'expense',
-        description: `Expense: ${expense.description}`,
-        amount: expense.amount,
-        created_at: expense.createdAt || expense.created_at
+        description: `Expense: ${expense.description || 'General'}`,
+        amount: parseFloat(expense.amount) || 0,
+        payment_method: null,
+        created_at: toISO(expense.createdAt || expense.created_at)
       }))
     ].sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
      .slice(0, limit);
-    
+
     res.json({
       success: true,
       data: activities
@@ -226,59 +237,60 @@ router.get('/recent-activities', catchAsync(async (req, res) => {
 // GET /api/dashboard/alerts - Get system alerts
 router.get('/alerts', catchAsync(async (req, res) => {
   const alerts = [];
-  
+
+  // Each block is independently guarded so one failure can't produce a 500
   try {
-    // Low stock alerts
     const lowStockProducts = (await Product.getLowStock()) || [];
-    lowStockProducts.forEach(product => {
+    lowStockProducts.slice(0, 5).forEach(product => {
       alerts.push({
         type: 'warning',
         title: 'Low Stock Alert',
-        message: `${product.name} is running low (${product.stock_quantity || product.stock} remaining)`,
-        created_at: new Date()
+        message: `${product.name} is running low (${product.stock_quantity ?? product.stock ?? 0} units left)`,
+        created_at: new Date().toISOString()
       });
     });
-    
-    // Overdue debts alerts
-    const overdueDebts = (await Debt.getOverdue()) || [];
-    if (overdueDebts && overdueDebts.length > 0) {
+  } catch (e) { console.error('[alerts] low stock check failed:', e.message); }
+
+  try {
+    // Use getSummary instead of getOverdue (which doesn't exist)
+    const debtSummary = (await Debt.getSummary()) || {};
+    const pending = Number(debtSummary.pending_amount || debtSummary.total_outstanding || 0);
+    const total = Number(debtSummary.total_debts || 0);
+    if (total > 0) {
       alerts.push({
-        type: 'error',
-        title: 'Overdue Debts',
-        message: `${overdueDebts.length} debt(s) are overdue`,
-        created_at: new Date()
+        type: total > 5 ? 'error' : 'warning',
+        title: 'Outstanding Debts',
+        message: `${total} outstanding debt${total !== 1 ? 's' : ''} totalling KSh ${pending.toLocaleString()}`,
+        created_at: new Date().toISOString()
       });
     }
-    
-    // High expenses alert
+  } catch (e) { console.error('[alerts] debt check failed:', e.message); }
+
+  try {
+    // High expense alert using only getSummary (confirmed to exist)
     const today = new Date();
     const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    const todayExpenses = (await Expense.getSummary({ date_from: startOfDay, date_to: today })) || {};
-    
-    const monthlyExpenses = (await Expense.getMonthlyExpenses(1)) || [];
-    if (monthlyExpenses && monthlyExpenses.length > 0 && monthlyExpenses[0]) {
-      const totalMonthly = Number(monthlyExpenses[0].total_amount || 0);
-      const avgDailyExpense = totalMonthly / 30;
-      if (Number(todayExpenses.total_amount || 0) > avgDailyExpense * 1.5) {
-        alerts.push({
-          type: 'warning',
-          title: 'High Expenses',
-          message: `Today's expenses (KSh ${Number(todayExpenses.total_amount || 0).toLocaleString()}) are above average`,
-          created_at: new Date()
-        });
-      }
+    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    const todayExp = (await Expense.getSummary({ date_from: startOfDay, date_to: today })) || {};
+    const monthlyExp = (await Expense.getSummary({ date_from: startOfMonth, date_to: today })) || {};
+    const todayAmt = Number(todayExp.total_amount || 0);
+    const monthlyAmt = Number(monthlyExp.total_amount || 0);
+    const avgDaily = monthlyAmt / (today.getDate() || 1);
+    if (avgDaily > 0 && todayAmt > avgDaily * 1.5) {
+      alerts.push({
+        type: 'warning',
+        title: 'High Daily Expenses',
+        message: `Today's expenses (KSh ${todayAmt.toLocaleString()}) are 50% above your daily average`,
+        created_at: new Date().toISOString()
+      });
     }
-  } catch (alertErr) {
-    console.error('Non-blocking Dashboard alerts failure:', alertErr);
-  }
-  
-  res.json({
-    success: true,
-    data: alerts
-  });
+  } catch (e) { console.error('[alerts] expense check failed:', e.message); }
+
+  res.json({ success: true, data: alerts });
 }));
 
 module.exports = {
   router,
   clearDashboardCache
 };
+

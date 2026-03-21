@@ -1,40 +1,54 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { 
   TrendingUp, Package, DollarSign, AlertCircle, 
-  ArrowUpRight, ArrowDownRight, ShoppingCart 
+  ArrowUpRight, ArrowDownRight, ShoppingCart, CreditCard
 } from 'lucide-react';
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  BarChart, Bar, Cell
+  BarChart, Bar
 } from 'recharts';
 import api from '../services/api';
 import { useSocket } from '../context/SocketContext';
 
-const StatCard = ({ title, value, icon: Icon, color, trend, trendValue, subtitle }) => (
-  <div className="card-elevated" style={{ padding: '24px' }}>
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-      <div>
-        <span className="stat-title">{title}</span>
-        <h3 className="stat-value" style={{ margin: '8px 0' }}>{value}</h3>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', fontWeight: 700 }}>
-          {trend === 'up' ? (
-            <span style={{ color: 'var(--accent)', display: 'flex', alignItems: 'center' }}>
-              <ArrowUpRight size={14} /> +{trendValue}%
-            </span>
-          ) : (
-            <span style={{ color: 'var(--danger)', display: 'flex', alignItems: 'center' }}>
-              <ArrowDownRight size={14} /> -{trendValue}%
-            </span>
-          )}
-          <span style={{ color: 'var(--text-muted)' }}>{subtitle || 'vs last week'}</span>
-        </div>
+const fmt = (val) => Number(val || 0).toLocaleString('en-KE', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+
+const StatCard = ({ title, value, icon: Icon, color, subtitle, badge }) => (
+  <div className="card-elevated" style={{ padding: '20px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+    <div style={{ flex: 1, minWidth: 0 }}>
+      <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)' }}>{title}</span>
+      <h3 style={{ margin: '8px 0 4px', fontSize: '22px', fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--text)' }}>{value}</h3>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+        {badge && (
+          <span style={{ fontSize: '10px', fontWeight: 700, background: `${color}20`, color, borderRadius: '4px', padding: '2px 6px' }}>
+            {badge}
+          </span>
+        )}
+        <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{subtitle}</span>
       </div>
-      <div className="stat-icon-wrapper" style={{ backgroundColor: `${color}15`, color: color }}>
-        <Icon size={24} />
-      </div>
+    </div>
+    <div style={{ 
+      width: 44, height: 44, borderRadius: '12px', flexShrink: 0, marginLeft: 12,
+      background: `${color}18`, color, display: 'flex', alignItems: 'center', justifyContent: 'center' 
+    }}>
+      <Icon size={22} />
     </div>
   </div>
 );
+
+const CustomTooltip = ({ active, payload, label }) => {
+  if (active && payload && payload.length) {
+    return (
+      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '12px', padding: '12px 16px', boxShadow: 'var(--shadow-lg)' }}>
+        <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px' }}>
+          {label ? new Date(label + 'T00:00:00').toLocaleDateString('en-KE', { weekday: 'short', month: 'short', day: 'numeric' }) : ''}
+        </p>
+        <p style={{ fontSize: '16px', fontWeight: 800, color: 'var(--accent)' }}>KSh {fmt(payload[0]?.value)}</p>
+        <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{payload[0]?.payload?.total_sales || 0} transactions</p>
+      </div>
+    );
+  }
+  return null;
+};
 
 export default function Dashboard() {
   const [stats, setStats] = useState(null);
@@ -43,41 +57,61 @@ export default function Dashboard() {
   const [recentActivities, setRecentActivities] = useState([]);
   const [alerts, setAlerts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState(new Date());
   const socket = useSocket();
 
+  // Tracks whether we're currently back-off waiting after a 429
+  const backoffRef = useRef(false);
+  // Debounce timer for socket-triggered refreshes
+  const debounceRef = useRef(null);
+
   const fetchDashboardData = async () => {
+    if (backoffRef.current) return; // Don't pile up during back-off
+
     try {
       const [statsRes, chartsRes, activitiesRes, alertsRes] = await Promise.allSettled([
         api.get('/dashboard/stats'),
         api.get('/dashboard/charts'),
-        api.get('/dashboard/recent-activities'),
+        api.get('/dashboard/recent-activities?limit=8'),
         api.get('/dashboard/alerts')
       ]);
 
+      // Check for 429 on any response — if hit, back off for 30s
+      const responses = [statsRes, chartsRes, activitiesRes, alertsRes];
+      const hit429 = responses.some(r => r.status === 'rejected' && r.reason?.response?.status === 429);
+      if (hit429) {
+        console.warn('⏳ Rate limited (429). Backing off for 30s...');
+        backoffRef.current = true;
+        setTimeout(() => { backoffRef.current = false; }, 30000);
+        return;
+      }
+
       if (statsRes.status === 'fulfilled' && statsRes.value.data.success) {
         setStats(statsRes.value.data.data);
-      } else {
-        console.error('Stats fetch failed:', statsRes.reason || 'Request not successful');
+      } else if (statsRes.status === 'rejected') {
+        console.error('Stats fetch failed:', statsRes.reason?.message);
       }
 
       if (chartsRes.status === 'fulfilled' && chartsRes.value.data.success) {
         setChartData(chartsRes.value.data.data.daily_sales || []);
         setCategoryData(chartsRes.value.data.data.expenses_by_category || []);
-      } else {
-        console.error('Charts fetch failed:', chartsRes.reason || 'Request not successful');
+      } else if (chartsRes.status === 'rejected') {
+        console.error('Charts fetch failed:', chartsRes.reason?.message);
       }
 
       if (activitiesRes.status === 'fulfilled' && activitiesRes.value.data.success) {
-        setRecentActivities(activitiesRes.value.data.data);
-      } else {
-        console.error('Activities fetch failed:', activitiesRes.reason || 'Request not successful');
+        setRecentActivities(activitiesRes.value.data.data || []);
+      } else if (activitiesRes.status === 'rejected') {
+        console.error('Activities fetch failed:', activitiesRes.reason?.message);
       }
 
       if (alertsRes.status === 'fulfilled' && alertsRes.value.data.success) {
-        setAlerts(alertsRes.value.data.data);
-      } else {
-        console.error('Alerts fetch failed:', alertsRes.reason || 'Request not successful');
+        setAlerts(alertsRes.value.data.data || []);
+      } else if (alertsRes.status === 'rejected') {
+        console.error('Alerts fetch failed:', alertsRes.reason?.message);
       }
+
+      setLastUpdated(new Date());
     } catch (error) {
       console.error('Failed to fetch dashboard data', error);
     } finally {
@@ -85,196 +119,287 @@ export default function Dashboard() {
     }
   };
 
+  // Debounced fetch — socket events trigger this to collapse rapid updates
+  const debouncedFetch = () => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => fetchDashboardData(), 500);
+  };
+
   useEffect(() => {
     fetchDashboardData();
 
-    if (socket) {
-      socket.on('data-update', (data) => {
-        console.log('🔄 Dashboard received real-time update:', data);
-        fetchDashboardData();
-      });
+    // Auto-refresh every 60 seconds (not 30s to reduce request pressure)
+    const refreshInterval = setInterval(fetchDashboardData, 60000);
 
-      socket.on('data-refresh', () => fetchDashboardData());
-    }
+    return () => clearInterval(refreshInterval);
+  }, []);
+
+  useEffect(() => {
+    if (!socket) return;
+
+    socket.on('data-update', (data) => {
+      console.log('🔄 Real-time update:', data.type);
+      debouncedFetch();
+    });
+
+    socket.on('data-refresh', debouncedFetch);
 
     return () => {
-      if (socket) {
-        socket.off('data-update');
-        socket.off('data-refresh');
-      }
+      socket.off('data-update');
+      socket.off('data-refresh');
+      if (debounceRef.current) clearTimeout(debounceRef.current);
     };
   }, [socket]);
 
-  if (loading) return <div className="loading-state">Syncing real-time analytics...</div>;
+  if (loading) return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60vh', gap: '16px' }}>
+      <div style={{ width: 48, height: 48, borderRadius: '50%', border: '4px solid var(--border)', borderTopColor: 'var(--accent)', animation: 'spin 0.8s linear infinite' }} />
+      <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>Syncing analytics...</span>
+    </div>
+  );
+
+  const todayRevenue = stats?.sales?.today_revenue || 0;
+  const todayCash = stats?.sales?.today_cash || 0;
+  const todayMpesa = stats?.sales?.today_mpesa || 0;
+  const todayDebt = stats?.sales?.today_debt || 0;
+  const monthlyRevenue = stats?.sales?.monthly_revenue || 0;
+  const monthlyDebt = stats?.debts?.monthly_debts || 0;
+
+  // Chart Y-axis: smart formatter
+  const yAxisFmt = (val) => {
+    if (val >= 1000000) return `KSh ${(val/1000000).toFixed(1)}M`;
+    if (val >= 1000) return `KSh ${(val/1000).toFixed(0)}k`;
+    return `KSh ${val}`;
+  };
+
+  const formatActivityTime = (iso) => {
+    try {
+      const d = new Date(iso);
+      if (isNaN(d.getTime())) return '—';
+      return d.toLocaleTimeString('en-KE', { hour: '2-digit', minute: '2-digit' });
+    } catch {
+      return '—';
+    }
+  };
+
+  const pmColor = (pm) => {
+    if (pm === 'mpesa') return '#3B82F6';
+    if (pm === 'debt') return '#F59E0B';
+    return '#10B981'; // cash
+  };
+
+  const pmLabel = (pm) => {
+    if (pm === 'mpesa') return 'M-PESA';
+    if (pm === 'debt') return 'DEBT';
+    if (pm === null) return 'EXPENSE';
+    return 'CASH';
+  };
 
   return (
     <div className="dashboard">
-      <header className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+      {/* Page Header */}
+      <header className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '24px' }}>
         <div>
-          <h1>Dashboard Overview</h1>
-          <p>Real-time analytics for Zion Grocery.</p>
+          <h1 style={{ fontSize: '24px', fontWeight: 800 }}>Dashboard Overview</h1>
+          <p style={{ color: 'var(--text-muted)', marginTop: '4px' }}>Real-time analytics for Zion Grocery.</p>
         </div>
-        <div className="glass" style={{ padding: '8px 16px', borderRadius: '20px', fontSize: '13px', fontWeight: 700, color: 'var(--accent)' }}>
-          Live • Last updated {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+        <div className="glass" style={{ padding: '6px 16px', borderRadius: '20px', fontSize: '13px', fontWeight: 700, color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--accent)', display: 'inline-block', animation: 'pulse 2s infinite' }} />
+          Live • {lastUpdated.toLocaleTimeString('en-KE', { hour: '2-digit', minute: '2-digit' })}
         </div>
       </header>
 
-      <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))' }}>
-        <StatCard 
-          title="Today's Revenue" 
-          value={`KSh ${(stats?.sales?.today_revenue || 0).toLocaleString()}`} 
-          icon={TrendingUp} 
-          color="#10B981" 
-          trend="up" 
-          trendValue="Live" 
-          subtitle="Gross sales today"
-        />
-        <StatCard 
-          title="Today's Cash" 
-          value={`KSh ${(stats?.sales?.today_cash || 0).toLocaleString()}`} 
-          icon={DollarSign} 
-          color="#10B981" 
-          trend="up" 
-          trendValue="Live" 
-          subtitle="Cash collected"
-        />
-        <StatCard 
-          title="Today's M-Pesa" 
-          value={`KSh ${(stats?.sales?.today_mpesa || 0).toLocaleString()}`} 
-          icon={ArrowUpRight} 
-          color="#3B82F6" 
-          trend="up" 
-          trendValue="Live" 
-          subtitle="Mobile payments"
-        />
-        <StatCard 
-          title="Today's Debt" 
-          value={`KSh ${(stats?.sales?.today_debt || 0).toLocaleString()}`} 
-          icon={AlertCircle} 
-          color="#F59E0B" 
-          trend="up" 
-          trendValue="Live" 
-          subtitle="New credit sales"
-        />
-        <StatCard 
-          title="Monthly Revenue" 
-          value={`KSh ${(stats?.sales?.monthly_revenue || 0).toLocaleString()}`} 
-          icon={Package} 
-          color="#8B5CF6" 
-          trend="up" 
-          trendValue="Month" 
-          subtitle="Since 1st of month"
-        />
-        <StatCard 
-          title="Monthly Debt" 
-          value={`KSh ${(stats?.debts?.monthly_debts || 0).toLocaleString()}`} 
-          icon={AlertCircle} 
-          color="#EF4444" 
-          trend="up" 
-          trendValue="Month" 
-          subtitle="Total pending this month"
-        />
+      {/* ── TODAY'S STATS ROW ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '20px' }}>
+        <StatCard title="Today's Revenue" value={`KSh ${fmt(todayRevenue)}`} icon={TrendingUp} color="#10B981" subtitle="Total gross today" badge="LIVE" />
+        <StatCard title="Today's Cash" value={`KSh ${fmt(todayCash)}`} icon={DollarSign} color="#059669" subtitle="Cash collected" badge="LIVE" />
+        <StatCard title="Today's M-Pesa" value={`KSh ${fmt(todayMpesa)}`} icon={CreditCard} color="#3B82F6" subtitle="Mobile payments" badge="LIVE" />
+        <StatCard title="Today's Debt" value={`KSh ${fmt(todayDebt)}`} icon={AlertCircle} color="#F59E0B" subtitle="New credit sales" badge="LIVE" />
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1.8fr 1fr', gap: '24px', marginBottom: '24px' }}>
-        <section className="card-elevated" style={{ padding: '24px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
-            <h3 style={{ fontSize: '18px' }}>Revenue Performance</h3>
-            <div className="glass" style={{ padding: '4px 12px', borderRadius: '8px', fontSize: '13px', fontWeight: 600, color: 'var(--text)' }}>
-              Last 7 Days
+      {/* ── MONTHLY STATS ROW ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px', marginBottom: '28px' }}>
+        <StatCard title="Monthly Revenue" value={`KSh ${fmt(monthlyRevenue)}`} icon={Package} color="#8B5CF6" subtitle="Since 1st of month" badge="MTD" />
+        <StatCard title="Monthly Debt" value={`KSh ${fmt(monthlyDebt)}`} icon={ArrowDownRight} color="#EF4444" subtitle="Total pending this month" badge="MTD" />
+      </div>
+
+      {/* ── CHARTS SECTION ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '20px', marginBottom: '24px', overflow: 'hidden' }}>
+        
+        {/* Revenue Performance */}
+        <section className="card-elevated" style={{ padding: '28px', minWidth: 0 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+            <div>
+              <h3 style={{ fontSize: '17px', fontWeight: 800 }}>Revenue Performance</h3>
+              <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: 2 }}>Daily sales revenue — last 7 days</p>
+            </div>
+            <div className="glass" style={{ padding: '4px 14px', borderRadius: '8px', fontSize: '13px', fontWeight: 700, color: 'var(--text)' }}>
+              7 Days
             </div>
           </div>
-          <div style={{ width: '100%', height: 300 }}>
-            <ResponsiveContainer>
-              <AreaChart data={chartData}>
-                <defs>
-                  <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="var(--accent)" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="var(--accent)" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-                <XAxis dataKey="date" stroke="var(--text-muted)" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(str) => new Date(str).toLocaleDateString([], { weekday: 'short' })} />
-                <YAxis stroke="var(--text-muted)" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(val) => `KSh ${val/1000}k`} />
-                <Tooltip 
-                  contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '12px', boxShadow: 'var(--shadow-lg)' }}
-                  itemStyle={{ color: 'var(--text)', fontWeight: 600 }}
-                  labelFormatter={(label) => new Date(label).toLocaleDateString()}
-                />
-                <Area type="monotone" dataKey="total_sales" stroke="var(--accent)" strokeWidth={3} fillOpacity={1} fill="url(#colorSales)" />
-              </AreaChart>
-            </ResponsiveContainer>
+          <div style={{ width: '100%' }}>
+            {chartData.length === 0 ? (
+              <div style={{ height: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 8 }}>
+                <TrendingUp size={32} style={{ color: 'var(--text-muted)', opacity: 0.4 }} />
+                <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>No sales data yet</span>
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={300}>
+                <AreaChart data={chartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="var(--accent)" stopOpacity={0.35}/>
+                      <stop offset="95%" stopColor="var(--accent)" stopOpacity={0.02}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                  <XAxis 
+                    dataKey="date" 
+                    stroke="var(--text-muted)" 
+                    fontSize={11} 
+                    tickLine={false} 
+                    axisLine={false} 
+                    tickFormatter={(str) => {
+                      try { return new Date(str + 'T00:00:00').toLocaleDateString('en-KE', { weekday: 'short' }); }
+                      catch { return str; }
+                    }}
+                  />
+                  <YAxis 
+                    stroke="var(--text-muted)" 
+                    fontSize={11} 
+                    tickLine={false} 
+                    axisLine={false} 
+                    tickFormatter={yAxisFmt}
+                    width={72}
+                  />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Area 
+                    type="monotone" 
+                    dataKey="total_revenue" 
+                    stroke="var(--accent)" 
+                    strokeWidth={2.5} 
+                    fillOpacity={1} 
+                    fill="url(#colorRevenue)" 
+                    dot={{ r: 4, fill: 'var(--accent)', strokeWidth: 0 }}
+                    activeDot={{ r: 6, fill: 'var(--accent)' }}
+                    name="Revenue (KSh)"
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            )}
           </div>
         </section>
 
-        <section className="card-elevated" style={{ padding: '24px' }}>
-          <h3 style={{ fontSize: '18px', marginBottom: '24px' }}>Expense Distribution</h3>
-          <div style={{ width: '100%', height: 260 }}>
-            <ResponsiveContainer>
-              <BarChart data={categoryData} layout="vertical">
-                <XAxis type="number" hide />
-                <YAxis dataKey="category" type="category" stroke="var(--text)" fontSize={11} tickLine={false} axisLine={false} width={80} />
-                <Tooltip cursor={{fill: 'transparent'}} />
-                <Bar dataKey="total_amount" radius={[0, 4, 4, 0]} fill="var(--accent-secondary)" />
-              </BarChart>
-            </ResponsiveContainer>
+        {/* Expense Distribution */}
+        <section className="card-elevated" style={{ padding: '28px', minWidth: 0 }}>
+          <div style={{ marginBottom: '20px' }}>
+            <h3 style={{ fontSize: '17px', fontWeight: 800 }}>Expense Distribution</h3>
+            <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: 2 }}>By category</p>
           </div>
-          <div style={{ marginTop: '20px', maxHeight: '120px', overflowY: 'auto' }}>
+          <div style={{ width: '100%' }}>
+            {categoryData.length === 0 ? (
+              <div style={{ height: 220, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 8 }}>
+                <Package size={28} style={{ color: 'var(--text-muted)', opacity: 0.4 }} />
+                <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>No expense data yet</span>
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={categoryData} layout="vertical" margin={{ left: 8, right: 16 }}>
+                  <XAxis type="number" hide />
+                  <YAxis dataKey="category" type="category" stroke="var(--text-muted)" fontSize={11} tickLine={false} axisLine={false} width={80} />
+                  <Tooltip 
+                    cursor={{ fill: 'var(--border)', opacity: 0.4 }}
+                    formatter={(val) => [`KSh ${fmt(val)}`, 'Amount']}
+                  />
+                  <Bar dataKey="total_amount" radius={[0, 6, 6, 0]} fill="var(--accent-secondary)" />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+          <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {categoryData.slice(0, 4).map((item, idx) => (
-              <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+              <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: 'var(--accent-secondary)' }} />
+                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--accent-secondary)', flexShrink: 0 }} />
                   <span style={{ fontSize: '12px', fontWeight: 600 }}>{item.category}</span>
                 </div>
-                <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>KSh {Number(item.total_amount).toLocaleString()}</span>
+                <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)' }}>KSh {fmt(item.total_amount)}</span>
+              </div>
+            ))}
+            {categoryData.length === 0 && <p style={{ fontSize: '12px', color: 'var(--text-muted)', textAlign: 'center' }}>No categories yet</p>}
+          </div>
+        </section>
+      </div>
+
+      {/* ── ACTIVITIES & ALERTS ── */}
+      <div className="dashboard-grid">
+        {/* Recent Activities */}
+        <section className="dashboard-section glass">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+            <h3 style={{ fontWeight: 800 }}>Recent Activities</h3>
+            <button className="btn-text" style={{ color: 'var(--accent)', fontSize: '13px', fontWeight: 700 }}>View Records</button>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {recentActivities.length === 0 ? (
+              <p className="empty-placeholder">No recent activities found.</p>
+            ) : recentActivities.slice(0, 6).map((act, i) => (
+              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '12px', borderBottom: '1px solid var(--border)' }}>
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center', minWidth: 0 }}>
+                  <div style={{ 
+                    width: 38, height: 38, flexShrink: 0, borderRadius: '10px', 
+                    background: act.type === 'sale' ? `${pmColor(act.payment_method)}18` : 'var(--danger-bg, #FEF2F2)', 
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', 
+                    color: act.type === 'sale' ? pmColor(act.payment_method) : 'var(--danger)' 
+                  }}>
+                    {act.type === 'sale' ? <ShoppingCart size={16} /> : <ArrowDownRight size={16} />}
+                  </div>
+                  <div style={{ minWidth: 0 }}>
+                    <h4 style={{ fontSize: '13px', fontWeight: 700, marginBottom: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '160px' }}>
+                      {act.description}
+                    </h4>
+                    <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{formatActivityTime(act.created_at)}</p>
+                  </div>
+                </div>
+                <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: '8px' }}>
+                  <p style={{ fontWeight: 800, fontSize: '14px', marginBottom: '2px' }}>KSh {fmt(act.amount)}</p>
+                  <span style={{ 
+                    fontSize: '10px', fontWeight: 800, textTransform: 'uppercase', 
+                    background: act.type === 'sale' ? `${pmColor(act.payment_method)}18` : 'var(--danger-bg, #FEF2F2)',
+                    color: act.type === 'sale' ? pmColor(act.payment_method) : 'var(--danger)',
+                    borderRadius: '4px', padding: '2px 6px'
+                  }}>
+                    {act.type === 'sale' ? pmLabel(act.payment_method) : 'EXPENSE'}
+                  </span>
+                </div>
               </div>
             ))}
           </div>
         </section>
-      </div>
 
-      <div className="dashboard-grid">
+        {/* System Alerts */}
         <section className="dashboard-section glass">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-            <h3>Recent Activities</h3>
-            <button className="btn-text" style={{ color: 'var(--accent)', fontSize: '13px', fontWeight: 700 }}>View Records</button>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-             {recentActivities.length === 0 ? <p className="empty-placeholder">No activities found.</p> : recentActivities.slice(0, 5).map((act, i) => (
-               <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '16px', borderBottom: '1px solid var(--border)' }}>
-                 <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                    <div style={{ width: 40, height: 40, borderRadius: '10px', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: act.type === 'sale' ? 'var(--accent)' : 'var(--danger)' }}>
-                      {act.type === 'sale' ? <ShoppingCart size={18} /> : <ArrowDownRight size={18} />}
-                    </div>
-                    <div>
-                      <h4 style={{ fontSize: '14px' }}>{act.description}</h4>
-                      <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{new Date(act.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
-                    </div>
-                 </div>
-                 <div style={{ textAlign: 'right' }}>
-                   <p style={{ fontWeight: 800, fontSize: '15px' }}>KSh {Number(act.amount).toLocaleString()}</p>
-                   <span style={{ fontSize: '11px', color: act.type === 'sale' ? 'var(--accent)' : 'var(--danger)', fontWeight: 700, textTransform: 'uppercase' }}>{act.type}</span>
-                 </div>
-               </div>
-             ))}
-          </div>
-        </section>
-
-        <section className="dashboard-section glass">
-          <h3>System Alerts</h3>
+          <h3 style={{ fontWeight: 800, marginBottom: '20px' }}>System Alerts</h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-             {alerts.length === 0 ? <p className="empty-placeholder">All systems healthy.</p> : alerts.map((alert, i) => (
-               <div key={i} className="glass" style={{ padding: '12px 16px', borderRadius: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                   <div style={{ color: alert.type === 'error' ? 'var(--danger)' : 'var(--accent-secondary)' }}><AlertCircle size={18} /></div>
-                   <div>
-                     <p style={{ fontSize: '14px', fontWeight: 700 }}>{alert.title}</p>
-                     <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{alert.message}</p>
-                   </div>
-                 </div>
-                 <button style={{ padding: '6px 12px', background: 'var(--surface-hover)', borderRadius: '6px', fontSize: '11px', fontWeight: 800 }}>Manage</button>
-               </div>
-             ))}
+            {alerts.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '24px 0' }}>
+                <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#10B98118', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
+                  <ArrowUpRight size={18} style={{ color: '#10B981' }} />
+                </div>
+                <p style={{ fontWeight: 700, fontSize: '14px', color: '#10B981' }}>All systems healthy</p>
+                <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>No alerts at this time</p>
+              </div>
+            ) : alerts.map((alert, i) => (
+              <div key={i} className="glass" style={{ padding: '12px 16px', borderRadius: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <AlertCircle size={18} style={{ color: alert.type === 'error' ? 'var(--danger)' : 'var(--accent-secondary)', flexShrink: 0 }} />
+                  <div>
+                    <p style={{ fontSize: '13px', fontWeight: 700 }}>{alert.title}</p>
+                    <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{alert.message}</p>
+                  </div>
+                </div>
+                <button style={{ padding: '5px 10px', background: 'var(--surface-hover)', borderRadius: '6px', fontSize: '11px', fontWeight: 800, flexShrink: 0, marginLeft: 8 }}>Manage</button>
+              </div>
+            ))}
           </div>
         </section>
       </div>

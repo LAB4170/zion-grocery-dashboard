@@ -94,11 +94,12 @@ app.use(helmet({
 }));
 app.use(compression());
 
-// Rate limiting
+// Rate limiting — skipped in development to avoid 429 feedback loops
 const limiter = rateLimit({
-  windowMs: (process.env.RATE_LIMIT_WINDOW || 15) * 60 * 1000, // 15 minutes
-  max: process.env.RATE_LIMIT_MAX || 1000, // limit each IP to 1000 requests per windowMs
-  message: 'Too many requests from this IP, please try again later.'
+  windowMs: (process.env.RATE_LIMIT_WINDOW || 15) * 60 * 1000,
+  max: parseInt(process.env.RATE_LIMIT_MAX) || 500,
+  skip: () => process.env.NODE_ENV === 'development',
+  message: { success: false, error: 'Too many requests. Please try again later.' }
 });
 app.use('/api/', limiter);
 
