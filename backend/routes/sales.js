@@ -162,6 +162,7 @@ router.put('/:id', catchAsync(async (req, res) => {
   
   // Real-time broadcast
   req.app.locals.broadcastDataChange('sale', updatedSale);
+  req.app.locals.broadcastDataChange('product', { id: updatedSale.product_id });
   
   res.json({
     success: true,
@@ -179,6 +180,9 @@ router.patch('/:id/status', catchAsync(async (req, res) => {
   }
 
   const updatedSale = await Sale.update(req.params.id, { status });
+  
+  // Real-time broadcast
+  req.app.locals.broadcastDataChange('sale', updatedSale);
   
   res.json({
     success: true,

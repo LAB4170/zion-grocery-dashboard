@@ -104,40 +104,40 @@ export default function Dashboard() {
 
       <div className="stats-grid">
         <StatCard 
-          title="Total Sales" 
-          value={`KSh ${(stats?.sales?.total_revenue || 0).toLocaleString()}`} 
+          title="Today's Cash" 
+          value={`KSh ${(stats?.sales?.today_cash || 0).toLocaleString()}`} 
           icon={DollarSign} 
           color="#10B981" 
           trend="up" 
-          trendValue="12.5" 
-          subtitle="All time growth"
+          trendValue="Live" 
+          subtitle="Collected today"
         />
         <StatCard 
-          title="Monthly Revenue" 
-          value={`KSh ${(stats?.sales?.monthly_revenue || 0).toLocaleString()}`} 
-          icon={TrendingUp} 
+          title="Today's M-Pesa" 
+          value={`KSh ${(stats?.sales?.today_mpesa || 0).toLocaleString()}`} 
+          icon={ArrowUpRight} 
           color="#3B82F6" 
           trend="up" 
-          trendValue="4.2" 
-          subtitle="vs last month"
+          trendValue="Live" 
+          subtitle="Mobile payments"
         />
         <StatCard 
-          title="Low Stock" 
-          value={stats?.inventory?.low_stock_count || 0} 
+          title="Today's Debt" 
+          value={`KSh ${(stats?.sales?.today_debt || 0).toLocaleString()}`} 
           icon={AlertCircle} 
-          color="#EF4444" 
-          trend="down" 
-          trendValue="2.1" 
-          subtitle="Alert items"
-        />
-        <StatCard 
-          title="Total Debts" 
-          value={`KSh ${(stats?.debts?.total_outstanding || 0).toLocaleString()}`} 
-          icon={Package} 
           color="#F59E0B" 
           trend="up" 
-          trendValue="8.4" 
-          subtitle="Outstanding"
+          trendValue="Live" 
+          subtitle="Credit sales"
+        />
+        <StatCard 
+          title="Today's Total" 
+          value={`KSh ${(stats?.sales?.today_revenue || 0).toLocaleString()}`} 
+          icon={TrendingUp} 
+          color="#8B5CF6" 
+          trend="up" 
+          trendValue="Live" 
+          subtitle="Gross revenue"
         />
       </div>
 

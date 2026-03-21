@@ -96,7 +96,7 @@ export default function Reports() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '24px', marginBottom: '24px' }}>
+      <div className="reports-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '24px', marginBottom: '24px' }}>
          <section className="card-elevated" style={{ padding: '24px' }}>
             <h3 style={{ marginBottom: '24px', fontSize: '18px' }}>Payment Method Mix</h3>
             <div style={{ width: '100%', height: 300 }}>
@@ -159,12 +159,12 @@ export default function Reports() {
             <tbody>
                {(stats?.inventory?.low_stock_products || []).map((p, i) => (
                  <tr key={i}>
-                    <td style={{ fontWeight: 600 }}>{p.name}</td>
-                    <td>{p.stock} units</td>
-                    <td>
+                    <td className="product-name" style={{ fontWeight: 600 }}>{p.name}</td>
+                    <td data-label="Stock Level">{p.stock} units</td>
+                    <td data-label="Status">
                        <span style={{ padding: '4px 10px', borderRadius: '6px', fontSize: '11px', background: 'rgba(239, 68, 68, 0.1)', color: 'var(--danger)', fontWeight: 800 }}>CRITICAL</span>
                     </td>
-                    <td style={{ fontWeight: 700 }}>KSh {((p.stock || 0) * 150).toLocaleString()}</td>
+                    <td data-label="Valuation" style={{ fontWeight: 700 }}>KSh {((p.stock || 0) * 150).toLocaleString()}</td>
                  </tr>
                ))}
                {(stats?.inventory?.low_stock_count === 0 || !stats?.inventory?.low_stock_products?.length) && (
