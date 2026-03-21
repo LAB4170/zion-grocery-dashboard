@@ -1,7 +1,7 @@
 {
-  "name": "eobordtech-pos",
+  "name": "nexus-pos",
   "version": "1.0.0",
-  "description": "Point of Sale System for Zion Groceries",
+  "description": "Nexus POS - Point of Sale System",
   "main": "backend/server.js",
   "scripts": {
     "start": "cd backend && node server.js",

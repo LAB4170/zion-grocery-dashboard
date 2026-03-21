@@ -331,7 +331,7 @@ if (process.env.NODE_ENV !== 'test') {
   const frontendUrl = process.env.FRONTEND_URL || `http://localhost:${PORT}`;
     
   server.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 Zion Grocery Dashboard (Integrated Server) running on port ${PORT}`);
+    console.log(`🚀 Nexus POS (Integrated Server) running on port ${PORT}`);
     console.log(`📊 Environment: ${environment}`);
     console.log(`🗄️  Database: ${isDevelopment ? 'Local PostgreSQL' : 'Production PostgreSQL'}`);
     console.log(`🏥 Health check: ${frontendUrl}/health`);

@@ -1,7 +1,7 @@
 {
-  "name": "eobordtech-pos-backend",
+  "name": "nexus-pos-backend",
   "version": "1.0.0",
-  "description": "Backend API for Zion Grocery Dashboard - Node.js/Express with PostgreSQL",
+  "description": "Backend API for Nexus POS - Node.js/Express with PostgreSQL",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
