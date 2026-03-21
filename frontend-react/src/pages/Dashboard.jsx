@@ -1,53 +1,47 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { TrendingUp, Package, DollarSign, AlertCircle } from 'lucide-react';
 import api from '../services/api';
 
-const StatCard = ({ title, value, icon: Icon, color, trend }) => (
-  <div className="stat-card">
-    <div className="stat-content">
-      <p className="stat-title">{title}</p>
+const StatCard = ({ title, value, icon: Icon, color }) => (
+  <div className="stat-card glass">
+    <div className="stat-info">
+      <span className="stat-title">{title}</span>
       <h3 className="stat-value">{value}</h3>
-      {trend && <span className="stat-trend">{trend}</span>}
     </div>
-    <div className="stat-icon" style={{ backgroundColor: `${color}15`, color: color }}>
+    <div className="stat-icon-wrapper" style={{ backgroundColor: `${color}10`, color: color }}>
       <Icon size={24} />
     </div>
     <style jsx>{`
       .stat-card {
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 16px;
         padding: 24px;
+        border-radius: var(--radius-lg);
         display: flex;
         justify-content: space-between;
         align-items: center;
-        backdrop-filter: blur(10px);
-        transition: transform 0.2s, border-color 0.2s;
+        transition: var(--transition);
       }
       .stat-card:hover {
         transform: translateY(-4px);
-        border-color: rgba(255, 255, 255, 0.15);
+        border-color: var(--accent);
       }
       .stat-title {
-        color: #8F9BB3;
-        font-size: 14px;
+        display: block;
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
         margin-bottom: 8px;
-        font-weight: 500;
       }
       .stat-value {
-        color: #FFFFFF;
         font-size: 28px;
-        font-weight: 700;
+        font-weight: 800;
+        color: var(--text);
       }
-      .stat-trend {
-        font-size: 12px;
-        color: #1CE783;
-        margin-left: 4px;
-      }
-      .stat-icon {
-        width: 48px;
-        height: 48px;
-        border-radius: 12px;
+      .stat-icon-wrapper {
+        width: 52px;
+        height: 52px;
+        border-radius: var(--radius-md);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -68,124 +62,100 @@ export default function Dashboard() {
     const fetchStats = async () => {
       try {
         const response = await api.get('/dashboard/summary');
-        // Assuming the backend has a summary endpoint, if not we'll handle gracefully
         if (response.data) {
           setStats({
-            totalSales: `KSh ${response.data.totalSales || 0}`,
+            totalSales: `KSh ${(response.data.totalSales || 0).toLocaleString()}`,
             totalProducts: response.data.totalProducts || 0,
             lowStock: response.data.lowStockCount || 0,
-            pendingDebts: `KSh ${response.data.pendingDebts || 0}`
+            pendingDebts: `KSh ${(response.data.pendingDebts || 0).toLocaleString()}`
           });
         }
-      } catch (error) {
-        console.error('Error fetching dashboard stats:', error);
+      } catch (_error) {
+        // Silently handle or show a small toast in real app
       }
     };
     fetchStats();
   }, []);
 
   return (
-    <div className="dashboard-container">
-      <header className="dashboard-header">
-        <h1>Welcome back, Chief</h1>
-        <p>Here's what's happening today at Zion Grocery.</p>
+    <div className="dashboard">
+      <header className="page-header">
+        <h1>Dashboard Overview</h1>
+        <p>Real-time analytics for Zion Grocery.</p>
       </header>
 
       <div className="stats-grid">
-        <StatCard 
-          title="Total Sales" 
-          value={stats.totalSales} 
-          icon={DollarSign} 
-          color="#6B48FF" 
-          trend="+12.5%" 
-        />
-        <StatCard 
-          title="Active Products" 
-          value={stats.totalProducts} 
-          icon={Package} 
-          color="#1CE783" 
-        />
-        <StatCard 
-          title="Low Stock Items" 
-          value={stats.lowStock} 
-          icon={AlertCircle} 
-          color="#FF4D4D" 
-        />
-        <StatCard 
-          title="Pending Debts" 
-          value={stats.pendingDebts} 
-          icon={TrendingUp} 
-          color="#FFD700" 
-        />
+        <StatCard title="Total Sales" value={stats.totalSales} icon={DollarSign} color="#10B981" />
+        <StatCard title="Inventory" value={stats.totalProducts} icon={Package} color="#3B82F6" />
+        <StatCard title="Low Stock" value={stats.lowStock} icon={AlertCircle} color="#EF4444" />
+        <StatCard title="Total Debts" value={stats.pendingDebts} icon={TrendingUp} color="#F59E0B" />
       </div>
 
-      <div className="dashboard-sections">
-        <div className="recent-activity section">
-          <h3>Recent Activity</h3>
-          <div className="empty-state">
-            <p>No recent activity detected.</p>
+      <div className="dashboard-grid">
+        <section className="dashboard-section glass">
+          <h3>Recent Transactions</h3>
+          <div className="empty-placeholder">
+            <p>No transactions recorded today.</p>
           </div>
-        </div>
-        <div className="top-products section">
-          <h3>Top Selling Products</h3>
-          <div className="empty-state">
-            <p>Sales data will appear here.</p>
+        </section>
+        <section className="dashboard-section glass">
+          <h3>Stock Alerts</h3>
+          <div className="empty-placeholder">
+            <p>All inventory levels are healthy.</p>
           </div>
-        </div>
+        </section>
       </div>
 
       <style jsx>{`
-        .dashboard-container {
-          padding: 32px;
-          max-width: 1200px;
-          margin: 0 auto;
+        .dashboard {
+          animation: fadeIn 0.4s ease-out;
         }
-        .dashboard-header {
-          margin-bottom: 40px;
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
         }
-        .dashboard-header h1 {
+        .page-header {
+          margin-bottom: 32px;
+        }
+        .page-header h1 {
           font-size: 32px;
-          font-weight: 700;
-          color: #FFFFFF;
-          margin-bottom: 8px;
+          letter-spacing: -1px;
         }
-        .dashboard-header p {
-          color: #8F9BB3;
-          font-size: 16px;
+        .page-header p {
+          color: var(--text-muted);
+          font-weight: 500;
         }
         .stats-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+          grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
           gap: 24px;
-          margin-bottom: 48px;
+          margin-bottom: 32px;
         }
-        .dashboard-sections {
+        .dashboard-grid {
           display: grid;
-          grid-template-columns: 2fr 1fr;
+          grid-template-columns: 1.5fr 1fr;
           gap: 24px;
         }
-        .section {
-          background: rgba(255, 255, 255, 0.03);
-          border: 1px solid rgba(255, 255, 255, 0.08);
-          border-radius: 16px;
+        .dashboard-section {
           padding: 24px;
+          border-radius: var(--radius-lg);
         }
-        .section h3 {
-          color: #FFFFFF;
+        .dashboard-section h3 {
           font-size: 18px;
           margin-bottom: 20px;
-          font-weight: 600;
         }
-        .empty-state {
+        .empty-placeholder {
+          height: 200px;
           display: flex;
           align-items: center;
           justify-content: center;
-          height: 200px;
-          color: #8F9BB3;
+          color: var(--text-muted);
           font-style: italic;
+          border: 1px dashed var(--border);
+          border-radius: var(--radius-md);
         }
         @media (max-width: 900px) {
-          .dashboard-sections {
+          .dashboard-grid {
             grid-template-columns: 1fr;
           }
         }

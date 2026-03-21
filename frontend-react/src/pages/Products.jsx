@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Plus, Search, Filter } from 'lucide-react';
 import api from '../services/api';
 
 export default function Products() {
@@ -13,51 +14,64 @@ export default function Products() {
   const fetchProducts = async () => {
     try {
       setLoading(true);
-      // The Axios interceptor automatically attaches the Firebase JWT Token securely!
       const response = await api.get('/products');
       setProducts(response.data);
     } catch (err) {
-      setError(err.message || 'Failed to fetch products from backend');
+      setError(err.message || 'Failed to fetch inventory from backend');
     } finally {
       setLoading(false);
     }
   };
 
-  if (loading) return <div style={{ color: '#fff', fontSize: '1.2rem', textAlign: 'center', marginTop: '4rem' }}>Loading Inventory...</div>;
-  if (error) return <div style={{ color: '#FF3D71', background: 'rgba(255,61,113,0.1)', padding: '1rem', borderRadius: '8px', borderLeft: '4px solid #FF3D71' }}>{error}</div>;
+  if (loading) return <div className="loading-state">Loading Inventory...</div>;
+  if (error) return <div className="error-message">{error}</div>;
 
   return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2.5rem' }}>
-        <h1 style={{ fontSize: '2rem', fontWeight: 600, color: '#fff' }}>Products Inventory</h1>
-        <button style={{ padding: '0.75rem 1.5rem', background: 'linear-gradient(135deg, #6B48FF 0%, #5134d1 100%)', color: '#fff', border: 'none', borderRadius: '12px', cursor: 'pointer', fontWeight: 'bold', boxShadow: '0 10px 20px -10px rgba(107, 72, 255, 0.5)' }}>
-          + Add Product
-        </button>
-      </div>
+    <div className="products">
+      <header className="page-header">
+        <h1>Inventory Management</h1>
+        <div className="header-actions">
+          <div className="search-box">
+             <Search size={18} />
+             <input type="text" placeholder="Search products..." />
+          </div>
+          <button className="btn-primary">
+            <Plus size={20} /> Add Product
+          </button>
+        </div>
+      </header>
 
-      <div style={{ background: 'rgba(21, 26, 35, 0.7)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '16px', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+      <div className="table-card glass">
+        <table className="pos-table">
           <thead>
-            <tr style={{ background: 'rgba(255,255,255,0.02)', color: '#8F9BB3', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              <th style={{ padding: '1.25rem 1.5rem', fontWeight: 600 }}>Name</th>
-              <th style={{ padding: '1.25rem 1.5rem', fontWeight: 600 }}>Category</th>
-              <th style={{ padding: '1.25rem 1.5rem', fontWeight: 600 }}>Price</th>
-              <th style={{ padding: '1.25rem 1.5rem', fontWeight: 600 }}>Stock</th>
+            <tr>
+              <th>Product Name</th>
+              <th>Category</th>
+              <th>Price</th>
+              <th>Stock Level</th>
+              <th>Status</th>
             </tr>
           </thead>
           <tbody>
             {products.length === 0 ? (
-              <tr><td colSpan="4" style={{ padding: '3rem', textAlign: 'center', color: '#8F9BB3' }}>No products found in the database.</td></tr>
+              <tr><td colSpan="5" className="empty-row">No active products found.</td></tr>
             ) : (
               products.map(product => (
-                <tr key={product.id} style={{ borderTop: '1px solid rgba(255,255,255,0.04)', transition: 'background 0.2s', cursor: 'pointer' }} onMouseEnter={e => e.currentTarget.style.background='rgba(255,255,255,0.02)'} onMouseLeave={e => e.currentTarget.style.background='transparent'}>
-                  <td style={{ padding: '1.25rem 1.5rem', color: '#fff', fontWeight: 500 }}>{product.name}</td>
-                  <td style={{ padding: '1.25rem 1.5rem', color: '#8F9BB3' }}>{product.category}</td>
-                  <td style={{ padding: '1.25rem 1.5rem', color: '#1CE783', fontWeight: 500 }}>KSh {Number(product.price).toLocaleString()}</td>
-                  <td style={{ padding: '1.25rem 1.5rem', color: product.stock_quantity < 10 ? '#FFAA00' : '#fff' }}>
-                    <span style={{ padding: '0.25rem 0.75rem', background: product.stock_quantity < 10 ? 'rgba(255, 170, 0, 0.1)' : 'rgba(255,255,255,0.05)', color: product.stock_quantity < 10 ? '#FFAA00' : '#fff', borderRadius: '12px' }}>
-                      {product.stock_quantity}
-                    </span>
+                <tr key={product.id}>
+                  <td className="product-name">{product.name}</td>
+                  <td>{product.category}</td>
+                  <td className="price">KSh {Number(product.price).toLocaleString()}</td>
+                  <td>
+                    <div className="stock-badge" style={{ 
+                      backgroundColor: product.stock_quantity < 10 ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)',
+                      color: product.stock_quantity < 10 ? 'var(--danger)' : 'var(--accent)'
+                    }}>
+                      {product.stock_quantity} in stock
+                    </div>
+                  </td>
+                  <td>
+                    <span className={`status-dot ${product.stock_quantity > 0 ? 'active' : 'inactive'}`}></span>
+                    {product.stock_quantity > 0 ? 'Available' : 'Out of Stock'}
                   </td>
                 </tr>
               ))
@@ -65,6 +79,139 @@ export default function Products() {
           </tbody>
         </table>
       </div>
+
+      <style jsx>{`
+        .products {
+          animation: fadeIn 0.4s ease-out;
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .page-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 32px;
+          gap: 20px;
+          flex-wrap: wrap;
+        }
+        .page-header h1 {
+          font-size: 32px;
+          letter-spacing: -1px;
+        }
+        .header-actions {
+          display: flex;
+          gap: 16px;
+          align-items: center;
+        }
+        .search-box {
+          display: flex;
+          align-items: center;
+          background: var(--surface);
+          border: 1px solid var(--border);
+          padding: 8px 16px;
+          border-radius: var(--radius-md);
+          gap: 12px;
+          min-width: 300px;
+        }
+        .search-box input {
+          background: transparent;
+          border: none;
+          color: var(--text);
+          outline: none;
+          width: 100%;
+          font-weight: 500;
+        }
+        .btn-primary {
+          background-color: var(--accent);
+          color: white;
+          padding: 10px 20px;
+          border-radius: var(--radius-md);
+          font-weight: 600;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+        .btn-primary:hover {
+          background-color: var(--accent-hover);
+          transform: translateY(-1px);
+        }
+        .table-card {
+          border-radius: var(--radius-lg);
+          overflow: hidden;
+        }
+        .pos-table {
+          width: 100%;
+          border-collapse: collapse;
+          text-align: left;
+        }
+        .pos-table th {
+          padding: 16px 24px;
+          background: rgba(255, 255, 255, 0.02);
+          font-size: 13px;
+          font-weight: 700;
+          color: var(--text-muted);
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          border-bottom: 1px solid var(--border);
+        }
+        .pos-table td {
+          padding: 20px 24px;
+          border-bottom: 1px solid var(--border);
+          font-size: 15px;
+          color: var(--text);
+          font-weight: 500;
+        }
+        .product-name {
+          font-weight: 700;
+        }
+        .price {
+          color: var(--accent);
+          font-weight: 700;
+        }
+        .stock-badge {
+          display: inline-block;
+          padding: 4px 12px;
+          border-radius: 20px;
+          font-size: 13px;
+          font-weight: 700;
+        }
+        .status-dot {
+          display: inline-block;
+          width: 10px;
+          height: 10px;
+          border-radius: 50%;
+          margin-right: 8px;
+        }
+        .status-dot.active { background-color: var(--accent); }
+        .status-dot.inactive { background-color: var(--danger); }
+        .empty-row {
+          padding: 48px !important;
+          text-align: center;
+          color: var(--text-muted);
+          font-style: italic;
+        }
+        .loading-state {
+          padding: 100px;
+          text-align: center;
+          color: var(--text-muted);
+          font-size: 18px;
+          font-weight: 600;
+        }
+        .error-message {
+          padding: 24px;
+          background: rgba(239, 68, 68, 0.1);
+          color: var(--danger);
+          border-radius: var(--radius-md);
+          text-align: center;
+          font-weight: 600;
+        }
+        @media (max-width: 600px) {
+          .search-box { min-width: 100%; }
+          .pos-table th:nth-child(2), .pos-table td:nth-child(2) { display: none; }
+        }
+      `}</style>
     </div>
   );
 }

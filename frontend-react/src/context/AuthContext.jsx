@@ -8,8 +8,8 @@ const firebaseConfig = {
   projectId: "eobordtech-pos",
   storageBucket: "eobordtech-pos.firebasestorage.app",
   messagingSenderId: "821131892978",
-  appId: "1:821131892978:web:3d5e9c24fee9676c0c986b",
-  measurementId: "G-ZQB91GF12N"
+  appId: "1:821131892978:web:fb0a5228e05f40ab0c986b",
+  measurementId: "G-XBZ76KWR0E"
 };
 
 // Initialize Firebase App
