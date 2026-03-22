@@ -196,8 +196,16 @@ app.get('*', (req, res) => {
     // Return a more descriptive error instead of crashing/blank 500
     res.status(500).json({ 
       success: false, 
-      message: 'Frontend build not found. Please ensure "npm run build" was successful and files are in the dist folder.',
-      debugPath: indexPath 
+      message: 'Frontend build not found. Please ensure "npm run build" was successful.',
+      debug: {
+        env: process.env.NODE_ENV,
+        cwd: process.cwd(),
+        dirname: __dirname,
+        selectedPath: frontendPath,
+        triedPaths: possibleFrontendPaths,
+        indexPathExists: fs.existsSync(indexPath),
+        indexPath: indexPath
+      }
     });
   }
 });

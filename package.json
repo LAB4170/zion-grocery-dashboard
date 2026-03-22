@@ -9,7 +9,7 @@
     "dev": "cd backend && npm run dev",
     "migrate": "cd backend && npm run migrate",
     "setup": "cd backend && npm install && cd ../frontend && npm install && cd ../backend && npm run migrate",
-    "render-build": "npm install && cd backend && npm install && cd ../frontend-react && npm install && npm run build && cd .. && cp -r frontend-react/dist backend/dist",
+    "render-build": "npm install && cd backend && npm install && cd ../frontend-react && npm install && npm run build && cd .. && rm -rf backend/dist && cp -r frontend-react/dist backend/dist",
     "render-start": "cd backend && node server.js",
     "install-all": "npm install && cd backend && npm install && cd ../frontend-react && npm install"
   },
