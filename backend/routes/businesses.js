@@ -43,8 +43,8 @@ router.post('/', async (req, res) => {
       id: uuidv4(),
       name: name.trim(),
       owner_email: userEmail,
-      subscription_status: 'trial',
-      trial_ends_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+      subscription_status: 'active',
+      subscription_ends_at: new Date('2099-12-31'), // Evergreen subscription
       created_at: new Date(),
       updated_at: new Date()
     };

@@ -88,7 +88,7 @@ const paymentsRoutes = require('./routes/payments');
 // Import middleware
 const { errorHandler } = require('./middleware/errorHandler');
 const { requireBusinessAuth } = require('./middleware/auth');
-const { requireActiveSubscription } = require('./middleware/subscription');
+// const { requireActiveSubscription } = require('./middleware/subscription');
 
 // Security middleware
 app.use(helmet({
@@ -170,12 +170,12 @@ app.get('/health', async (req, res) => {
 });
 
 // API routes
-app.use('/api/business', requireBusinessAuth, requireActiveSubscription, businessRoutes);
-app.use('/api/products', requireBusinessAuth, requireActiveSubscription, productRoutes);
-app.use('/api/sales', requireBusinessAuth, requireActiveSubscription, salesRoutes);
-app.use('/api/expenses', requireBusinessAuth, requireActiveSubscription, expenseRoutes);
-app.use('/api/debts', requireBusinessAuth, requireActiveSubscription, debtRoutes);
-app.use('/api/dashboard', requireBusinessAuth, requireActiveSubscription, dashboardRoutes);
+app.use('/api/business', requireBusinessAuth, businessRoutes);
+app.use('/api/products', requireBusinessAuth, productRoutes);
+app.use('/api/sales', requireBusinessAuth, salesRoutes);
+app.use('/api/expenses', requireBusinessAuth, expenseRoutes);
+app.use('/api/debts', requireBusinessAuth, debtRoutes);
+app.use('/api/dashboard', requireBusinessAuth, dashboardRoutes);
 app.use('/api/payments', requireBusinessAuth, paymentsRoutes);
 
 // Handle React frontend routing - Catch all to serve index.html

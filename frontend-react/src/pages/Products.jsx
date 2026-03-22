@@ -65,12 +65,7 @@ export default function Products() {
       setIsModalOpen(false);
       fetchProducts();
     } catch (err) {
-      if (err.response?.status === 402) {
-        alert(err.response.data.message);
-        navigate('/app/settings');
-      } else {
-        alert(err.response?.data?.message || 'Action failed');
-      }
+      alert(err.response?.data?.message || 'Action failed');
     }
   };
 
@@ -80,12 +75,7 @@ export default function Products() {
       await api.delete(`/products/${id}`);
       fetchProducts();
     } catch (err) {
-      if (err.response?.status === 402) {
-        alert(err.response.data.message);
-        navigate('/app/settings');
-      } else {
-        alert(err.response?.data?.message || 'Delete failed');
-      }
+      alert(err.response?.data?.message || 'Delete failed');
     }
   };
 

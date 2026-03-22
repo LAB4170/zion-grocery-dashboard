@@ -97,91 +97,16 @@ export default function Settings() {
           </div>
         </div>
 
-        {/* Subscription Engine for Daraja MPesa API */}
-        <SubscriptionCard business={business} setBusiness={setBusiness} />
+        {/* Subscription Engine Removed by User Request */}
+        {/* <SubscriptionCard business={business} setBusiness={setBusiness} /> */}
       </div>
     </div>
   );
 }
 
+// Subscription UI Removed
+/*
 function SubscriptionCard({ business, setBusiness }) {
-  const [phone, setPhone] = useState('');
-  const [processing, setProcessing] = useState(false);
-  const [statusMsg, setStatusMsg] = useState({ text: '', type: '' });
-
-  const handleSTKPush = async (e) => {
-    e.preventDefault();
-    if (!phone) return;
-
-    try {
-      setProcessing(true);
-      setStatusMsg({ text: 'Initiating M-Pesa STK Push...', type: 'info' });
-
-      // Trigger the backend Daraja API integration
-      const response = await api.post('/payments/pay', { phone, amount: 1500 });
-      
-      // Update local tenant UI to clear the "Trial" status instantly based on prototype mock response
-      if (response.data.success) {
-        setBusiness({ ...business, subscription_status: 'active', subscription_ends_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() });
-        setStatusMsg({ text: response.data.message, type: 'success' });
-        setPhone('');
-      }
-    } catch (err) {
-      setStatusMsg({ text: err.response?.data?.message || 'M-Pesa payment failed.', type: 'error' });
-    } finally {
-      setProcessing(false);
-    }
-  };
-
-  const isTrial = business?.subscription_status === 'trial';
-  const isActive = business?.subscription_status === 'active';
-  const isPastDue = business?.subscription_status === 'past_due';
-
-  const formatEnd = (dateStr) => dateStr ? new Date(dateStr).toLocaleDateString() : 'N/A';
-
-  return (
-    <div className={`settings-card glass subscription-card ${isPastDue ? 'past-due' : isActive ? 'active-sub' : ''}`}>
-      <div className="card-header">
-         <Store size={24} color={isActive ? "#10B981" : "#F59E0B"} />
-         <h2>Subscription Details</h2>
-      </div>
-      <div className="subscription-status">
-         {isTrial && <span className="badge-pro">14-Day Free Trial</span>}
-         {isActive && <span className="badge-pro" style={{ background: 'rgba(16,185,129,0.1)', color: '#10B981' }}>Active Pro Plan</span>}
-         {isPastDue && <span className="badge-pro" style={{ background: 'rgba(239,68,68,0.1)', color: '#EF4444' }}>Subscription Expired</span>}
-         
-         <div className="billing-dates" style={{ marginTop: 12, marginBottom: 20, color: 'var(--text-muted)' }}>
-           {isTrial && <p>Your automated free trial ends on <strong>{formatEnd(business?.trial_ends_at)}</strong>.</p>}
-           {isActive && <p>Your workspace is active until <strong>{formatEnd(business?.subscription_ends_at)}</strong>.</p>}
-           {isPastDue && <p style={{ color: 'var(--danger)' }}>Workspace is locked to Read-Only mode. Please renew to continue making sales.</p>}
-         </div>
-
-         {!isActive && (
-           <form onSubmit={handleSTKPush} className="mpesa-form">
-              <label style={{ display: 'block', marginBottom: 8, fontSize: 13, fontWeight: 600 }}>Safaricom M-Pesa Number</label>
-              <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-                <input 
-                  type="text" 
-                  value={phone} 
-                  onChange={(e) => setPhone(e.target.value)} 
-                  placeholder="2547XXXXXXXX" 
-                  className="input-premium"
-                  style={{ flex: 1 }}
-                />
-              </div>
-              
-              {statusMsg.text && (
-                <div style={{ fontSize: 13, padding: '8px 12px', background: statusMsg.type === 'error' ? 'rgba(239,68,68,0.1)' : 'rgba(16,185,129,0.1)', color: statusMsg.type === 'error' ? 'var(--danger)' : 'var(--accent)', borderRadius: 6, marginBottom: 16 }}>
-                  {statusMsg.text}
-                </div>
-              )}
-
-              <button type="submit" className="hero-btn-primary" disabled={processing || !phone} style={{ width: '100%', padding: '12px', display: 'flex', justifyContent: 'center', gap: 8, position: 'relative' }}>
-                {processing ? 'Processing...' : 'Pay KSh 1,500 via M-Pesa'}
-              </button>
-           </form>
-         )}
-      </div>
-    </div>
-  );
+  ...
 }
+*/

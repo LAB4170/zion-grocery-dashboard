@@ -102,7 +102,7 @@ export default function DashboardLayout() {
       </aside>
 
       <main className="main-content">
-        <GlobalBillingBanner business={business} navigate={navigate} />
+        {/* <GlobalBillingBanner business={business} navigate={navigate} /> */}
         
         <header className="content-top-bar glass" style={{
           display: 'flex',
@@ -149,43 +149,9 @@ export default function DashboardLayout() {
   );
 }
 
-// Sub-component for globally enforcing visibility of the subscription status
+// Billing Disabled
+/*
 function GlobalBillingBanner({ business, navigate }) {
-  if (!business) return null;
-
-  const status = business.subscription_status;
-  
-  if (status === 'active') return null;
-
-  if (status === 'past_due') {
-    return (
-      <div className="global-billing-banner error">
-        <div className="banner-content">
-          <ArrowRightLeft size={18} />
-          <span><strong>Subscription Expired:</strong> Your workspace is locked in Read-Only mode. Processing new sales is disabled.</span>
-        </div>
-        <button className="btn-renew" onClick={() => navigate('/app/settings')}>Renew MPesa</button>
-      </div>
-    );
-  }
-
-  if (status === 'trial') {
-    const end = new Date(business.trial_ends_at);
-    const now = new Date();
-    const diff = Math.ceil((end - now) / (1000 * 60 * 60 * 24));
-    
-    if (diff <= 3) {
-      return (
-        <div className="global-billing-banner warning">
-          <div className="banner-content">
-            <Settings size={18} />
-            <span><strong>Trial Ending Soon:</strong> You have {diff} day{diff === 1 ? '' : 's'} left of your free trial.</span>
-          </div>
-          <button className="btn-renew" onClick={() => navigate('/app/settings')}>Upgrade Plan</button>
-        </div>
-      );
-    }
-  }
-
-  return null;
+  ...
 }
+*/

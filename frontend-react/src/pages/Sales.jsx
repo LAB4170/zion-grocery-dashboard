@@ -111,21 +111,7 @@ export default function Sales() {
       
       setTimeout(() => setSuccessMessage(''), 5000);
     } catch (err) {
-      if (err.response?.status === 402) {
-        setError(
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <span>{err.response.data.message}</span>
-            <button 
-              onClick={() => navigate('/app/settings')}
-              style={{ padding: '6px 12px', background: 'var(--accent)', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 700, fontSize: '12px', width: 'fit-content' }}
-            >
-              Upgrade Now
-            </button>
-          </div>
-        );
-      } else {
-        setError(err.response?.data?.message || 'Transaction failed. Please check stock levels.');
-      }
+      setError(err.response?.data?.message || 'Transaction failed. Please check stock levels.');
     } finally {
       setIsProcessing(false);
     }
