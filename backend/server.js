@@ -171,19 +171,18 @@ app.get('/health', async (req, res) => {
 });
 // Diagnostic Endpoint for Deployment Issues
 app.get('/api/debug-deploy', (req, res) => {
+  const assetDir = path.join(frontendPath, 'assets');
   res.json({
     timestamp: new Date().toISOString(),
     env: process.env.NODE_ENV,
     cwd: process.cwd(),
     dirname: __dirname,
-    selectedFrontendPath: frontendPath,
-    pathsChecked: possibleFrontendPaths.map(p => ({
-      path: p,
-      exists: fs.existsSync(p),
-      hasIndex: fs.existsSync(path.join(p, 'index.html'))
-    })),
-    rootFiles: fs.existsSync(process.cwd()) ? fs.readdirSync(process.cwd()).slice(0, 20) : 'cannot read cwd',
-    backendFiles: fs.existsSync(__dirname) ? fs.readdirSync(__dirname).slice(0, 20) : 'cannot read dirname'
+    frontendPath,
+    frontendExists: fs.existsSync(frontendPath),
+    indexExists: fs.existsSync(path.join(frontendPath, 'index.html')),
+    assetsExist: fs.existsSync(assetDir),
+    assetFiles: fs.existsSync(assetDir) ? fs.readdirSync(assetDir).slice(0, 10) : [],
+    backendFiles: fs.readdirSync(__dirname).slice(0, 20)
   });
 });
 
@@ -204,21 +203,14 @@ app.get('*', (req, res) => {
   if (fs.existsSync(indexPath)) {
     res.sendFile(indexPath);
   } else {
-    // Return a descriptive error — frontend build is missing
     res.status(500).json({ 
       success: false, 
-      message: 'Frontend build not found. Run npm run build in frontend-react.',
+      message: 'Frontend build not found.',
       frontendPath,
-      exists: fs.existsSync(frontendPath),
-      debug: {
-        env: process.env.NODE_ENV,
-        cwd: process.cwd(),
-        dirname: __dirname,
-        selectedPath: frontendPath,
-        triedPaths: possibleFrontendPaths,
-        indexPathExists: fs.existsSync(indexPath),
-        indexPath: indexPath
-      }
+      frontendExists: fs.existsSync(frontendPath),
+      indexPath,
+      cwd: process.cwd(),
+      dirname: __dirname
     });
   }
 });
