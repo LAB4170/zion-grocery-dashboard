@@ -9,9 +9,9 @@
     "dev": "cd backend && npm run dev",
     "migrate": "cd backend && npm run migrate",
     "setup": "cd backend && npm install && cd ../frontend && npm install && cd ../backend && npm run migrate",
-    "render-build": "cd backend && npm install && cd ../frontend-react && npm install && npm run build && echo '--- Build Output ---' && ls -R dist",
+    "render-build": "npm install && cd backend && npm install && cd ../frontend-react && npm install && npm run build",
     "render-start": "cd backend && node server.js",
-    "install-all": "cd backend && npm install && cd ../frontend-react && npm install"
+    "install-all": "npm install && cd backend && npm install && cd ../frontend-react && npm install"
   },
   "repository": {
     "type": "git",
