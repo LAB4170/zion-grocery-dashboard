@@ -133,18 +133,18 @@ if (process.env.NODE_ENV !== 'production') {
 
 // Robust path resolution for static files
 const possibleFrontendPaths = [
-  path.join(__dirname, 'dist'),                   // Bulletproof Render Location (Copied)
-  path.join(__dirname, '../frontend-react/dist'), // Local development / original structure
-  path.join(process.cwd(), 'dist'),               // Root (if running from root)
-  path.join(process.cwd(), 'backend/dist')        // Render Root + subfolder
+  path.join(__dirname, 'dist'),                     // Standard Bulletproof (backend/dist)
+  path.join(process.cwd(), 'dist'),                 // If running from within backend/
+  path.join(process.cwd(), 'backend/dist'),         // If running from root
+  path.join(__dirname, '../frontend-react/dist'),   // Original structure fallback
+  path.join(process.cwd(), 'frontend-react/dist')   // Root-relative original structure
 ];
 
 const frontendPath = possibleFrontendPaths.find(p => fs.existsSync(p)) || possibleFrontendPaths[0];
 
-console.log('📦 Static Assets Path:', frontendPath);
-if (!fs.existsSync(frontendPath)) {
-  console.warn('⚠️ Warning: Frontend dist directory not found. Please run "npm run render-build".');
-}
+console.log('📡 Static Assets Search:');
+possibleFrontendPaths.forEach(p => console.log(`  - ${p} [${fs.existsSync(p) ? '✅ FOUND' : '❌ NOT FOUND'}]`));
+console.log('🚀 Final Static Path:', frontendPath);
 
 app.use(express.static(frontendPath, {
   maxAge: '1d',
