@@ -146,6 +146,21 @@ console.log('📡 Static Assets Search:');
 possibleFrontendPaths.forEach(p => console.log(`  - ${p} [${fs.existsSync(p) ? '✅ FOUND' : '❌ NOT FOUND'}]`));
 console.log('🚀 Final Static Path:', frontendPath);
 
+// EXTRA-CRITICAL: Serve assets at the TOP level to bypass middleware conflicts
+app.get('/assets/:filename', (req, res) => {
+  const filename = req.params.filename;
+  const targetPath = path.join(frontendPath, 'assets', filename);
+  if (fs.existsSync(targetPath)) {
+    return res.sendFile(targetPath);
+  }
+  // Fallback if not found in assets, try root of disk
+  const directPath = path.join(frontendPath, filename);
+  if (fs.existsSync(directPath)) {
+    return res.sendFile(directPath);
+  }
+  res.status(404).json({ success: false, message: 'Resource not found in dist', path: targetPath });
+});
+
 app.use(express.static(frontendPath, {
   maxAge: '1d',
   etag: true,
