@@ -131,36 +131,23 @@ if (process.env.NODE_ENV !== 'production') {
   app.use(morgan('combined'));
 }
 
-// Robust path resolution for static files (Verified on Render)
-const possibleFrontendPaths = [
-  path.join(__dirname, 'dist'),                     // Standard Bulletproof (backend/dist)
-  path.join(process.cwd(), '../frontend-react/dist'), // VERIFIED: Render root-relative
-  path.join(process.cwd(), 'dist'),                 // If running from within backend/
-  path.join(process.cwd(), 'backend/dist'),         // If running from root
-  path.join(__dirname, '../frontend-react/dist'),   // Local development fallback
-];
+// __dirname is always /opt/render/project/src/backend on Render
+// So this path is deterministic and correct regardless of cwd
+const frontendPath = path.join(__dirname, '../frontend-react/dist');
 
-const frontendPath = possibleFrontendPaths.find(p => fs.existsSync(p)) || possibleFrontendPaths[0];
-
-console.log('📡 Static Assets Search:');
-possibleFrontendPaths.forEach(p => console.log(`  - ${p} [${fs.existsSync(p) ? '✅ FOUND' : '❌ NOT FOUND'}]`));
-console.log('🚀 Final Static Path:', frontendPath);
-
-// EXTRA-CRITICAL: Serve assets at the TOP level to bypass middleware conflicts
-app.get('/assets/:filename', (req, res) => {
-  const filename = req.params.filename;
-  const targetPath = path.join(frontendPath, 'assets', filename);
-  if (fs.existsSync(targetPath)) {
-    return res.sendFile(targetPath);
+console.log('📡 Frontend dist path:', frontendPath);
+console.log('📡 dist exists:', fs.existsSync(frontendPath));
+console.log('📡 index.html exists:', fs.existsSync(path.join(frontendPath, 'index.html')));
+if (fs.existsSync(frontendPath)) {
+  try {
+    const assets = fs.readdirSync(path.join(frontendPath, 'assets')).slice(0, 5);
+    console.log('📡 Sample assets:', assets);
+  } catch (e) {
+    console.log('📡 No assets dir:', e.message);
   }
-  // Fallback if not found in assets, try root of disk
-  const directPath = path.join(frontendPath, filename);
-  if (fs.existsSync(directPath)) {
-    return res.sendFile(directPath);
-  }
-  res.status(404).json({ success: false, message: 'Resource not found in dist', path: targetPath });
-});
+}
 
+// Serve React build — express.static handles all MIME types correctly
 app.use(express.static(frontendPath, {
   maxAge: '1d',
   etag: true,
@@ -220,23 +207,17 @@ app.use('/api/payments', requireBusinessAuth, paymentsRoutes);
 // Handle React frontend routing - Catch all to serve index.html
 app.get('*', (req, res) => {
   if (req.path.startsWith('/api/')) return res.status(404).json({ success: false, message: 'API not found' });
-  
-  // Manual asset fallback - ensure assets are served even if express.static misses
-  if (req.path.includes('/assets/')) {
-    const assetPath = path.join(frontendPath, req.path);
-    if (fs.existsSync(assetPath)) {
-      return res.sendFile(assetPath);
-    }
-  }
 
   const indexPath = path.join(frontendPath, 'index.html');
   if (fs.existsSync(indexPath)) {
     res.sendFile(indexPath);
   } else {
-    // Return a more descriptive error instead of crashing/blank 500
+    // Return a descriptive error — frontend build is missing
     res.status(500).json({ 
       success: false, 
-      message: 'Frontend build not found. Please ensure "npm run build" was successful.',
+      message: 'Frontend build not found. Run npm run build in frontend-react.',
+      frontendPath,
+      exists: fs.existsSync(frontendPath),
       debug: {
         env: process.env.NODE_ENV,
         cwd: process.cwd(),
