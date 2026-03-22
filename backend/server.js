@@ -133,29 +133,22 @@ if (process.env.NODE_ENV !== 'production') {
 
 // Robust path resolution for static files
 const possibleFrontendPaths = [
-  path.join(__dirname, '../frontend-react/dist'), // Production Unified Root
-  path.join(__dirname, 'dist'),                   // Nested Dist (if copied)
-  path.join(process.cwd(), 'frontend-react/dist'), // Process Root
-  path.join(process.cwd(), 'dist')                 // True Root
+  path.join(__dirname, 'dist'),                   // Bulletproof Render Location (Copied)
+  path.join(__dirname, '../frontend-react/dist'), // Local development / original structure
+  path.join(process.cwd(), 'dist'),               // Root (if running from root)
+  path.join(process.cwd(), 'backend/dist')        // Render Root + subfolder
 ];
 
 const frontendPath = possibleFrontendPaths.find(p => fs.existsSync(p)) || possibleFrontendPaths[0];
 
 console.log('📦 Static Assets Path:', frontendPath);
 if (!fs.existsSync(frontendPath)) {
-  console.warn('⚠️ Warning: Frontend dist directory not found at any expected location.');
+  console.warn('⚠️ Warning: Frontend dist directory not found. Please run "npm run render-build".');
 }
 
 app.use(express.static(frontendPath, {
-  maxAge: process.env.NODE_ENV === 'production' ? '1d' : 0,
+  maxAge: '1d',
   etag: true,
-  lastModified: true,
-  setHeaders: (res, path) => {
-    // Security headers for static files
-    res.set('X-Content-Type-Options', 'nosniff');
-    res.set('X-Frame-Options', 'DENY');
-    res.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
-  }
 }));
 
 // Socket.IO connection handling
