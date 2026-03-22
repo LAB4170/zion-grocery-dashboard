@@ -35,8 +35,9 @@ In the **Environment** tab of your Render Web Service, add the following variabl
 | `PORT` | `10000` | Render usually provides this automatically. |
 
 ## 5. First-Time Database Initialization
-After the first successful build and deploy, the tables need to be created in your new Render database.
+The database schema needs to be initialized. You have two ways:
 
+### Option A: Manual (Recommended for First Time)
 1. In your Render Web Service dashboard, click **Shell**.
 2. Run the following command:
    ```bash
@@ -44,12 +45,14 @@ After the first successful build and deploy, the tables need to be created in yo
    ```
 3. Watch the logs—it should say `🚀 Unified Multitenant Schema Applied Successfully`.
 
-## 6. Accessing the App
-Once the status is **Live**, you can access your app at the `.onrender.com` URL provided by Render.
+### Option B: Automatic (Pre-Deploy Command)
+You can set Render to automatically run migrations before every deploy:
+1. Go to **Settings** > **Pre-Deploy Command**.
+2. Set it to: `cd backend && npm run migrate:prod`.
+3. **Note**: This requires `DATABASE_URL` to be correctly set in your environment variables.
 
 ---
 
-### 💡 Pro Tips
-- **Socket.IO**: The project is already configured with polling fallback, so WebSocket connections will remain stable even behind Render's proxy.
-- **Static Files**: The backend automatically serves the built React frontend from the `frontend-react/dist` folder.
-- **Custom Domain**: You can add your own domain (e.g., `pos.yourbusiness.com`) in the Render **Settings** tab.
+### 💡 Troubleshooting Build Failures
+- **Unable to acquire a connection**: This error usually happens if a migration script tries to run during the `npm install` phase. I've removed the `postinstall` script that was causing this to ensure your builds are stable.
+- **Node Version**: If you see a version mismatch, Render defaults to an older Node version. Use the `NODE_VERSION` environment variable or the `engines` field in `package.json` to specify your version (the project recommends `>=16.0.0`).

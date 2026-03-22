@@ -8,8 +8,7 @@
     "migrate": "knex migrate:latest",
     "migrate:prod": "NODE_ENV=production knex migrate:latest",
     "db:setup": "npm run migrate",
-    "build": "echo 'No build step required for backend'",
-    "postinstall": "npm run migrate:prod"
+    "build": "echo 'No build step required for backend'"
   },
   "keywords": [
     "grocery",
