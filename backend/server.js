@@ -131,13 +131,13 @@ if (process.env.NODE_ENV !== 'production') {
   app.use(morgan('combined'));
 }
 
-// Robust path resolution for static files
+// Robust path resolution for static files (Verified on Render)
 const possibleFrontendPaths = [
   path.join(__dirname, 'dist'),                     // Standard Bulletproof (backend/dist)
+  path.join(process.cwd(), '../frontend-react/dist'), // VERIFIED: Render root-relative
   path.join(process.cwd(), 'dist'),                 // If running from within backend/
   path.join(process.cwd(), 'backend/dist'),         // If running from root
-  path.join(__dirname, '../frontend-react/dist'),   // Original structure fallback
-  path.join(process.cwd(), 'frontend-react/dist')   // Root-relative original structure
+  path.join(__dirname, '../frontend-react/dist'),   // Local development fallback
 ];
 
 const frontendPath = possibleFrontendPaths.find(p => fs.existsSync(p)) || possibleFrontendPaths[0];
