@@ -175,6 +175,23 @@ app.get('/health', async (req, res) => {
     res.status(503).json({ status: 'ERROR', database: 'Disconnected' });
   }
 });
+// Diagnostic Endpoint for Deployment Issues
+app.get('/api/debug-deploy', (req, res) => {
+  res.json({
+    timestamp: new Date().toISOString(),
+    env: process.env.NODE_ENV,
+    cwd: process.cwd(),
+    dirname: __dirname,
+    selectedFrontendPath: frontendPath,
+    pathsChecked: possibleFrontendPaths.map(p => ({
+      path: p,
+      exists: fs.existsSync(p),
+      hasIndex: fs.existsSync(path.join(p, 'index.html'))
+    })),
+    rootFiles: fs.existsSync(process.cwd()) ? fs.readdirSync(process.cwd()).slice(0, 20) : 'cannot read cwd',
+    backendFiles: fs.existsSync(__dirname) ? fs.readdirSync(__dirname).slice(0, 20) : 'cannot read dirname'
+  });
+});
 
 // API routes
 app.use('/api/business', requireBusinessAuth, businessRoutes);
