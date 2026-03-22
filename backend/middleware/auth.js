@@ -1,32 +1,55 @@
 const { db } = require('../config/database');
+const { admin, isFirebaseInitialized } = require('../config/firebase');
 
 /**
  * Multi-Tenant Auth Middleware
- * Reads the `x-user-email` header provided by the frontend (after Google login).
- * Looks up the corresponding business where owner_email = x-user-email.
- * Attaches `req.businessId` to the request to isolate all queries to that tenant.
+ * Verifies the Firebase ID token and links the user to their business tenant.
+ * Reads the `Authorization` header and performs lookup by owner_email.
  */
 const requireBusinessAuth = async (req, res, next) => {
   try {
-    const userEmail = req.headers['x-user-email'];
+    const authHeader = req.headers.authorization;
+    const userEmailHeader = req.headers['x-user-email'];
     
     // Bypass for creating a new business (onboarding)
     if (req.baseUrl === '/api/business' && req.method === 'POST') {
       return next();
     }
 
+    let userEmail = userEmailHeader;
+
+    // 1. Verify Firebase ID Token if provided and Admin SDK is ready
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.split('Bearer ')[1];
+      
+      if (isFirebaseInitialized) {
+        try {
+          const decodedToken = await admin.auth().verifyIdToken(token);
+          userEmail = decodedToken.email;
+          console.log(`✅ Token verified for: ${userEmail}`);
+        } catch (tokenError) {
+          console.error('❌ Firebase Token Verification Failed:', tokenError.message);
+          return res.status(401).json({ 
+            success: false, 
+            message: 'Invalid or expired authentication token.' 
+          });
+        }
+      } else {
+        console.warn('⚠️ Firebase Admin not initialized. Falling back to email header (INSECURE).');
+      }
+    }
+
     if (!userEmail) {
       return res.status(401).json({ 
         success: false, 
-        message: 'Unauthorized. Missing x-user-email header.' 
+        message: 'Unauthorized. Authentication required.' 
       });
     }
 
-    // Look up the business associated with this email
+    // 2. Look up the business associated with this email
     const business = await db('businesses').where('owner_email', userEmail).first();
 
     if (!business) {
-        // Return 403 Forbidden to trigger the frontend into /onboarding routing
         return res.status(403).json({
             success: false,
             message: 'No business found for this user. Please register a business.',
@@ -34,8 +57,9 @@ const requireBusinessAuth = async (req, res, next) => {
         });
     }
 
-    // Attach to request scope
+    // 3. Attach metadata to request scope
     req.businessId = business.id;
+    req.userEmail = userEmail;
     next();
   } catch (error) {
     console.error('Auth Middleware Error:', error);

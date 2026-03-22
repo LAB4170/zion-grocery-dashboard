@@ -135,154 +135,37 @@ const frontendPath = path.join(__dirname, '../frontend-react/dist');
 app.use(express.static(frontendPath, {
   maxAge: process.env.NODE_ENV === 'production' ? '1d' : 0,
   etag: true,
-  lastModified: true
+  lastModified: true,
+  setHeaders: (res, path) => {
+    // Security headers for static files
+    res.set('X-Content-Type-Options', 'nosniff');
+    res.set('X-Frame-Options', 'DENY');
+    res.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  }
 }));
 
 // Socket.IO connection handling
 io.on('connection', (socket) => {
   console.log('📡 Socket.IO client connected:', socket.id);
-  
-  // Join a room for grocery dashboard updates
   socket.join('grocery-dashboard');
-  
-  // Handle client disconnection
   socket.on('disconnect', () => {
     console.log('📡 Socket.IO client disconnected:', socket.id);
   });
-  
-  // Handle manual refresh requests
-  socket.on('request-refresh', (data) => {
-    socket.to('grocery-dashboard').emit('data-refresh', {
-      type: data.type || 'all',
-      timestamp: Date.now()
-    });
-  });
-  
-  // Send welcome message
-  socket.emit('connection-established', {
-    message: 'Real-time sync ready with Socket.IO',
-    timestamp: Date.now()
-  });
 });
 
-// Broadcast function for data changes
+// Broadcast function for data changes (Stub if needed)
 const broadcastDataChange = (type, data) => {
-  io.to('grocery-dashboard').emit('data-update', {
-    type: type,
-    data: data,
-    timestamp: Date.now()
-  });
-  console.log(`📡 Broadcasting ${type} update to all clients`);
+  io.to('grocery-dashboard').emit('data-update', { type, data, timestamp: Date.now() });
 };
-
-// Make broadcast function available to routes
 app.locals.broadcastDataChange = broadcastDataChange;
-app.locals.clearDashboardCache = clearDashboardCache;
-app.locals.io = io;
 
-// Health check endpoint with comprehensive database status
+// Health check endpoint
 app.get('/health', async (req, res) => {
-  const healthCheck = {
-    status: 'OK',
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
-    environment: process.env.NODE_ENV,
-    version: require('./package.json').version,
-    database: {
-      status: 'Unknown',
-      type: 'PostgreSQL',
-      environment: process.env.NODE_ENV === 'development' ? 'Local' : 'Production',
-      lastChecked: new Date().toISOString()
-    },
-    api: {
-      baseUrl: (() => {
-        const base = process.env.FRONTEND_URL || `${req.protocol}://${req.get('host')}`;
-        return `${base}/api`;
-      })(),
-      endpoints: ['/products', '/sales', '/expenses', '/debts', '/dashboard']
-    }
-  };
-
   try {
-    // Test basic database connection
-    const connectionTest = await db.raw('SELECT 1 as test');
-    
-    // Test database version and info
-    const dbVersion = await db.raw('SELECT version() as version');
-    const dbName = await db.raw('SELECT current_database() as database');
-    
-    // Test active connections (may fail on some PostgreSQL configurations)
-    let activeConnections = 0;
-    try {
-      const dbConnections = await db.raw('SELECT count(*) as active_connections FROM pg_stat_activity WHERE state = \'active\'');
-      activeConnections = parseInt(dbConnections.rows[0].active_connections);
-    } catch (connError) {
-      console.warn('Could not get connection count:', connError.message);
-    }
-    
-    // Test table existence
-    const tables = await db.raw(`
-      SELECT table_name 
-      FROM information_schema.tables 
-      WHERE table_schema = 'public' 
-      ORDER BY table_name
-    `);
-    
-    healthCheck.database = {
-      status: 'Connected',
-      type: 'PostgreSQL',
-      environment: process.env.NODE_ENV === 'development' ? 'Local' : 'Production',
-      name: dbName.rows[0].database,
-      version: dbVersion.rows[0].version.split(' ')[1], // Extract version number
-      activeConnections: activeConnections,
-      tables: tables.rows.map(row => row.table_name),
-      tableCount: tables.rows.length,
-      lastChecked: new Date().toISOString()
-    };
-    
-    console.log(`✅ Health check passed - Database: ${healthCheck.database.name} (${healthCheck.database.environment})`);
-    res.status(200).json(healthCheck);
-    
+    await db.raw('SELECT 1');
+    res.json({ status: 'OK', database: 'Connected', timestamp: new Date().toISOString() });
   } catch (error) {
-    console.error('❌ Health check database error:', error.message);
-    
-    healthCheck.status = 'ERROR';
-    healthCheck.database = {
-      status: 'Disconnected',
-      type: 'PostgreSQL',
-      environment: process.env.NODE_ENV === 'development' ? 'Local' : 'Production',
-      error: error.message,
-      errorCode: error.code,
-      lastChecked: new Date().toISOString(),
-      troubleshooting: process.env.NODE_ENV === 'development' ? [
-        'Check if PostgreSQL service is running',
-        `Verify database "${process.env.DB_NAME || 'zion_grocery_db'}" exists`,
-        'Validate DB_HOST, DB_USER, DB_PASSWORD in .env',
-        `Run: createdb ${process.env.DB_NAME || 'zion_grocery_db'}`,
-        'Run: npm run migrate'
-      ] : [
-        'Verify DATABASE_URL environment variable',
-        'Ensure your cloud database allows connections from this app',
-        'If using managed PostgreSQL, ensure SSL parameters are correct',
-        'Check your hosting provider logs for database connectivity issues'
-      ]
-    };
-    
-    res.status(503).json(healthCheck);
-  }
-});
-
-// Test PostgreSQL database route
-app.get('/api/test-db', async (req, res) => {
-  try {
-    await db.raw('SELECT version() as version');
-    const result = await db.raw('SELECT current_database() as database');
-    res.json({ 
-      message: 'PostgreSQL connection successful',
-      database: result.rows[0].database 
-    });
-  } catch (error) {
-    res.status(500).json({ error: 'PostgreSQL connection failed', details: error.message });
+    res.status(503).json({ status: 'ERROR', database: 'Disconnected' });
   }
 });
 
@@ -297,21 +180,26 @@ app.use('/api/payments', requireBusinessAuth, paymentsRoutes);
 
 // Handle React frontend routing - Catch all to serve index.html
 app.get('*', (req, res) => {
-  // Don't serve index.html for API routes
-  if (req.path.startsWith('/api/')) {
-    return res.status(404).json({
-      success: false,
-      message: 'API endpoint not found',
-      path: req.originalUrl
-    });
-  }
-  
-  // Hand off routing to React Router DOM
+  if (req.path.startsWith('/api/')) return res.status(404).json({ success: false, message: 'API not found' });
   res.sendFile(path.join(frontendPath, 'index.html'));
 });
 
-// Global error handler
-app.use(errorHandler);
+// Initialize Backup System
+const BackupSystem = require('./backup-system');
+const backupSystem = new BackupSystem();
+backupSystem.schedule();
+
+// Global error handler - KDP Compliant (No sensitive details in production)
+app.use((err, req, res, next) => {
+  const isProduction = process.env.NODE_ENV === 'production';
+  console.error('Unhandled Error:', err);
+  
+  res.status(err.status || 500).json({
+    success: false,
+    message: isProduction ? 'Internal server error. Reference ID: ' + req.id : err.message,
+    code: err.code || 'INTERNAL_ERROR'
+  });
+});
 
 // Graceful shutdown
 process.on('SIGTERM', () => {

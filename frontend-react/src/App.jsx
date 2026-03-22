@@ -15,6 +15,8 @@ import Debts from './pages/Debts';
 import Reports from './pages/Reports';
 import Settings from './pages/Settings';
 import SalesRecords from './pages/SalesRecords';
+import LegalPrivacy from './pages/LegalPrivacy';
+import LegalTerms from './pages/LegalTerms';
 
 // Protected Route Guard
 function ProtectedRoute({ children }) {
@@ -74,6 +76,8 @@ function App() {
                 {/* Public Route */}
                 <Route path="/" element={<LandingPage />} />
                 <Route path="/login" element={<Login />} />
+                <Route path="/privacy" element={<LegalPrivacy />} />
+                <Route path="/terms" element={<LegalTerms />} />
                 
                 {/* Onboarding Route */}
                 <Route path="/onboarding" element={<OnboardingRoute><Onboarding /></OnboardingRoute>} />

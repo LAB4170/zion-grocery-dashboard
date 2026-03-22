@@ -5,7 +5,13 @@ const admin = require('firebase-admin');
 let isFirebaseInitialized = false;
 
 try {
-  if (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY) {
+  const hasRequiredVars = process.env.FIREBASE_PROJECT_ID && 
+                          process.env.FIREBASE_CLIENT_EMAIL && 
+                          process.env.FIREBASE_PRIVATE_KEY;
+  
+  const isPlaceholder = process.env.FIREBASE_PRIVATE_KEY === 'YOUR_PRIVATE_KEY';
+
+  if (hasRequiredVars && !isPlaceholder) {
     admin.initializeApp({
       credential: admin.credential.cert({
         projectId: process.env.FIREBASE_PROJECT_ID,
@@ -17,7 +23,8 @@ try {
     isFirebaseInitialized = true;
     console.log('✅ Firebase Admin initialized securely.');
   } else {
-    console.warn('⚠️ Firebase Admin NOT initialized. Missing env vars (FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY). API will reject secured routes.');
+    const reason = isPlaceholder ? 'Private key is still a placeholder.' : 'Missing env vars.';
+    console.warn(`⚠️ Firebase Admin NOT initialized: ${reason} (API will use lenient header-based auth for dev).`);
   }
 } catch (error) {
   console.error('❌ Firebase Admin initialization error:', error);
