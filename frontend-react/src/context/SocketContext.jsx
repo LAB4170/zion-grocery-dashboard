@@ -16,8 +16,8 @@ export function SocketProvider({ children }) {
     if (currentUser) {
       // Connect to the backend
       const newSocket = io(window.location.origin || 'http://localhost:5000', {
-        transports: ['websocket'],
         reconnection: true,
+        // Removed explicit transports constraint to allow polling fallback
       });
 
       setSocket(newSocket);
