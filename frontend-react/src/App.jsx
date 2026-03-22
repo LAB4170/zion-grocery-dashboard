@@ -4,6 +4,7 @@ import { ThemeProvider } from './context/ThemeContext';
 import { BusinessProvider, useBusiness } from './context/BusinessContext';
 import { SocketProvider } from './context/SocketContext';
 import Login from './pages/Login';
+import Signup from './pages/Signup';
 import Onboarding from './pages/Onboarding';
 import LandingPage from './pages/LandingPage';
 import DashboardLayout from './pages/DashboardLayout';
@@ -76,6 +77,7 @@ function App() {
                 {/* Public Route */}
                 <Route path="/" element={<LandingPage />} />
                 <Route path="/login" element={<Login />} />
+                <Route path="/signup" element={<Signup />} />
                 <Route path="/privacy" element={<LegalPrivacy />} />
                 <Route path="/terms" element={<LegalTerms />} />
                 

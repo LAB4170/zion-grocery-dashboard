@@ -4,11 +4,12 @@ import { useTheme } from '../context/ThemeContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { Store, ArrowLeft, Sun, Moon, Eye, EyeOff } from 'lucide-react';
 
-export default function Login() {
-  const { loginWithEmail, loginWithGoogle } = useAuth();
+export default function Signup() {
+  const { signupWithEmail, loginWithGoogle } = useAuth();
   const { isDarkMode, toggleTheme } = useTheme();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -17,33 +18,33 @@ export default function Login() {
 
   const getFirebaseErrorMessage = (errorCode) => {
     switch (errorCode) {
-      case 'auth/user-not-found':
-      case 'auth/invalid-credential':
-        return 'No account found with these credentials. Please check your email and password.';
-      case 'auth/wrong-password':
-        return 'Incorrect password. Please try again.';
+      case 'auth/email-already-in-use':
+        return 'An account already exists with this email address. Please log in instead.';
+      case 'auth/weak-password':
+        return 'Password must be at least 6 characters long.';
       case 'auth/invalid-email':
         return 'Invalid email address format.';
-      case 'auth/too-many-requests':
-        return 'Too many failed attempts. Please wait a few minutes and try again.';
-      case 'auth/user-disabled':
-        return 'This account has been disabled. Contact support.';
       case 'auth/popup-closed-by-user':
-        return 'Google sign-in was cancelled. Please try again.';
+        return 'Google sign-up was cancelled. Please try again.';
       case 'auth/popup-blocked':
         return 'Popup was blocked by your browser. Please allow popups for this site.';
       default:
-        return 'Sign-in failed. Please verify your credentials and try again.';
+        return 'Sign-up failed. Please verify your details and try again.';
     }
   };
 
-  const handleEmailLogin = async (e) => {
+  const handleEmailSignup = async (e) => {
     e.preventDefault();
+    if (password !== confirmPassword) {
+      return setError('Passwords do not match.');
+    }
+    
     try {
       setError('');
       setLoading(true);
-      await loginWithEmail(email, password);
-      navigate('/app/dashboard');
+      await signupWithEmail(email, password);
+      // Immediately navigate to onboarding after successful creation
+      navigate('/onboarding');
     } catch (err) {
       setError(getFirebaseErrorMessage(err.code));
     } finally {
@@ -51,12 +52,12 @@ export default function Login() {
     }
   };
 
-  const handleGoogleLogin = async () => {
+  const handleGoogleSignup = async () => {
     try {
       setError('');
       setGoogleLoading(true);
       await loginWithGoogle();
-      navigate('/app/dashboard');
+      navigate('/onboarding');
     } catch (err) {
       setError(getFirebaseErrorMessage(err.code));
     } finally {
@@ -91,14 +92,14 @@ export default function Login() {
         </button>
       </div>
 
-      {/* Login card */}
+      {/* Signup card */}
       <div className="login-card glass">
         <div className="login-header">
           <div className="login-logo">
             <Store size={36} />
           </div>
-          <h1 style={{ fontSize: 'clamp(1.4rem, 5vw, 1.8rem)' }}>NexusPOS</h1>
-          <p style={{ fontSize: 'clamp(0.85rem, 3vw, 1rem)' }}>Sign in to your account</p>
+          <h1 style={{ fontSize: 'clamp(1.4rem, 5vw, 1.8rem)' }}>Create Account</h1>
+          <p style={{ fontSize: 'clamp(0.85rem, 3vw, 1rem)' }}>Start managing your store today</p>
         </div>
 
         {error && (
@@ -110,7 +111,7 @@ export default function Login() {
           </div>
         )}
 
-        <form onSubmit={handleEmailLogin} style={{ width: '100%' }}>
+        <form onSubmit={handleEmailSignup} style={{ width: '100%' }}>
           <div className="input-group">
             <label>Email Address</label>
             <input
@@ -133,7 +134,8 @@ export default function Login() {
                 onChange={e => setPassword(e.target.value)}
                 required
                 placeholder="••••••••"
-                autoComplete="current-password"
+                autoComplete="new-password"
+                minLength="6"
                 style={{
                   paddingRight: '44px',
                   fontSize: 'clamp(0.85rem, 3vw, 1rem)',
@@ -156,6 +158,23 @@ export default function Login() {
               </button>
             </div>
           </div>
+          
+          <div className="input-group" style={{ marginBottom: '4px' }}>
+            <label>Confirm Password</label>
+            <input
+              type={showPassword ? 'text' : 'password'}
+              value={confirmPassword}
+              onChange={e => setConfirmPassword(e.target.value)}
+              required
+              placeholder="••••••••"
+              autoComplete="new-password"
+              minLength="6"
+              style={{
+                fontSize: 'clamp(0.85rem, 3vw, 1rem)',
+                width: '100%', boxSizing: 'border-box'
+              }}
+            />
+          </div>
 
           <button
             type="submit"
@@ -167,14 +186,14 @@ export default function Login() {
               fontSize: 'clamp(0.9rem, 3vw, 1rem)'
             }}
           >
-            {loading ? 'Signing In...' : 'Sign In'}
+            {loading ? 'Creating Account...' : 'Sign Up'}
           </button>
         </form>
 
         <div className="divider"><span>OR</span></div>
 
         <button
-          onClick={handleGoogleLogin}
+          onClick={handleGoogleSignup}
           className="btn-google"
           disabled={googleLoading}
           style={{
@@ -195,16 +214,15 @@ export default function Login() {
                 <path d="M3.964 10.706c-.18-.54-.282-1.117-.282-1.706 0-.588.102-1.166.282-1.706V4.962H.957A8.996 8.996 0 000 9c0 1.452.348 2.827.957 4.038l3.007-2.332z" fill="#fbbc05"/>
                 <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.443 2.038.957 4.962L3.964 7.294C4.672 5.167 6.656 3.58 9 3.58z" fill="#ea4335"/>
               </svg>
-              Sign in with Google
+              Sign up with Google
             </>
           )}
         </button>
         
         <div style={{ marginTop: '8px', fontSize: '0.9rem', color: 'var(--text-muted)' }}>
-          Don't have an account? <Link to="/signup" style={{ color: 'var(--accent)', fontWeight: 600 }}>Sign Up</Link>
+          Already have an account? <Link to="/login" style={{ color: 'var(--accent)', fontWeight: 600 }}>Log In</Link>
         </div>
       </div>
-
     </div>
   );
 }
