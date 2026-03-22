@@ -10,7 +10,7 @@
     "migrate": "cd backend && npm run migrate",
     "setup": "cd backend && npm install && cd ../frontend && npm install && cd ../backend && npm run migrate",
     "render-build": "npm install && npm install --prefix backend && npm install --prefix frontend-react && npm run build --prefix frontend-react && node backend/manual_schema.js",
-    "render-start": "cd backend && node server.js",
+    "render-start": "cd backend && NODE_ENV=production node server.js",
     "install-all": "npm install && npm install --prefix backend && npm install --prefix frontend-react"
   },
   "repository": {
