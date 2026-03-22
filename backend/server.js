@@ -139,10 +139,17 @@ console.log('📡 Serving frontend from:', frontendPath);
 console.log('📡 public/ exists:', fs.existsSync(frontendPath));
 console.log('📡 index.html exists:', fs.existsSync(path.join(frontendPath, 'index.html')));
 
-// Serve static assets with correct MIME types
+// Serve static assets with long cache (hashed filenames, safe to cache)
 app.use(express.static(frontendPath, {
-  maxAge: '1d',
+  maxAge: '1y',
   etag: true,
+  setHeaders: (res, filePath) => {
+    // index.html must NEVER be cached — it references hashed asset filenames
+    if (filePath.endsWith('index.html')) {
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+    }
+  }
 }));
 
 // Socket.IO connection handling
@@ -196,11 +203,14 @@ app.use('/api/dashboard', requireBusinessAuth, dashboardRoutes);
 app.use('/api/payments', requireBusinessAuth, paymentsRoutes);
 
 // Handle React frontend routing - Catch all to serve index.html
+// Important: send index.html with no-cache so browsers always get the latest asset references
 app.get('*', (req, res) => {
   if (req.path.startsWith('/api/')) return res.status(404).json({ success: false, message: 'API not found' });
 
   const indexPath = path.join(frontendPath, 'index.html');
   if (fs.existsSync(indexPath)) {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
     res.sendFile(indexPath);
   } else {
     res.status(500).json({ 
