@@ -131,23 +131,15 @@ if (process.env.NODE_ENV !== 'production') {
   app.use(morgan('combined'));
 }
 
-// __dirname is always /opt/render/project/src/backend on Render
-// So this path is deterministic and correct regardless of cwd
-const frontendPath = path.join(__dirname, '../frontend-react/dist');
+// Serve from backend/public — build step copies frontend-react/dist here.
+// path.join(__dirname, 'public') is always relative to this file, never ambiguous.
+const frontendPath = path.join(__dirname, 'public');
 
-console.log('📡 Frontend dist path:', frontendPath);
-console.log('📡 dist exists:', fs.existsSync(frontendPath));
+console.log('📡 Serving frontend from:', frontendPath);
+console.log('📡 public/ exists:', fs.existsSync(frontendPath));
 console.log('📡 index.html exists:', fs.existsSync(path.join(frontendPath, 'index.html')));
-if (fs.existsSync(frontendPath)) {
-  try {
-    const assets = fs.readdirSync(path.join(frontendPath, 'assets')).slice(0, 5);
-    console.log('📡 Sample assets:', assets);
-  } catch (e) {
-    console.log('📡 No assets dir:', e.message);
-  }
-}
 
-// Serve React build — express.static handles all MIME types correctly
+// Serve static assets with correct MIME types
 app.use(express.static(frontendPath, {
   maxAge: '1d',
   etag: true,
