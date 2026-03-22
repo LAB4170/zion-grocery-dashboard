@@ -206,6 +206,14 @@ app.use('/api/payments', requireBusinessAuth, paymentsRoutes);
 app.get('*', (req, res) => {
   if (req.path.startsWith('/api/')) return res.status(404).json({ success: false, message: 'API not found' });
   
+  // Manual asset fallback - ensure assets are served even if express.static misses
+  if (req.path.includes('/assets/')) {
+    const assetPath = path.join(frontendPath, req.path);
+    if (fs.existsSync(assetPath)) {
+      return res.sendFile(assetPath);
+    }
+  }
+
   const indexPath = path.join(frontendPath, 'index.html');
   if (fs.existsSync(indexPath)) {
     res.sendFile(indexPath);
