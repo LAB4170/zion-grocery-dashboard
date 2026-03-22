@@ -5,6 +5,7 @@ const morgan = require('morgan');
 const compression = require('compression');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
+const fs = require('fs');
 const http = require('http');
 const socketIo = require('socket.io');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
@@ -130,8 +131,21 @@ if (process.env.NODE_ENV !== 'production') {
   app.use(morgan('combined'));
 }
 
-// Serve static files from React dist directory
-const frontendPath = path.join(__dirname, '../frontend-react/dist');
+// Robust path resolution for static files
+const possibleFrontendPaths = [
+  path.join(__dirname, '../frontend-react/dist'), // Production Unified Root
+  path.join(__dirname, 'dist'),                   // Nested Dist (if copied)
+  path.join(process.cwd(), 'frontend-react/dist'), // Process Root
+  path.join(process.cwd(), 'dist')                 // True Root
+];
+
+const frontendPath = possibleFrontendPaths.find(p => fs.existsSync(p)) || possibleFrontendPaths[0];
+
+console.log('📦 Static Assets Path:', frontendPath);
+if (!fs.existsSync(frontendPath)) {
+  console.warn('⚠️ Warning: Frontend dist directory not found at any expected location.');
+}
+
 app.use(express.static(frontendPath, {
   maxAge: process.env.NODE_ENV === 'production' ? '1d' : 0,
   etag: true,
@@ -181,7 +195,18 @@ app.use('/api/payments', requireBusinessAuth, paymentsRoutes);
 // Handle React frontend routing - Catch all to serve index.html
 app.get('*', (req, res) => {
   if (req.path.startsWith('/api/')) return res.status(404).json({ success: false, message: 'API not found' });
-  res.sendFile(path.join(frontendPath, 'index.html'));
+  
+  const indexPath = path.join(frontendPath, 'index.html');
+  if (fs.existsSync(indexPath)) {
+    res.sendFile(indexPath);
+  } else {
+    // Return a more descriptive error instead of crashing/blank 500
+    res.status(500).json({ 
+      success: false, 
+      message: 'Frontend build not found. Please ensure "npm run build" was successful and files are in the dist folder.',
+      debugPath: indexPath 
+    });
+  }
 });
 
 // Initialize Backup System
