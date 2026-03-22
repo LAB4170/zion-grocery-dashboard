@@ -50,7 +50,7 @@ const requireBusinessAuth = async (req, res, next) => {
     const business = await db('businesses').where('owner_email', userEmail).first();
 
     if (!business) {
-        return res.status(403).json({
+        return res.status(404).json({
             success: false,
             message: 'No business found for this user. Please register a business.',
             code: 'NO_BUSINESS_REGISTERED'

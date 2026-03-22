@@ -37,7 +37,7 @@ export function BusinessProvider({ children }) {
         }
       } catch (error) {
         if (isMounted) {
-          if (error.response && error.response.status === 404) {
+          if (error.response && (error.response.status === 404 || error.response.status === 403)) {
              setNeedsOnboarding(true);
           } else {
              console.error("Failed to fetch business context:", error);
