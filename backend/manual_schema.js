@@ -4,42 +4,61 @@ const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
 const client = new Client({
-  host: 'localhost',
-  port: 5432,
-  database: 'zion_grocery_db',
-  user: 'postgres',
-  password: '1234',
+  host: process.env.DB_HOST || 'localhost',
+  port: process.env.DB_PORT || 5432,
+  database: 'EobordTech-POS',
+  user: process.env.DB_USER || 'postgres',
+  password: process.env.DB_PASSWORD || '1234',
 });
 
 async function runManualMigration() {
   await client.connect();
-  console.log('Connected to DB');
+  console.log('Connected to DB: EobordTech-POS');
 
   try {
-    // Create products table
+    // 1. Create businesses table (CRITICAL FOR MULTITENANCY)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS businesses (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        name VARCHAR(255) NOT NULL,
+        owner_email VARCHAR(255) UNIQUE NOT NULL,
+        subscription_status VARCHAR(50) DEFAULT 'trial',
+        trial_ends_at TIMESTAMP WITH TIME ZONE DEFAULT (CURRENT_TIMESTAMP + INTERVAL '14 days'),
+        subscription_ends_at TIMESTAMP WITH TIME ZONE,
+        mpesa_number VARCHAR(20),
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    console.log('✅ Businesses table created');
+
+    // 2. Create products table with business_id
     await client.query(`
       CREATE TABLE IF NOT EXISTS products (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        business_id UUID REFERENCES businesses(id) ON DELETE CASCADE,
         name VARCHAR(255) NOT NULL,
         category VARCHAR(255) NOT NULL,
         price DECIMAL(10, 2) NOT NULL,
-        stock_quantity INTEGER DEFAULT 0,
+        stock_quantity DECIMAL(10, 2) DEFAULT 0,
+        unit VARCHAR(50) DEFAULT 'pcs',
         cost_price DECIMAL(10, 2),
-        min_stock INTEGER DEFAULT 0,
+        min_stock DECIMAL(10, 2) DEFAULT 0,
         is_active BOOLEAN DEFAULT TRUE,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       )
     `);
-    console.log('Products table created');
+    console.log('✅ Products table created');
 
-    // Create sales table
+    // 3. Create sales table with business_id
     await client.query(`
       CREATE TABLE IF NOT EXISTS sales (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        business_id UUID REFERENCES businesses(id) ON DELETE CASCADE,
         product_id UUID REFERENCES products(id) ON DELETE CASCADE,
         product_name VARCHAR(255) NOT NULL,
-        quantity INTEGER NOT NULL,
+        quantity DECIMAL(10, 2) NOT NULL,
         unit_price DECIMAL(10, 2) NOT NULL,
         total DECIMAL(10, 2) NOT NULL,
         payment_method VARCHAR(255) NOT NULL,
@@ -54,26 +73,29 @@ async function runManualMigration() {
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       )
     `);
-    console.log('Sales table created');
+    console.log('✅ Sales table created');
 
-    // Create expenses table
+    // 4. Create expenses table with business_id
     await client.query(`
       CREATE TABLE IF NOT EXISTS expenses (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        business_id UUID REFERENCES businesses(id) ON DELETE CASCADE,
         description VARCHAR(255) NOT NULL,
         category VARCHAR(255) NOT NULL,
         amount DECIMAL(10, 2) NOT NULL,
+        status VARCHAR(50) DEFAULT 'paid',
         created_by VARCHAR(255) DEFAULT 'system',
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       )
     `);
-    console.log('Expenses table created');
+    console.log('✅ Expenses table created');
 
-    // Create debts table
+    // 5. Create debts table with business_id
     await client.query(`
       CREATE TABLE IF NOT EXISTS debts (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        business_id UUID REFERENCES businesses(id) ON DELETE CASCADE,
         customer_name VARCHAR(255) NOT NULL,
         customer_phone VARCHAR(255),
         amount DECIMAL(10, 2) NOT NULL,
@@ -88,9 +110,9 @@ async function runManualMigration() {
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       )
     `);
-    console.log('Debts table created');
+    console.log('✅ Debts table created');
 
-    // Create debt_payments table
+    // 6. Create debt_payments table
     await client.query(`
       CREATE TABLE IF NOT EXISTS debt_payments (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -104,12 +126,39 @@ async function runManualMigration() {
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       )
     `);
-    console.log('Debt payments table created');
+    console.log('✅ Debt payments table created');
     
-    console.log('Manual migration (partial) completed successfully');
+    // 7. Add columns if tables existed but were missing business_id or unit
+    const tables = ['products', 'sales', 'expenses', 'debts'];
+    for (const table of tables) {
+      await client.query(`
+        DO $$ 
+        BEGIN 
+          BEGIN
+            ALTER TABLE ${table} ADD COLUMN business_id UUID REFERENCES businesses(id) ON DELETE CASCADE;
+          EXCEPTION
+            WHEN duplicate_column THEN RAISE NOTICE 'column business_id already exists in ${table}';
+          END;
+        END $$;
+      `);
+    }
+
+    // Specifically add 'unit' to products if it doesn't exist
+    await client.query(`
+      DO $$ 
+      BEGIN 
+        BEGIN
+          ALTER TABLE products ADD COLUMN unit VARCHAR(50) DEFAULT 'pcs';
+        EXCEPTION
+          WHEN duplicate_column THEN RAISE NOTICE 'column unit already exists in products';
+        END;
+      END $$;
+    `);
+
+    console.log('🚀 Unified Multitenant Schema Applied Successfully');
 
   } catch (err) {
-    console.error('Error in manual migration:', err.message);
+    console.error('❌ Error in manual migration:', err.message);
   } finally {
     await client.end();
   }

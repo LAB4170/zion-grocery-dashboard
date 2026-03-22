@@ -55,11 +55,20 @@ export default function Sales() {
   const setQuantity = (id, newQty) => {
     setCart(cart.map(item => {
       if (item.id === id) {
-        const val = parseFloat(newQty);
+        let val = parseFloat(newQty);
         if (isNaN(val)) return item;
+        
+        // Use integer for pieces, allow decimals for other units
+        if (item.unit === 'pcs') {
+          val = Math.round(val);
+        }
+
         const product = products.find(p => p.id === id);
-        if (val > product.stockQuantity) return item;
-        return val > 0 ? { ...item, quantity: val } : item;
+        if (val > product.stockQuantity) {
+            // If they tried to add more than stock, clamp it (but allow partial for non-pcs if needed)
+            val = product.stockQuantity;
+        }
+        return val >= 0 ? { ...item, quantity: val } : item;
       }
       return item;
     }));
@@ -186,10 +195,10 @@ export default function Sales() {
                     <button onClick={() => setQuantity(item.id, item.quantity - 1)}><Minus size={14} /></button>
                     <input 
                       type="number" 
-                      step="0.01"
+                      step={item.unit === 'pcs' ? "1" : "0.01"}
                       value={item.quantity}
                       onChange={(e) => setQuantity(item.id, e.target.value)}
-                      style={{ width: '40px', textAlign: 'center', background: 'transparent', border: 'none', fontWeight: 800, color: 'var(--text)', outline: 'none', fontSize: '14px' }}
+                      style={{ width: '55px', textAlign: 'center', background: 'transparent', border: 'none', fontWeight: 800, color: 'var(--text)', outline: 'none', fontSize: '14px' }}
                     />
                     <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 700 }}>{item.unit || 'pcs'}</span>
                     <button onClick={() => setQuantity(item.id, item.quantity + 1)}><Plus size={14} /></button>

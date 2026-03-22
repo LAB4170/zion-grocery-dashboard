@@ -145,7 +145,7 @@ export default function Products() {
                       fontSize: '12px',
                       fontWeight: 700
                     }}>
-                      {product.stockQuantity} {product.unit || 'pcs'} left
+                      {product.unit === 'pcs' ? Math.round(product.stockQuantity) : Number(product.stockQuantity).toFixed(2)} {product.unit || 'pcs'} left
                     </div>
                   </td>
                   <td data-label="Actions">
@@ -194,37 +194,38 @@ export default function Products() {
                   placeholder="e.g. Dairy"
                 />
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', background: 'var(--bg)', padding: '16px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)' }}>
                 <div className="input-group">
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><DollarSign size={14} /> Price (KSh)</label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--accent)', fontWeight: 700 }}><DollarSign size={14} /> Price (KSh)</label>
                   <input 
                     type="number" 
                     value={formData.price} 
                     onChange={e => setFormData({...formData, price: e.target.value})} 
                     required 
+                    style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
                   />
                 </div>
                 <div className="input-group">
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Package size={14} /> Stock Qty</label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--accent)', fontWeight: 700 }}><Package size={14} /> Stock Qty</label>
                   <div style={{ display: 'flex', gap: '8px' }}>
                     <input 
                       type="number" 
-                      step="0.01"
+                      step={formData.unit === 'pcs' ? "1" : "0.01"}
                       value={formData.stockQuantity} 
                       onChange={e => setFormData({...formData, stockQuantity: e.target.value})} 
                       required 
-                      style={{ flex: 1 }}
+                      style={{ flex: 1, background: 'var(--surface)', border: '1px solid var(--border)' }}
                     />
                     <select 
                       value={formData.unit} 
                       onChange={e => setFormData({...formData, unit: e.target.value})}
-                      style={{ padding: '0 12px', borderRadius: '10px', background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }}
+                      style={{ padding: '0 8px', borderRadius: '8px', background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)', fontSize: '12px' }}
                     >
-                      <option value="pcs">Pieces (pcs)</option>
-                      <option value="kg">Kilograms (kg)</option>
-                      <option value="g">Grams (g)</option>
-                      <option value="l">Liters (L)</option>
-                      <option value="ml">Milliliters (ml)</option>
+                      <option value="pcs">pcs</option>
+                      <option value="kg">kg</option>
+                      <option value="g">g</option>
+                      <option value="l">L</option>
+                      <option value="ml">ml</option>
                     </select>
                   </div>
                 </div>
