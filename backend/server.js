@@ -143,13 +143,7 @@ console.log('📡 index.html exists:', fs.existsSync(path.join(frontendPath, 'in
 app.use(express.static(frontendPath, {
   maxAge: '1y',
   etag: true,
-  setHeaders: (res, filePath) => {
-    // index.html must NEVER be cached — it references hashed asset filenames
-    if (filePath.endsWith('index.html')) {
-      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
-      res.setHeader('Pragma', 'no-cache');
-    }
-  }
+  index: false // Disable automatic index.html serving so it falls through to our custom catch-all route with no-cache headers
 }));
 
 // Socket.IO connection handling
