@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { BusinessProvider, useBusiness } from './context/BusinessContext';
 import { SocketProvider } from './context/SocketContext';
+import AdminDashboard from './pages/AdminDashboard';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import Onboarding from './pages/Onboarding';
@@ -80,6 +81,7 @@ function App() {
                 <Route path="/signup" element={<Signup />} />
                 <Route path="/privacy" element={<LegalPrivacy />} />
                 <Route path="/terms" element={<LegalTerms />} />
+                <Route path="/admin" element={<AdminDashboard />} />
                 
                 {/* Onboarding Route */}
                 <Route path="/onboarding" element={<OnboardingRoute><Onboarding /></OnboardingRoute>} />

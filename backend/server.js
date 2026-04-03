@@ -85,11 +85,13 @@ const expenseRoutes = require('./routes/expenses');
 const debtRoutes = require('./routes/debts');
 const businessRoutes = require('./routes/businesses');
 const paymentsRoutes = require('./routes/payments');
+const adminRoutes = require('./routes/admin');
 
 // Import middleware
 const { errorHandler } = require('./middleware/errorHandler');
 const { requireBusinessAuth } = require('./middleware/auth');
-const { requireActiveSubscription } = require('./middleware/subscription');
+const { requireAdminAuth } = require('./middleware/adminAuth');
+// Subscription middleware disabled
 
 // Security middleware
 app.use(helmet({
@@ -189,12 +191,13 @@ app.get('/api/debug-deploy', (req, res) => {
 
 // API routes
 app.use('/api/business', requireBusinessAuth, businessRoutes);
-app.use('/api/products', requireBusinessAuth, requireActiveSubscription, productRoutes);
-app.use('/api/sales', requireBusinessAuth, requireActiveSubscription, salesRoutes);
-app.use('/api/expenses', requireBusinessAuth, requireActiveSubscription, expenseRoutes);
-app.use('/api/debts', requireBusinessAuth, requireActiveSubscription, debtRoutes);
-app.use('/api/dashboard', requireBusinessAuth, requireActiveSubscription, dashboardRoutes);
-app.use('/api/payments', requireBusinessAuth, requireActiveSubscription, paymentsRoutes);
+app.use('/api/products', requireBusinessAuth, productRoutes);
+app.use('/api/sales', requireBusinessAuth, salesRoutes);
+app.use('/api/expenses', requireBusinessAuth, expenseRoutes);
+app.use('/api/debts', requireBusinessAuth, debtRoutes);
+app.use('/api/dashboard', requireBusinessAuth, dashboardRoutes);
+app.use('/api/payments', requireBusinessAuth, paymentsRoutes);
+app.use('/api/admin', requireAdminAuth, adminRoutes);
 
 // Handle React frontend routing - Catch all to serve index.html
 // Important: send index.html with no-cache so browsers always get the latest asset references

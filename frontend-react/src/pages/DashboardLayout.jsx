@@ -8,7 +8,6 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useBusiness } from '../context/BusinessContext';
-import SubscriptionBanner from '../components/SubscriptionBanner';
 
 export default function DashboardLayout() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -130,7 +129,6 @@ export default function DashboardLayout() {
           </button>
         </header>
         <div className="content-inner">
-          <SubscriptionBanner />
           <Outlet />
         </div>
       </main>
