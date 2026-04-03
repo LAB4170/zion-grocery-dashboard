@@ -63,7 +63,7 @@ export default function Login() {
       setError('');
       setGoogleLoading(true);
       await loginWithGoogle();
-      navigate('/app/dashboard');
+      // Rely on useEffect for navigation after auth state changes
     } catch (err) {
       setError(getFirebaseErrorMessage(err.code));
     } finally {
