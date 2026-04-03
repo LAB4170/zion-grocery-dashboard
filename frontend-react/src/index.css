@@ -1471,3 +1471,52 @@ button {
     font-size: 0.9rem;
   }
 }
+
+/* --- Billing & Subscription Banner --- */
+.billing-banner {
+  animation: slideDown 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  cursor: pointer;
+}
+
+.billing-banner:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.billing-banner svg {
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+
+.billing-banner:hover svg {
+  transform: scale(1.1);
+}
+
+.billing-banner.urgent {
+  animation: pulse-border 2s infinite;
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse-border {
+  0% { border-color: rgba(239, 68, 68, 0.2); }
+  50% { border-color: rgba(239, 68, 68, 0.5); }
+  100% { border-color: rgba(239, 68, 68, 0.2); }
+}
+
+/* Mobile adjustments for banner */
+@media (max-width: 640px) {
+  .billing-banner {
+    flex-direction: column;
+    align-items: flex-start !important;
+    gap: 8px !important;
+  }
+  .billing-banner button {
+    width: 100%;
+    margin-top: 4px;
+  }
+}

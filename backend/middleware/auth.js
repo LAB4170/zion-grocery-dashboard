@@ -58,6 +58,7 @@ const requireBusinessAuth = async (req, res, next) => {
     }
 
     // 3. Attach metadata to request scope
+    req.business = business;
     req.businessId = business.id;
     req.userEmail = userEmail;
     next();

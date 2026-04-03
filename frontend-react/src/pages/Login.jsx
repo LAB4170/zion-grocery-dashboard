@@ -1,11 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { Store, ArrowLeft, Sun, Moon, Eye, EyeOff } from 'lucide-react';
 
 export default function Login() {
-  const { loginWithEmail, loginWithGoogle } = useAuth();
+  const { currentUser, loginWithEmail, loginWithGoogle } = useAuth();
   const { isDarkMode, toggleTheme } = useTheme();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -14,6 +14,13 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const navigate = useNavigate();
+  
+  // Auto-redirect if already logged in (fixes cases where login succeeds in background)
+  useEffect(() => {
+    if (currentUser) {
+      navigate('/app/dashboard');
+    }
+  }, [currentUser, navigate]);
 
   const getFirebaseErrorMessage = (errorCode) => {
     switch (errorCode) {

@@ -39,12 +39,17 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ success: false, message: 'User already owns a business', data: existing });
     }
 
+    const trialDays = 14;
+    const trialEndsAt = new Date();
+    trialEndsAt.setDate(trialEndsAt.getDate() + trialDays);
+
     const newBusiness = {
       id: uuidv4(),
       name: name.trim(),
       owner_email: userEmail,
-      subscription_status: 'active',
-      subscription_ends_at: new Date('2099-12-31'), // Evergreen subscription
+      subscription_status: 'trial',
+      trial_ends_at: trialEndsAt,
+      subscription_ends_at: null,
       created_at: new Date(),
       updated_at: new Date()
     };
