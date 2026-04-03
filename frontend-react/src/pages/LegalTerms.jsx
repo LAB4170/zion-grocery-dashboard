@@ -18,11 +18,11 @@ const LegalTerms = () => {
           </section>
 
           <section>
-            <h2 className="text-xl font-semibold text-slate-900 mb-2">2. Subscription and Payments</h2>
+            <h2 className="text-xl font-semibold text-slate-900 mb-2">2. Service Access</h2>
             <ul className="list-disc pl-5 space-y-1">
-              <li>Nexus POS offers a trial period and monthly/annual subscription plans.</li>
-              <li>Payments are processed securely via M-Pesa or integrated payment providers.</li>
-              <li>Failure to pay may result in restricted access to data mutation features.</li>
+              <li>Nexus POS is currently provided as a free service for all micro-businesses.</li>
+              <li>You can create one workspace per account with full access to all features.</li>
+              <li>Future premium features may be introduced, but existing core POS features will remain accessible.</li>
             </ul>
           </section>
 

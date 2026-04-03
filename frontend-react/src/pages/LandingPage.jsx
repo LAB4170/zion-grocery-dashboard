@@ -55,7 +55,6 @@ export default function LandingPage() {
               {isDarkMode ? <Sun size={22} /> : <Moon size={22} />}
             </button>
             <a href="#features">Features</a>
-            <a href="#pricing">Pricing</a>
             <button className="btn-secondary" onClick={() => navigate('/login')}>Login</button>
             <button className="btn-primary" onClick={handleCTA}>Get Started <ArrowRight size={16} /></button>
           </div>
@@ -82,9 +81,9 @@ export default function LandingPage() {
             </button>
           </div>
           <div className="hero-stats">
-             <div className="stat-item"><CheckCircle2 size={16} color="var(--accent)"/> 14-Day Free Trial</div>
              <div className="stat-item"><CheckCircle2 size={16} color="var(--accent)"/> No Credit Card Required</div>
              <div className="stat-item"><CheckCircle2 size={16} color="var(--accent)"/> Instant Setup</div>
+             <div className="stat-item"><CheckCircle2 size={16} color="var(--accent)"/> Enterprise Analytics</div>
           </div>
         </div>
         
@@ -144,19 +143,13 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Pricing CTA */}
-      <section id="pricing" className="pricing-section reveal">
+      {/* Final CTA */}
+      <section className="pricing-section reveal">
         <div className="pricing-card glass">
           <h2>Ready to transform your retail operations?</h2>
           <p>Join hundreds of businesses scaling with NexusPOS today.</p>
-          <div className="pricing-price">
-            <span className="currency">KSh</span>
-            <span className="amount">1,500</span>
-            <span className="period">/ month</span>
-          </div>
-          <p className="pricing-note">Start your 14-day free trial today. Cancel anytime.</p>
           <button className="hero-btn-primary mx-auto" onClick={handleCTA} style={{ marginTop: '32px' }}>
-            Start 14-Day Free Trial <ArrowRight size={20} />
+            Get Started Now <ArrowRight size={20} />
           </button>
         </div>
       </section>
