@@ -96,7 +96,8 @@ const { requireAdminAuth } = require('./middleware/adminAuth');
 // Security middleware
 app.use(helmet({
   contentSecurityPolicy: false, // Allow inline scripts for frontend
-  crossOriginEmbedderPolicy: false
+  crossOriginEmbedderPolicy: false,
+  crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" } // CRITICAL for Firebase Google Sign-In popups
 }));
 app.use(compression());
 
