@@ -20,6 +20,27 @@ router.get('/overview', async (req, res) => {
       .groupBy('day')
       .orderBy('day', 'asc');
 
+    // NEW: Global Top Products leaderboard across all businesses
+    const globalTopProducts = await db('sales')
+      .select('product_name')
+      .count('id as count')
+      .sum('total as revenue')
+      .groupBy('product_name')
+      .orderBy('revenue', 'desc')
+      .limit(5);
+
+    // NEW: Payment method breakdown (Cash vs M-Pesa)
+    const paymentBreakdown = await db('sales')
+      .select('payment_method')
+      .sum('total as amount')
+      .groupBy('payment_method');
+
+    // Convert keys to uppercase/consistent for frontend PieChart
+    const formattedPayments = paymentBreakdown.map(p => ({
+        name: p.payment_method?.toUpperCase() || 'UNKNOWN',
+        value: parseFloat(p.amount || 0)
+    }));
+
     res.json({
       success: true,
       data: {
@@ -27,7 +48,9 @@ router.get('/overview', async (req, res) => {
         totalSalesCount: parseInt(totalSales.count || 0),
         totalRevenue: parseFloat(totalSales.sum || 0),
         totalProducts: parseInt(totalProducts.count),
-        salesTrend
+        salesTrend,
+        globalTopProducts,
+        paymentBreakdown: formattedPayments
       }
     });
   } catch (error) {
@@ -37,12 +60,37 @@ router.get('/overview', async (req, res) => {
 });
 
 /**
+ * GET /api/admin/activities
+ * Real-time (last 20) global sales across ALL businesses.
+ */
+router.get('/activities', async (req, res) => {
+    try {
+        const activities = await db('sales as s')
+            .join('businesses as b', 's.business_id', 'b.id')
+            .select(
+                's.id',
+                's.product_name',
+                's.quantity',
+                's.total',
+                's.created_at',
+                'b.name as business_name'
+            )
+            .orderBy('s.created_at', 'desc')
+            .limit(20);
+        
+        res.json({ success: true, data: activities });
+    } catch (error) {
+        console.error('Admin Activities Error:', error);
+        res.status(500).json({ success: false, message: 'Failed to fetch global activities' });
+    }
+});
+
+/**
  * GET /api/admin/businesses
- * Lists all registered businesses with their current metrics.
+ * Lists all registered businesses with detailed health metrics.
  */
 router.get('/businesses', async (req, res) => {
   try {
-    // We join with sales and products to get a real-time summary for each business
     const businesses = await db('businesses as b')
       .select(
         'b.id',
@@ -51,9 +99,10 @@ router.get('/businesses', async (req, res) => {
         'b.created_at',
         db.raw('(SELECT COUNT(*) FROM products WHERE business_id = b.id) as product_count'),
         db.raw('(SELECT COUNT(*) FROM sales WHERE business_id = b.id) as sales_count'),
-        db.raw('(SELECT SUM(total) FROM sales WHERE business_id = b.id) as total_revenue')
+        db.raw('(SELECT SUM(total) FROM sales WHERE business_id = b.id) as total_revenue'),
+        db.raw('(SELECT MAX(created_at) FROM sales WHERE business_id = b.id) as last_activity_at')
       )
-      .orderBy('b.created_at', 'desc');
+      .orderBy('total_revenue', 'desc'); // Order by highest earners for Lewis
 
     res.json({
         success: true,
@@ -67,7 +116,6 @@ router.get('/businesses', async (req, res) => {
 
 /**
  * GET /api/admin/businesses/:id
- * Detailed deep-dive into a single business.
  */
 router.get('/businesses/:id', async (req, res) => {
     try {
