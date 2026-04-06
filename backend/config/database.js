@@ -77,8 +77,11 @@ const config = {
 };
 
 // Create database instance
+// 'test' shares development DB config — tests run against local DB
 const environment = process.env.NODE_ENV || "development";
-const db = knex(config[environment]);
+const effectiveEnv = environment === 'test' ? 'development' : environment;
+const db = knex(config[effectiveEnv]);
+
 
 // Async connection test - DO NOT run at module load
 async function testConnection() {

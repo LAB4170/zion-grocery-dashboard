@@ -204,7 +204,7 @@ export default function Reports() {
 
       {/* ── Charts Row 1: Revenue Trend + Payment Mix ── */}
       <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: 20, marginBottom: 20, overflow: 'hidden' }}>
-        <section className="card-elevated" style={{ padding: '24px', minWidth: 0 }}>
+        <section className="card-elevated" style={{ padding: '24px', minWidth: 0, minHeight: 0 }}>
           <h3 style={{ fontSize: '16px', fontWeight: 800, marginBottom: 6 }}>Revenue Trend — Last 7 Days</h3>
           <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: 20 }}>Daily sales revenue from the database</p>
           {dailySales.length === 0 ? (
@@ -236,7 +236,7 @@ export default function Reports() {
           )}
         </section>
 
-        <section className="card-elevated" style={{ padding: '24px', minWidth: 0 }}>
+        <section className="card-elevated" style={{ padding: '24px', minWidth: 0, minHeight: 0 }}>
           <h3 style={{ fontSize: '16px', fontWeight: 800, marginBottom: 6 }}>Payment Method Mix</h3>
           <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: 12 }}>All-time breakdown</p>
           {paymentPieData.length === 0 ? (
@@ -273,7 +273,7 @@ export default function Reports() {
 
       {/* ── Charts Row 2: Top Products + Expense Categories ── */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20, overflow: 'hidden' }}>
-        <section className="card-elevated" style={{ padding: '24px', minWidth: 0 }}>
+        <section className="card-elevated" style={{ padding: '24px', minWidth: 0, minHeight: 0 }}>
           <h3 style={{ fontSize: '16px', fontWeight: 800, marginBottom: 20 }}>Top Selling Products</h3>
           {topProducts.length === 0 ? (
             <div style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 8 }}>
@@ -292,7 +292,7 @@ export default function Reports() {
           )}
         </section>
 
-        <section className="card-elevated" style={{ padding: '24px', minWidth: 0 }}>
+        <section className="card-elevated" style={{ padding: '24px', minWidth: 0, minHeight: 0 }}>
           <h3 style={{ fontSize: '16px', fontWeight: 800, marginBottom: 20 }}>Expense Categories</h3>
           {expByCategory.length === 0 ? (
             <div style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 8 }}>

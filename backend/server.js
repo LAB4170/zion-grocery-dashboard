@@ -91,8 +91,25 @@ const adminRoutes = require('./routes/admin');
 const { errorHandler } = require('./middleware/errorHandler');
 const { requireBusinessAuth } = require('./middleware/auth');
 const { requireAdminAuth } = require('./middleware/adminAuth');
+const { requireFirebaseAdminAuth } = require('./middleware/firebaseAdminAuth');
 const { requireTenantContext } = require('./middleware/tenantGuard');
-// Subscription middleware disabled
+
+/**
+ * Dual Admin Auth — accepts either:
+ *  (A) Legacy: x-admin-key header (backward compat during migration)
+ *  (B) New:    Authorization: Bearer <firebase-token> with role:'admin' claim
+ * 
+ * Once all admin users have the Firebase claim set, remove requireAdminAuth.
+ */
+const dualAdminAuth = async (req, res, next) => {
+  // If they're using the new Firebase token method, use Firebase auth
+  if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
+    return requireFirebaseAdminAuth(req, res, next);
+  }
+  // Otherwise fall back to the static key (legacy)
+  return requireAdminAuth(req, res, next);
+};
+
 
 // Security middleware
 app.use(helmet({
@@ -236,7 +253,7 @@ app.use('/api/expenses', requireBusinessAuth, requireTenantContext, expenseRoute
 app.use('/api/debts', requireBusinessAuth, requireTenantContext, debtRoutes);
 app.use('/api/dashboard', apiGeneralLimiter, requireBusinessAuth, requireTenantContext, dashboardRoutes);
 app.use('/api/payments', paymentLimiter, requireBusinessAuth, requireTenantContext, paymentsRoutes);
-app.use('/api/admin', adminDashboardLimiter, requireAdminAuth, adminRoutes);
+app.use('/api/admin', adminDashboardLimiter, dualAdminAuth, adminRoutes);
 
 // Handle React frontend routing - Catch all to serve index.html
 // Important: send index.html with no-cache so browsers always get the latest asset references

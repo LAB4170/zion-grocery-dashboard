@@ -283,7 +283,7 @@ export default function Dashboard() {
             ))}
           </div>
 
-          <div style={{ width: '100%' }}>
+          <div style={{ width: '100%', minWidth: 0, minHeight: 0 }}>
             {chartData.length === 0 || chartData.every(d => d.total_revenue === 0) ? (
               <div style={{ height: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 8 }}>
                 <TrendingUp size={32} style={{ color: 'var(--text-muted)', opacity: 0.4 }} />
@@ -346,7 +346,7 @@ export default function Dashboard() {
             <h3 style={{ fontSize: '17px', fontWeight: 800 }}>Expense Distribution</h3>
             <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: 2 }}>By category</p>
           </div>
-          <div style={{ width: '100%' }}>
+          <div style={{ width: '100%', minWidth: 0, minHeight: 0 }}>
             {categoryData.length === 0 ? (
               <div style={{ height: 220, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 8 }}>
                 <Package size={28} style={{ color: 'var(--text-muted)', opacity: 0.4 }} />

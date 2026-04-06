@@ -10,28 +10,27 @@ const requireBusinessAuth = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
     const userEmailHeader = req.headers['x-user-email'];
-    
-    // Bypass for creating a new business (onboarding) OR checking if one exists (me)
-    if (req.baseUrl === '/api/business' && (req.method === 'POST' || (req.method === 'GET' && req.path === '/me'))) {
-      const authHeader = req.headers.authorization;
-      const userEmailHeader = req.headers['x-user-email'];
-      let userEmail = userEmailHeader;
+    let userEmail = userEmailHeader;
 
-      // Ensure we still verify the identity, even if we don't require the business yet
-      if (authHeader && authHeader.startsWith('Bearer ')) {
-        const token = authHeader.split('Bearer ')[1];
-        if (isFirebaseInitialized) {
-          try {
-            const decodedToken = await admin.auth().verifyIdToken(token);
-            userEmail = decodedToken.email;
-          } catch (e) {}
+    // Bypass for creating a new business (onboarding) OR checking if one exists (me)
+    const isNewBusinessRoute = req.baseUrl === '/api/business' && (req.method === 'POST' || (req.method === 'GET' && req.path === '/me'));
+
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.split('Bearer ')[1];
+      if (isFirebaseInitialized) {
+        try {
+          const decodedToken = await admin.auth().verifyIdToken(token);
+          userEmail = decodedToken.email;
+          console.log(`✅ Token verified for: ${userEmail}`);
+        } catch (e) {
+          console.error('❌ Token Verification Failed in Bypass:', e.message);
         }
       }
+    }
 
-      if (userEmail) {
-        req.userEmail = userEmail;
-        return next();
-      }
+    if (isNewBusinessRoute && userEmail) {
+      req.userEmail = userEmail;
+      return next();
     }
 
     // 1. Verify Firebase ID Token
