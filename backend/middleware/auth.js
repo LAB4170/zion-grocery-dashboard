@@ -34,33 +34,33 @@ const requireBusinessAuth = async (req, res, next) => {
       }
     }
 
-    let userEmail = userEmailHeader;
-
-    // 1. Verify Firebase ID Token if provided and Admin SDK is ready
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      const token = authHeader.split('Bearer ')[1];
-      
-      if (isFirebaseInitialized) {
-        try {
-          const decodedToken = await admin.auth().verifyIdToken(token);
-          userEmail = decodedToken.email;
-          console.log(`✅ Token verified for: ${userEmail}`);
-        } catch (tokenError) {
-          console.error('❌ Firebase Token Verification Failed:', tokenError.message);
-          return res.status(401).json({ 
-            success: false, 
-            message: 'Invalid or expired authentication token.' 
-          });
-        }
-      } else {
-        console.warn('⚠️ Firebase Admin not initialized. Falling back to email header (INSECURE).');
-      }
-    }
-
-    if (!userEmail) {
+    // 1. Verify Firebase ID Token
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return res.status(401).json({ 
         success: false, 
-        message: 'Unauthorized. Authentication required.' 
+        message: 'No auth token provided. Authentication required.' 
+      });
+    }
+
+    const token = authHeader.split('Bearer ')[1];
+    
+    if (!isFirebaseInitialized) {
+      console.error('❌ Authentication failed: Firebase Admin not initialized.');
+      return res.status(500).json({ 
+        success: false, 
+        message: 'Internal server authentication configuration error.' 
+      });
+    }
+
+    try {
+      const decodedToken = await admin.auth().verifyIdToken(token);
+      userEmail = decodedToken.email;
+      console.log(`✅ Token verified for: ${userEmail}`);
+    } catch (tokenError) {
+      console.error('❌ Firebase Token Verification Failed:', tokenError.message);
+      return res.status(401).json({ 
+        success: false, 
+        message: 'Invalid or expired authentication token.' 
       });
     }
 

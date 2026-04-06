@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Expense = require('../models/Expense');
 const { catchAsync, AppError } = require('../middleware/errorHandler');
+const { expenseValidationRules, validate } = require('../middleware/validation');
 
 // GET /api/expenses - Get all expenses
 router.get('/', catchAsync(async (req, res) => {
@@ -79,13 +80,7 @@ router.get('/:id', catchAsync(async (req, res) => {
 }));
 
 // POST /api/expenses - Create new expense
-router.post('/', catchAsync(async (req, res) => {
-  // Validate input
-  const errors = Expense.validate(req.body);
-  if (errors.length > 0) {
-    throw new AppError(`Validation failed: ${errors.join(', ')}`, 400);
-  }
-
+router.post('/', expenseValidationRules, validate, catchAsync(async (req, res) => {
   const expenseData = {
     ...req.body,
     amount: Number(parseFloat(req.body.amount || 0).toFixed(2)),

@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Product = require('../models/Product');
 const { catchAsync, AppError } = require('../middleware/errorHandler');
+const { productValidationRules, validate } = require('../middleware/validation');
 
 // GET /api/products - Get all products (supports pagination and filters)
 router.get('/', catchAsync(async (req, res) => {
@@ -102,13 +103,7 @@ router.get('/:id/can-delete', catchAsync(async (req, res) => {
 }));
 
 // POST /api/products - Create new product
-router.post('/', catchAsync(async (req, res) => {
-  // Validate input
-  const errors = Product.validate(req.body);
-  if (errors.length > 0) {
-    throw new AppError(`Validation failed: ${errors.join(', ')}`, 400);
-  }
-
+router.post('/', productValidationRules, validate, catchAsync(async (req, res) => {
   const productData = {
     ...req.body,
     businessId: req.businessId
@@ -128,16 +123,10 @@ router.post('/', catchAsync(async (req, res) => {
 }));
 
 // PUT /api/products/:id - Update product
-router.put('/:id', catchAsync(async (req, res) => {
+router.put('/:id', productValidationRules, validate, catchAsync(async (req, res) => {
   const product = await Product.findById(req.params.id, req.businessId);
   if (!product) {
     throw new AppError('Product not found', 404);
-  }
-
-  // Validate input (partial update)
-  const errors = Product.validateUpdate(req.body);
-  if (errors.length > 0) {
-    throw new AppError(`Validation failed: ${errors.join(', ')}`, 400);
   }
 
   const updatedProduct = await Product.update(req.params.id, req.body, req.businessId);

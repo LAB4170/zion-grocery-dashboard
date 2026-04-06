@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Sale = require('../models/Sale');
 const { catchAsync, AppError } = require('../middleware/errorHandler');
+const { saleValidationRules, validate } = require('../middleware/validation');
 
 // GET /api/sales - Get all sales (supports pagination and filters)
 router.get('/', catchAsync(async (req, res) => {
@@ -118,13 +119,7 @@ router.get('/:id', catchAsync(async (req, res) => {
 }));
 
 // POST /api/sales - Create new sale
-router.post('/', catchAsync(async (req, res) => {
-  // Validate input
-  const errors = Sale.validate(req.body);
-  if (errors.length > 0) {
-    throw new AppError(`Validation failed: ${errors.join(', ')}`, 400);
-  }
-
+router.post('/', saleValidationRules, validate, catchAsync(async (req, res) => {
   // FIX: Enforce 100% accurate mathematical precision avoiding float drift
   const computedTotal = (parseFloat(req.body.unit_price || 0) * parseFloat(req.body.quantity || 0)).toFixed(2);
   const saleData = {

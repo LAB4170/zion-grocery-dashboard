@@ -91,6 +91,7 @@ const adminRoutes = require('./routes/admin');
 const { errorHandler } = require('./middleware/errorHandler');
 const { requireBusinessAuth } = require('./middleware/auth');
 const { requireAdminAuth } = require('./middleware/adminAuth');
+const { requireTenantContext } = require('./middleware/tenantGuard');
 // Subscription middleware disabled
 
 // Security middleware
@@ -101,14 +102,51 @@ app.use(helmet({
 }));
 app.use(compression());
 
-// Rate limiting — skipped in development to avoid 429 feedback loops
+// Rate limiting (skip dev)
 const limiter = rateLimit({
   windowMs: (process.env.RATE_LIMIT_WINDOW || 15) * 60 * 1000,
   max: parseInt(process.env.RATE_LIMIT_MAX) || 500,
   skip: () => process.env.NODE_ENV === 'development',
   message: { success: false, error: 'Too many requests. Please try again later.' }
 });
+
+// Stricter limiter for onboarding/registration
+const onboardingLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, 
+  max: 10, // 10 attempts per 15 mins
+  skip: () => process.env.NODE_ENV === 'development',
+  message: { success: false, error: 'Too many registration attempts. Please wait 15 minutes.' }
+});
+
+// Strict limiter for payments (expensive resources)
+const paymentLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5, // 5 attempts per 15 mins
+  skip: () => process.env.NODE_ENV === 'development',
+  message: { success: false, error: 'Too many payment attempts. Please wait 15 minutes.' }
+});
+
+// General API data limiter to prevent scraping
+const apiGeneralLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000,
+  max: 100, // 100 requests per minute
+  skip: () => process.env.NODE_ENV === 'development',
+  message: { success: false, error: 'High traffic detected. Please slow down.' }
+});
+
+// Admin Dashboard limiter (heavy queries)
+const adminDashboardLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000,
+  max: 30, // 30 requests per minute
+  skip: () => process.env.NODE_ENV === 'development',
+  message: { success: false, error: 'Too many admin requests. Please wait a minute.' }
+});
+
 app.use('/api/', limiter);
+app.use('/api/products', apiGeneralLimiter);
+app.use('/api/sales', apiGeneralLimiter);
+app.use('/api/expenses', apiGeneralLimiter);
+app.use('/api/debts', apiGeneralLimiter);
 
 // CORS configuration
 app.use(cors({
@@ -191,14 +229,14 @@ app.get('/api/debug-deploy', (req, res) => {
 });
 
 // API routes
-app.use('/api/business', requireBusinessAuth, businessRoutes);
-app.use('/api/products', requireBusinessAuth, productRoutes);
-app.use('/api/sales', requireBusinessAuth, salesRoutes);
-app.use('/api/expenses', requireBusinessAuth, expenseRoutes);
-app.use('/api/debts', requireBusinessAuth, debtRoutes);
-app.use('/api/dashboard', requireBusinessAuth, dashboardRoutes);
-app.use('/api/payments', requireBusinessAuth, paymentsRoutes);
-app.use('/api/admin', requireAdminAuth, adminRoutes);
+app.use('/api/business', onboardingLimiter, requireBusinessAuth, businessRoutes);
+app.use('/api/products', requireBusinessAuth, requireTenantContext, productRoutes);
+app.use('/api/sales', requireBusinessAuth, requireTenantContext, salesRoutes);
+app.use('/api/expenses', requireBusinessAuth, requireTenantContext, expenseRoutes);
+app.use('/api/debts', requireBusinessAuth, requireTenantContext, debtRoutes);
+app.use('/api/dashboard', apiGeneralLimiter, requireBusinessAuth, requireTenantContext, dashboardRoutes);
+app.use('/api/payments', paymentLimiter, requireBusinessAuth, requireTenantContext, paymentsRoutes);
+app.use('/api/admin', adminDashboardLimiter, requireAdminAuth, adminRoutes);
 
 // Handle React frontend routing - Catch all to serve index.html
 // Important: send index.html with no-cache so browsers always get the latest asset references

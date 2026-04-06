@@ -13,7 +13,7 @@ const clientConfig = process.env.DATABASE_URL
       port: process.env.DB_PORT || 5432,
       database: process.env.DB_NAME || 'EobordTech-POS',
       user: process.env.DB_USER || 'postgres',
-      password: process.env.DB_PASSWORD || '1234',
+      password: process.env.DB_PASSWORD,
     };
 
 const client = new Client(clientConfig);

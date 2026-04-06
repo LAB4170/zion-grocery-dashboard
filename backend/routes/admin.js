@@ -1,12 +1,22 @@
 const express = require('express');
 const router = express.Router();
 const { db } = require('../config/database');
+const { catchAsync } = require('../middleware/errorHandler');
+const { requireAdminAuth } = require('../middleware/adminAuth');
+const { validate } = require('../middleware/validation');
+const { body } = require('express-validator');
+
+// Validation rules for system overrides
+const systemOverrideRules = [
+  body('reason').trim().notEmpty().withMessage('Reason for system override must be provided'),
+  body('action').isIn(['REPAIR', 'RESET', 'MIGRATE']).withMessage('Invalid system action')
+];
 
 /**
  * GET /api/admin/overview
  * Provides high-level system-wide statistics for Lewis.
  */
-router.get('/overview', async (req, res) => {
+router.get('/overview', requireAdminAuth, async (req, res) => {
   try {
     const totalBusinesses = await db('businesses').count('id as count').first();
     const totalSales = await db('sales').count('id as count').sum('total as sum').first();

@@ -1,17 +1,18 @@
 const express = require('express');
 const router = express.Router();
 const { db } = require('../config/database');
+const { catchAsync, AppError } = require('../middleware/errorHandler');
+const { requireBusinessAuth } = require('../middleware/auth');
+const axios = require('axios');
+const { debtPaymentValidationRules, validate } = require('../middleware/validation');
+const { requireTenantContext } = require('../middleware/tenantGuard');
 
 // POST /api/payments/pay
 // Securely initiates an M-Pesa STK Push Express Payment
-router.post('/pay', async (req, res) => {
+router.post('/pay', requireBusinessAuth, requireTenantContext, debtPaymentValidationRules, validate, async (req, res) => {
   try {
     const { phone, amount } = req.body;
     const businessId = req.businessId;
-
-    if (!phone || !amount) {
-      return res.status(400).json({ success: false, message: 'A valid Safaricom Phone number and KSh Amount is required.' });
-    }
 
     // Architecture Note: In full production, we trigger the Safaricom Daraja API here:
     // https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest

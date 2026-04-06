@@ -4,9 +4,9 @@ require('dotenv').config({ path: '../.env' });
 const client = new Client({
   host: process.env.DB_HOST || 'localhost',
   port: process.env.DB_PORT || 5432,
-  database: 'EobordTech-POS',
+  database: process.env.DB_NAME || 'zion_grocery_db',
   user: process.env.DB_USER || 'postgres',
-  password: process.env.DB_PASSWORD || '1234',
+  password: process.env.DB_PASSWORD,
 });
 
 async function checkBusinesses() {

@@ -7,11 +7,11 @@ const requireAdminAuth = (req, res, next) => {
   const adminSecret = process.env.ADMIN_SECRET;
   const providedSecret = req.headers['x-admin-key'];
 
-  if (!adminSecret) {
-    console.error('❌ ADMIN_SECRET is not set in environment variables!');
+  if (!adminSecret || adminSecret.length < 32) {
+    console.error('❌ ADMIN_SECRET is not set or too weak (< 32 chars)!');
     return res.status(500).json({ 
       success: false, 
-      message: 'Admin access is currently misconfigured. Please set ADMIN_SECRET.' 
+      message: 'Admin access is currently misconfigured. Please set a strong ADMIN_SECRET.' 
     });
   }
 
