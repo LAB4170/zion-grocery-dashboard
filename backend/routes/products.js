@@ -84,7 +84,7 @@ router.get('/:id', catchAsync(async (req, res) => {
 
 // GET /api/products/:id/can-delete - Check if product can be deleted
 router.get('/:id/can-delete', catchAsync(async (req, res) => {
-  const product = await Product.findById(req.params.id);
+  const product = await Product.findById(req.params.id, req.businessId);
   if (!product) {
     throw new AppError('Product not found', 404);
   }

@@ -125,11 +125,12 @@ router.post('/', catchAsync(async (req, res) => {
     throw new AppError(`Validation failed: ${errors.join(', ')}`, 400);
   }
 
-  // FIX: Pass complete sale data without modifying it
+  // FIX: Enforce 100% accurate mathematical precision avoiding float drift
+  const computedTotal = (parseFloat(req.body.unit_price || 0) * parseFloat(req.body.quantity || 0)).toFixed(2);
   const saleData = {
     ...req.body,
     businessId: req.businessId,
-    total: req.body.total || (parseFloat(req.body.unit_price) * parseFloat(req.body.quantity))
+    total: req.body.total ? Number(parseFloat(req.body.total).toFixed(2)) : Number(computedTotal)
   };
 
   const sale = await Sale.create(saleData);
@@ -146,9 +147,8 @@ router.post('/', catchAsync(async (req, res) => {
   });
 }));
 
-// PUT /api/sales/:id - Update sale
 router.put('/:id', catchAsync(async (req, res) => {
-  const sale = await Sale.findById(req.params.id);
+  const sale = await Sale.findById(req.params.id, req.businessId);
   if (!sale) {
     throw new AppError('Sale not found', 404);
   }
@@ -159,7 +159,7 @@ router.put('/:id', catchAsync(async (req, res) => {
     throw new AppError(`Validation failed: ${errors.join(', ')}`, 400);
   }
 
-  const updatedSale = await Sale.update(req.params.id, req.body);
+  const updatedSale = await Sale.update(req.params.id, req.body, req.businessId);
   
   // Real-time broadcast
   req.app.locals.broadcastDataChange('sale', updatedSale);
@@ -181,7 +181,7 @@ router.patch('/:id/status', catchAsync(async (req, res) => {
     throw new AppError('Valid status is required (completed, pending, cancelled)', 400);
   }
 
-  const updatedSale = await Sale.update(req.params.id, { status });
+  const updatedSale = await Sale.update(req.params.id, { status }, req.businessId);
   
   // Real-time broadcast
   req.app.locals.broadcastDataChange('sale', updatedSale);
@@ -196,13 +196,13 @@ router.patch('/:id/status', catchAsync(async (req, res) => {
 
 // PUT /api/sales/:id - Update sale (qty, price, method, status, customer)
 router.put('/:id', catchAsync(async (req, res) => {
-  const sale = await Sale.findById(req.params.id);
+  const sale = await Sale.findById(req.params.id, req.businessId);
   if (!sale) {
     throw new AppError('Sale not found', 404);
   }
 
   // We let the model handle the validation & transaction (stock + debt adjustment)
-  const updatedSale = await Sale.update(req.params.id, req.body);
+  const updatedSale = await Sale.update(req.params.id, req.body, req.businessId);
   
   // Real-time broadcast
   req.app.locals.broadcastDataChange('sale', updatedSale);
@@ -218,12 +218,12 @@ router.put('/:id', catchAsync(async (req, res) => {
 
 // DELETE /api/sales/:id - Delete sale
 router.delete('/:id', catchAsync(async (req, res) => {
-  const sale = await Sale.findById(req.params.id);
+  const sale = await Sale.findById(req.params.id, req.businessId);
   if (!sale) {
     throw new AppError('Sale not found', 404);
   }
 
-  const result = await Sale.delete(req.params.id);
+  const result = await Sale.delete(req.params.id, req.businessId);
   
   // Real-time broadcast
   req.app.locals.broadcastDataChange('sale', { id: req.params.id, deleted: true });

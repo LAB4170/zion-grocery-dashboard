@@ -157,7 +157,9 @@ router.post('/:id/payment', catchAsync(async (req, res) => {
     throw new AppError('Debt not found', 404);
   }
 
-  const updatedDebt = await Debt.makePayment(req.params.id, amount, payment_method, req.businessId);
+  // Ensure strict mathematical precision for accounting
+  const preciseAmount = Number(parseFloat(amount).toFixed(2));
+  const updatedDebt = await Debt.makePayment(req.params.id, preciseAmount, payment_method, req.businessId);
   
   // Real-time broadcast
   req.app.locals.broadcastDataChange('debt', updatedDebt);

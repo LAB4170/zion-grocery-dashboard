@@ -88,6 +88,7 @@ router.post('/', catchAsync(async (req, res) => {
 
   const expenseData = {
     ...req.body,
+    amount: Number(parseFloat(req.body.amount || 0).toFixed(2)),
     created_by: req.body.created_by || 'system',
     businessId: req.businessId
   };
@@ -116,6 +117,10 @@ router.put('/:id', catchAsync(async (req, res) => {
   const errors = Expense.validateUpdate(req.body);
   if (errors.length > 0) {
     throw new AppError(`Validation failed: ${errors.join(', ')}`, 400);
+  }
+
+  if (req.body.amount) {
+    req.body.amount = Number(parseFloat(req.body.amount).toFixed(2));
   }
 
   const updatedExpense = await Expense.update(req.params.id, req.body, req.businessId);

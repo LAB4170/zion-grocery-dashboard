@@ -317,9 +317,9 @@ class Debt {
         })
         .returning('*');
 
-      // Update debt totals
-      const newAmountPaid = parseFloat(debt.amount_paid || 0) + amt;
-      const newBalance = Math.max(parseFloat(debt.amount || 0) - newAmountPaid, 0);
+      // Update debt totals securely bypassing javascript floating point drift
+      const newAmountPaid = Number((parseFloat(debt.amount_paid || 0) + amt).toFixed(2));
+      const newBalance = Number(Math.max(parseFloat(debt.amount || 0) - newAmountPaid, 0).toFixed(2));
       const newStatus = newBalance <= 0 ? 'paid' : 'pending';
 
       const [updatedDebt] = await trx('debts')
