@@ -3,6 +3,7 @@ const router = express.Router();
 const { db } = require('../config/database');
 const { catchAsync } = require('../middleware/errorHandler');
 const { auditLog } = require('../middleware/auditLog');
+const { admin } = require('../config/firebase');
 // Note: requireAdminAuth is already applied globally in server.js for all /api/admin routes
 
 /**
@@ -126,6 +127,8 @@ router.get('/businesses', auditLog('LIST_BUSINESSES'), catchAsync(async (req, re
         'b.owner_email',
         'b.created_at',
         'b.subscription_status',
+        'b.is_suspended',
+        'b.admin_notes',
         db.raw('(SELECT COUNT(*) FROM products WHERE business_id = b.id) as product_count'),
         db.raw('(SELECT COUNT(*) FROM sales WHERE business_id = b.id) as sales_count'),
         db.raw('(SELECT SUM(total) FROM sales WHERE business_id = b.id) as total_revenue'),
@@ -223,6 +226,68 @@ router.get('/audit-log', auditLog('VIEW_AUDIT_LOG'), catchAsync(async (req, res)
     .limit(limit);
 
   res.json({ success: true, data: logs, count: logs.length });
+}));
+
+/**
+ * POST /api/admin/businesses/:id/status
+ * Suspend or reactivate a business
+ */
+router.post('/businesses/:id/status', auditLog('UPDATE_BUSINESS_STATUS'), catchAsync(async (req, res) => {
+    const { id } = req.params;
+    const { is_suspended, admin_notes } = req.body;
+    
+    await db('businesses').where({ id }).update({
+        is_suspended: !!is_suspended,
+        admin_notes: admin_notes || '',
+        updated_at: new Date()
+    });
+    
+    res.json({ success: true, message: is_suspended ? 'Business suspended' : 'Business activated' });
+}));
+
+/**
+ * POST /api/admin/businesses/:id/extend-trial
+ * Extend a trial by N days
+ */
+router.post('/businesses/:id/extend-trial', auditLog('EXTEND_TRIAL'), catchAsync(async (req, res) => {
+    const { id } = req.params;
+    const { days = 7 } = req.body;
+    
+    await db.raw(`
+        UPDATE businesses 
+        SET trial_ends_at = GREATEST(trial_ends_at, CURRENT_TIMESTAMP) + (? || ' days')::interval,
+            subscription_status = 'trial',
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+    `, [days, id]);
+    
+    res.json({ success: true, message: `Extended trial by ${days} days` });
+}));
+
+/**
+ * POST /api/admin/businesses/:id/impersonate
+ * Ghost Login: Generate custom Firebase JWT to login as merchant
+ */
+router.post('/businesses/:id/impersonate', auditLog('IMPERSONATE_BUSINESS'), catchAsync(async (req, res) => {
+    const { id } = req.params;
+    const business = await db('businesses').where({ id }).first();
+    
+    if (!business) return res.status(404).json({ success: false, message: 'Business not found' });
+    if (!admin) return res.status(500).json({ success: false, message: 'Firebase Admin not initialized' });
+
+    let userRecord;
+    try {
+        userRecord = await admin.auth().getUserByEmail(business.owner_email);
+    } catch (err) {
+        return res.status(404).json({ success: false, message: 'Merchant Firebase account not found', details: err.message });
+    }
+
+    const customToken = await admin.auth().createCustomToken(userRecord.uid, {
+        impersonator: req.adminEmail || 'admin-key',
+        is_impersonation: true
+    });
+
+    res.json({ success: true, customToken });
 }));
 
 module.exports = router;

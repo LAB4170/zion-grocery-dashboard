@@ -74,6 +74,14 @@ const requireBusinessAuth = async (req, res, next) => {
         });
     }
 
+    if (business.is_suspended) {
+        return res.status(403).json({
+            success: false,
+            message: 'This account has been suspended by an administrator. Please contact support.',
+            code: 'ACCOUNT_SUSPENDED'
+        });
+    }
+
     // 3. Attach metadata to request scope
     req.business = business;
     req.businessId = business.id;

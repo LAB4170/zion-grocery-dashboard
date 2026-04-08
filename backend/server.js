@@ -11,6 +11,7 @@ const socketIo = require('socket.io');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
 const app = express();
+const { initWorker } = require('./workers/statsWorker');
 
 // Utility: normalize origin by removing trailing slash and lowercasing
 function normalizeOrigin(value) {
@@ -308,6 +309,8 @@ process.on('SIGINT', () => {
 
 // Start server
 if (process.env.NODE_ENV !== 'test') {
+  // Initialize background workers
+  initWorker();
   const isDevelopment = process.env.NODE_ENV === 'development';
   const environment = process.env.NODE_ENV || 'development';
   const frontendUrl = process.env.FRONTEND_URL || `http://localhost:${PORT}`;

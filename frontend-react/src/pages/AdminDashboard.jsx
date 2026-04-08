@@ -48,6 +48,7 @@ export default function AdminDashboard() {
   const [selectedBusiness, setSelectedBusiness] = useState(null);
   const [showDetail, setShowDetail] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [adminNotes, setAdminNotes] = useState('');
 
   const fetchAdminData = async (key) => {
     try {
@@ -81,6 +82,7 @@ export default function AdminDashboard() {
       const config = { headers: { 'x-admin-key': adminKey } };
       const res = await axios.get(`${API_BASE}/admin/businesses/${id}`, config);
       setSelectedBusiness(res.data.data);
+      setAdminNotes(res.data.data.business.admin_notes || '');
       setShowDetail(true);
     } catch (err) {
       console.error("Detail fetch failed", err);
@@ -108,6 +110,47 @@ export default function AdminDashboard() {
     b.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
     b.owner_email.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const handleSuspendToggle = async (bId, currentStatus) => {
+    try {
+      const config = { headers: { 'x-admin-key': adminKey } };
+      await axios.post(`${API_BASE}/admin/businesses/${bId}/status`, {
+        is_suspended: !currentStatus,
+        admin_notes: adminNotes
+      }, config);
+      alert(`Business ${!currentStatus ? 'suspended' : 'activated'} successfully.`);
+      fetchAdminData(adminKey);
+      fetchBusinessDetail(bId);
+    } catch (err) {
+      alert('Failed to update status.');
+    }
+  };
+
+  const handleExtendTrial = async (bId) => {
+    try {
+      const config = { headers: { 'x-admin-key': adminKey } };
+      await axios.post(`${API_BASE}/admin/businesses/${bId}/extend-trial`, { days: 7 }, config);
+      alert('Trial extended by 7 days.');
+      fetchAdminData(adminKey);
+      fetchBusinessDetail(bId);
+    } catch (err) {
+      alert('Failed to extend trial.');
+    }
+  };
+
+  const handleImpersonate = async (bId) => {
+    try {
+      const config = { headers: { 'x-admin-key': adminKey } };
+      const res = await axios.post(`${API_BASE}/admin/businesses/${bId}/impersonate`, {}, config);
+      
+      // Navigate to the consumer frontend with the token
+      const impersonationToken = res.data.customToken;
+      localStorage.setItem('nexus_auth_token', impersonationToken);
+      window.open('/app', '_blank'); // Open dashboard in new tab
+    } catch (err) {
+      alert('Impersonation failed: ' + (err.response?.data?.message || err.message));
+    }
+  };
 
   if (!isAuthenticated) {
     return (
@@ -331,6 +374,11 @@ export default function AdminDashboard() {
                            <span className={`badge-status status-${b.healthStatus.toLowerCase()}`}>
                              {b.healthStatus}
                            </span>
+                           {b.is_suspended && (
+                             <span className="badge-status" style={{ background: '#7f1d1d', color: '#fca5a5', marginLeft: '6px' }}>
+                               SUSPENDED
+                             </span>
+                           )}
                          </td>
                          <td style={{ padding: '16px 24px' }}>
                             <div style={{ fontSize: '13px' }}>{b.sales_count} Sales</div>
@@ -397,8 +445,15 @@ export default function AdminDashboard() {
                 <button className="btn-back" onClick={() => setShowDetail(false)}>
                   <ArrowLeft size={18} /> RETURN
                 </button>
-                <div className={`status-pill ${selectedBusiness.business.subscription_status}`}>
-                  {selectedBusiness.business.subscription_status?.toUpperCase()}
+                <div style={{display: 'flex', gap: '8px'}}>
+                  {selectedBusiness.business.is_suspended && (
+                    <div className="status-pill" style={{background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)'}}>
+                      SUSPENDED
+                    </div>
+                  )}
+                  <div className={`status-pill ${selectedBusiness.business.subscription_status}`}>
+                    {selectedBusiness.business.subscription_status?.toUpperCase()}
+                  </div>
                 </div>
               </div>
               
@@ -451,6 +506,32 @@ export default function AdminDashboard() {
                        ))}
                     </div>
                  </div>
+                  {/* ACTION BAR */}
+                  <div className="panel-section" style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '32px' }}>
+                     <button onClick={() => handleImpersonate(selectedBusiness.business.id)} className="btn-primary" style={{ flex: 1, minWidth: '140px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' }}>
+                        <Globe size={16} /> Impersonate
+                     </button>
+                     <button onClick={() => handleExtendTrial(selectedBusiness.business.id)} className="btn-secondary" style={{ flex: 1, minWidth: '140px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', background: 'var(--bg)', border: '1px solid var(--border)', cursor: 'pointer', borderRadius: '8px' }}>
+                        <Clock size={16} /> Extend Trial
+                     </button>
+                     <button onClick={() => handleSuspendToggle(selectedBusiness.business.id, selectedBusiness.business.is_suspended)} className="btn-secondary" style={{ flex: 1, minWidth: '140px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', cursor: 'pointer', borderRadius: '8px', background: selectedBusiness.business.is_suspended ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)', color: selectedBusiness.business.is_suspended ? '#10b981' : '#ef4444', border: `1px solid ${selectedBusiness.business.is_suspended ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}` }}>
+                        <AlertCircle size={16} /> {selectedBusiness.business.is_suspended ? 'Reactivate' : 'Suspend'}
+                     </button>
+                  </div>
+
+                  {/* CRM NOTES */}
+                  <div className="panel-section">
+                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                        <h4 className="section-title" style={{ margin: 0 }}>CRM NOTES (Auto-saves on action)</h4>
+                     </div>
+                     <textarea 
+                        value={adminNotes}
+                        onChange={(e) => setAdminNotes(e.target.value)}
+                        placeholder="Internal notes for this merchant..."
+                        style={{ width: '100%', height: '80px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '8px', padding: '12px', color: 'var(--text)', fontSize: '13px', resize: 'vertical' }}
+                     />
+                  </div>
+
               </div>
            </div>
         </div>
