@@ -298,7 +298,7 @@ export default function AdminDashboard() {
                       <h3 style={{ fontSize: '16px', fontWeight: 800 }}>Network Growth Dynamics</h3>
                       <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 700 }}>LAST 7 DAYS</div>
                    </div>
-                   <div style={{ height: '350px', minWidth: 0, minHeight: 0 }}>
+                   <div style={{ height: '350px', width: '100%', minWidth: 0, position: 'relative' }}>
                       {overview?.salesTrend?.length > 0 ? (
                         <ResponsiveContainer width="100%" height="100%">
                           <AreaChart data={overview?.salesTrend}>
@@ -324,7 +324,7 @@ export default function AdminDashboard() {
                 {/* Market Share */}
                 <div className="card-premium" style={{ padding: '24px' }}>
                    <h3 style={{ fontSize: '16px', fontWeight: 800, marginBottom: '24px' }}>Payment Modality</h3>
-                   <div style={{ height: '300px', minWidth: 0, minHeight: 0 }}>
+                   <div style={{ height: '300px', width: '100%', minWidth: 0, position: 'relative' }}>
                       <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
                           <Pie data={overview?.paymentBreakdown || []} innerRadius={70} outerRadius={90} paddingAngle={8} dataKey="value" nameKey="name">
@@ -470,7 +470,7 @@ export default function AdminDashboard() {
 
                  <div className="panel-section">
                     <h4 className="section-title">PERFORMANCE TREND (30D)</h4>
-                    <div style={{ height: '180px', marginBottom: '24px', minWidth: 0, minHeight: 0 }}>
+                    <div style={{ height: '180px', marginBottom: '24px', width: '100%', minWidth: 0, position: 'relative' }}>
                        <ResponsiveContainer width="100%" height="100%">
                          <AreaChart data={selectedBusiness.revenueTrend}>
                            <Area type="monotone" dataKey="amount" stroke="var(--accent)" fill="var(--accent)" fillOpacity={0.1} strokeWidth={2} />
@@ -552,6 +552,7 @@ export default function AdminDashboard() {
           background: var(--surface);
           border: 1px solid var(--border);
           border-radius: 16px;
+          min-width: 0;
           box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
           transition: transform 0.2s, box-shadow 0.2s;
         }

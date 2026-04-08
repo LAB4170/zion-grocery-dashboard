@@ -1,5 +1,5 @@
 const cron = require('node-cron');
-const db = require('../config/database');
+const { db } = require('../config/database');
 
 async function snapshotAdminStats() {
   console.log('📊 [StatsWorker] Starting aggregate snapshot...');
