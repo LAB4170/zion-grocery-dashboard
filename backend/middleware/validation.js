@@ -33,8 +33,18 @@ const productValidationRules = [
 const saleValidationRules = [
   body('productId').notEmpty().withMessage('Product ID is required'),
   body('quantity').isFloat({ min: 0.01 }).withMessage('Quantity must be greater than zero'),
-  body('payment_method').isIn(['cash', 'mpesa', 'debt']).withMessage('Invalid payment method'),
-  body('customer_name').optional().trim().isLength({ max: 100 })
+  // Support both snake_case (legacy) and camelCase (react frontend)
+  body('paymentMethod').optional().isIn(['cash', 'mpesa', 'debt']).withMessage('Invalid payment method'),
+  body('payment_method').optional().isIn(['cash', 'mpesa', 'debt']).withMessage('Invalid payment method'),
+  body('customerName').optional().trim().isLength({ max: 100 }),
+  body('customer_name').optional().trim().isLength({ max: 100 }),
+  // Custom validator to ensure at least one payment field is present
+  body().custom((value) => {
+    if (!value.paymentMethod && !value.payment_method) {
+      throw new Error('Payment method is required');
+    }
+    return true;
+  })
 ];
 
 /**

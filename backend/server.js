@@ -220,6 +220,7 @@ const broadcastDataChange = (type, data) => {
   io.to('grocery-dashboard').emit('data-update', { type, data, timestamp: Date.now() });
 };
 app.locals.broadcastDataChange = broadcastDataChange;
+app.locals.clearDashboardCache = clearDashboardCache;
 
 // Health check endpoint
 app.get('/health', async (req, res) => {
@@ -288,12 +289,22 @@ backupSystem.schedule();
 // Global error handler - KDP Compliant (No sensitive details in production)
 app.use((err, req, res, next) => {
   const isProduction = process.env.NODE_ENV === 'production';
+  
+  // Prioritize numeric statusCode, then numeric status, then default to 500
+  let statusCode = 500;
+  if (typeof err.statusCode === 'number') {
+    statusCode = err.statusCode;
+  } else if (typeof err.status === 'number') {
+    statusCode = err.status;
+  }
+  
   console.error('Unhandled Error:', err);
   
-  res.status(err.status || 500).json({
+  res.status(statusCode).json({
     success: false,
     message: isProduction ? 'Internal server error. Reference ID: ' + req.id : err.message,
-    code: err.code || 'INTERNAL_ERROR'
+    code: err.code || 'INTERNAL_ERROR',
+    timestamp: new Date().toISOString()
   });
 });
 

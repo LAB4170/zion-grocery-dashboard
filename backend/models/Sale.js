@@ -34,6 +34,36 @@ class Sale {
     this.updatedAt = data.updatedAt || data.updated_at;
   }
 
+  // Helper to map DB row to camelCase
+  static mapRow(sale) {
+    if (!sale) return null;
+    const createdAt = sale.created_at;
+    const createdAtISO = (createdAt && typeof createdAt !== 'string')
+      ? createdAt.toISOString()
+      : (createdAt || null);
+    const dateStr = sale.date || (createdAtISO ? createdAtISO.split('T')[0] : new Date().toISOString().split('T')[0]);
+    
+    return {
+      id: sale.id,
+      productId: sale.product_id,
+      productName: sale.product_name,
+      quantity: parseFloat(sale.quantity),
+      unitPrice: typeof sale.unit_price === 'string' ? parseFloat(sale.unit_price) : sale.unit_price,
+      total: typeof sale.total === 'string' ? parseFloat(sale.total) : sale.total,
+      paymentMethod: sale.payment_method,
+      customerName: sale.customer_name,
+      customerPhone: sale.customer_phone,
+      status: sale.status,
+      mpesaCode: sale.mpesa_code,
+      notes: sale.notes,
+      date: dateStr,
+      createdBy: sale.created_by,
+      createdAt: createdAtISO,
+      updatedAt: sale.updated_at,
+      businessId: sale.business_id
+    };
+  }
+
   // Create new sale
   static async create(saleData) {
     if (!saleData.businessId) throw new Error('businessId is required');
@@ -111,7 +141,7 @@ class Sale {
       }
       
       await trx.commit();
-      return newSale;
+      return Sale.mapRow(newSale); // Map row to camelCase
     } catch (error) {
       await trx.rollback();
       throw error;
@@ -142,33 +172,7 @@ class Sale {
     }
     
     const sales = await query.orderBy('created_at', 'desc');
-    
-    // Transform to frontend format (camelCase)
-    return sales.map(sale => {
-      const createdAt = sale.created_at;
-      const createdAtISO = (createdAt && typeof createdAt !== 'string')
-        ? createdAt.toISOString()
-        : (createdAt || null);
-      const dateStr = sale.date || (createdAtISO ? createdAtISO.split('T')[0] : new Date().toISOString().split('T')[0]);
-      return {
-        id: sale.id,
-        productId: sale.product_id,
-        productName: sale.product_name,
-        quantity: sale.quantity,
-        unitPrice: sale.unit_price,
-        total: sale.total,
-        paymentMethod: sale.payment_method,
-        customerName: sale.customer_name,
-        customerPhone: sale.customer_phone,
-        status: sale.status,
-        mpesaCode: sale.mpesa_code,
-        notes: sale.notes,
-        date: dateStr,
-        createdBy: sale.created_by,
-        createdAt: createdAtISO,
-        updatedAt: sale.updated_at
-      };
-    });
+    return sales.map(Sale.mapRow);
   }
 
   // New: Server-side pagination with filters and sorting
@@ -216,31 +220,7 @@ class Sale {
       .limit(safePerPage)
       .offset(offset);
 
-    const items = rows.map(sale => {
-      const createdAt = sale.created_at;
-      const createdAtISO = (createdAt && typeof createdAt !== 'string')
-        ? createdAt.toISOString()
-        : (createdAt || null);
-      const dateStr = sale.date || (createdAtISO ? createdAtISO.split('T')[0] : new Date().toISOString().split('T')[0]);
-      return {
-        id: sale.id,
-        productId: sale.product_id,
-        productName: sale.product_name,
-        quantity: parseFloat(sale.quantity),
-        unitPrice: sale.unit_price,
-        total: sale.total,
-        paymentMethod: sale.payment_method,
-        customerName: sale.customer_name,
-        customerPhone: sale.customer_phone,
-        status: sale.status,
-        mpesaCode: sale.mpesa_code,
-        notes: sale.notes,
-        date: dateStr,
-        createdBy: sale.created_by,
-        createdAt: createdAtISO,
-        updatedAt: sale.updated_at
-      };
-    });
+    const items = rows.map(Sale.mapRow);
 
     return {
       items,
@@ -255,32 +235,7 @@ class Sale {
   static async findById(id, businessId) {
     if (!businessId) throw new Error('businessId is required');
     const sale = await getDatabase()('sales').where('id', id).andWhere('business_id', businessId).first();
-    if (!sale) return null;
-    
-    // Transform to frontend format (camelCase)
-    const createdAt = sale.created_at;
-    const createdAtISO = (createdAt && typeof createdAt !== 'string')
-      ? createdAt.toISOString()
-      : (createdAt || null);
-    const dateStr = sale.date || (createdAtISO ? createdAtISO.split('T')[0] : new Date().toISOString().split('T')[0]);
-    return {
-      id: sale.id,
-      productId: sale.product_id,
-      productName: sale.product_name,
-      quantity: parseFloat(sale.quantity),
-      unitPrice: sale.unit_price,
-      total: sale.total,
-      paymentMethod: sale.payment_method,
-      customerName: sale.customer_name,
-      customerPhone: sale.customer_phone,
-      status: sale.status,
-      mpesaCode: sale.mpesa_code,
-      notes: sale.notes,
-      date: dateStr,
-      createdBy: sale.created_by,
-      createdAt: createdAtISO,
-      updatedAt: sale.updated_at
-    };
+    return Sale.mapRow(sale);
   }
 
   // Update sale (transactional with stock and debt consistency)
@@ -423,7 +378,7 @@ class Sale {
       }
 
       await trx.commit();
-      return updatedSale;
+      return Sale.mapRow(updatedSale);
     } catch (error) {
       await trx.rollback();
       throw error;
