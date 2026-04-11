@@ -12,16 +12,25 @@ try {
   const isPlaceholder = process.env.FIREBASE_PRIVATE_KEY === 'YOUR_PRIVATE_KEY';
 
   if (hasRequiredVars && !isPlaceholder) {
-    admin.initializeApp({
-      credential: admin.credential.cert({
-        projectId: process.env.FIREBASE_PROJECT_ID,
-        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-        // Replace escaped newlines from env var
-        privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n')
-      })
-    });
-    isFirebaseInitialized = true;
-    console.log('✅ Firebase Admin initialized securely.');
+    try {
+      // Robust private key parsing
+      const rawKey = process.env.FIREBASE_PRIVATE_KEY;
+      const privateKey = rawKey.includes('\\n') 
+        ? rawKey.replace(/\\n/g, '\n') 
+        : rawKey.replace(/"/g, ''); // Handle potential double quoting
+
+      admin.initializeApp({
+        credential: admin.credential.cert({
+          projectId: process.env.FIREBASE_PROJECT_ID,
+          clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+          privateKey
+        })
+      });
+      isFirebaseInitialized = true;
+      console.log('✅ Firebase Admin initialized securely.');
+    } catch (initError) {
+      console.error('❌ Firebase Admin initialization error (Invalid key format?):', initError.message);
+    }
   } else {
     const reason = isPlaceholder ? 'Private key is still a placeholder.' : 'Missing env vars.';
     console.warn(`⚠️ Firebase Admin NOT initialized: ${reason} (API will use lenient header-based auth for dev).`);

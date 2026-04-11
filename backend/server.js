@@ -94,6 +94,7 @@ const { requireBusinessAuth } = require('./middleware/auth');
 const { requireAdminAuth } = require('./middleware/adminAuth');
 const { requireFirebaseAdminAuth } = require('./middleware/firebaseAdminAuth');
 const { requireTenantContext } = require('./middleware/tenantGuard');
+const { requireActiveSubscription } = require('./middleware/billingGuard');
 
 /**
  * Dual Admin Auth — accepts either:
@@ -248,11 +249,11 @@ app.get('/api/debug-deploy', (req, res) => {
 
 // API routes
 app.use('/api/business', onboardingLimiter, requireBusinessAuth, businessRoutes);
-app.use('/api/products', requireBusinessAuth, requireTenantContext, productRoutes);
-app.use('/api/sales', requireBusinessAuth, requireTenantContext, salesRoutes);
-app.use('/api/expenses', requireBusinessAuth, requireTenantContext, expenseRoutes);
-app.use('/api/debts', requireBusinessAuth, requireTenantContext, debtRoutes);
-app.use('/api/dashboard', apiGeneralLimiter, requireBusinessAuth, requireTenantContext, dashboardRoutes);
+app.use('/api/products', requireBusinessAuth, requireTenantContext, requireActiveSubscription, productRoutes);
+app.use('/api/sales', requireBusinessAuth, requireTenantContext, requireActiveSubscription, salesRoutes);
+app.use('/api/expenses', requireBusinessAuth, requireTenantContext, requireActiveSubscription, expenseRoutes);
+app.use('/api/debts', requireBusinessAuth, requireTenantContext, requireActiveSubscription, debtRoutes);
+app.use('/api/dashboard', apiGeneralLimiter, requireBusinessAuth, requireTenantContext, requireActiveSubscription, dashboardRoutes);
 app.use('/api/payments', paymentLimiter, requireBusinessAuth, requireTenantContext, paymentsRoutes);
 app.use('/api/admin', adminDashboardLimiter, dualAdminAuth, adminRoutes);
 

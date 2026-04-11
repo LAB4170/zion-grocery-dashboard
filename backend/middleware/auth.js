@@ -44,23 +44,28 @@ const requireBusinessAuth = async (req, res, next) => {
     const token = authHeader.split('Bearer ')[1];
     
     if (!isFirebaseInitialized) {
-      console.error('❌ Authentication failed: Firebase Admin not initialized.');
-      return res.status(500).json({ 
-        success: false, 
-        message: 'Internal server authentication configuration error.' 
-      });
-    }
-
-    try {
-      const decodedToken = await admin.auth().verifyIdToken(token);
-      userEmail = decodedToken.email;
-      console.log(`✅ Token verified for: ${userEmail}`);
-    } catch (tokenError) {
-      console.error('❌ Firebase Token Verification Failed:', tokenError.message);
-      return res.status(401).json({ 
-        success: false, 
-        message: 'Invalid or expired authentication token.' 
-      });
+      console.warn('⚠️ Authentication bypassed/limited: Firebase Admin not initialized.');
+      // In development, we might want to allow access with a mock email if provided via header
+      if (process.env.NODE_ENV === 'development' && userEmailHeader) {
+        userEmail = userEmailHeader;
+      } else {
+        return res.status(503).json({ 
+          success: false, 
+          message: 'Authentication service is temporarily unavailable. Please try again later.' 
+        });
+      }
+    } else {
+      try {
+        const decodedToken = await admin.auth().verifyIdToken(token);
+        userEmail = decodedToken.email;
+        console.log(`✅ Token verified for: ${userEmail}`);
+      } catch (tokenError) {
+        console.error('❌ Firebase Token Verification Failed:', tokenError.message);
+        return res.status(401).json({ 
+          success: false, 
+          message: 'Invalid or expired authentication token.' 
+        });
+      }
     }
 
     // 2. Look up the business associated with this email
