@@ -12,6 +12,7 @@ require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
 const app = express();
 const { initWorker } = require('./workers/statsWorker');
+const { initJobs } = require('./jobs/index');
 const { client, pubClient, subClient, initRedis } = require('./config/redis');
 const { createAdapter } = require('@socket.io/redis-adapter');
 const RedisStore = require('rate-limit-redis').default;
@@ -360,6 +361,7 @@ if (process.env.NODE_ENV !== 'test') {
   // Initialize background systems and workers
   initRedis().then(() => {
     initWorker();
+    initJobs(io); // 🤖 Start background automation engine
   });
   const isDevelopment = process.env.NODE_ENV === 'development';
   const environment = process.env.NODE_ENV || 'development';

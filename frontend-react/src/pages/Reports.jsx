@@ -180,18 +180,26 @@ export default function Reports() {
       doc.setLineWidth(0.5);
       doc.line(14, 42, doc.internal.pageSize.width - 14, 42);
 
-      const netProfit = ((data?.stats?.sales?.total_revenue || 0) - (data?.stats?.expenses?.total_expenses || 0));
+      const totalRevenue = data?.stats?.sales?.total_revenue || 0;
+      const totalCOGS    = data?.stats?.sales?.total_cogs    || 0;
+      const grossProfit  = totalRevenue - totalCOGS;
+      const totalExpenses = data?.stats?.expenses?.total_expenses || 0;
+      const trueNetProfit = grossProfit - totalExpenses;
 
-      // Financial Summary Block
+      // Financial Summary Block — GAAP-structured P&L
       autoTable(doc, {
         startY: 50,
-        head: [['Metric', 'Value']],
+        head: [['Metric', 'Amount (KSh)']],
         body: [
-          ['Total Revenue', `KSh ${fmt(data?.stats?.sales?.total_revenue)}`],
-          ['Total Expenses', `KSh ${fmt(data?.stats?.expenses?.total_expenses)}`],
-          ['Net Profit', `KSh ${fmt(netProfit)}`],
-          ['Outstanding Debt', `KSh ${fmt(data?.stats?.debts?.total_outstanding)}`],
-          ['Total Transactions', `${allSales.length}`],
+          ['(+) Total Revenue',       `KSh ${fmt(totalRevenue)}`],
+          ['(-) Cost of Goods Sold',  `KSh ${fmt(totalCOGS)}`],
+          ['(=) Gross Profit',        `KSh ${fmt(grossProfit)}`],
+          ['(-) Operating Expenses',  `KSh ${fmt(totalExpenses)}`],
+          ['(=) Net Profit',          `KSh ${fmt(trueNetProfit)}`],
+          ['    Gross Margin %',      `${totalRevenue ? ((grossProfit / totalRevenue) * 100).toFixed(1) : 0}%`],
+          ['    Net Margin %',        `${totalRevenue ? ((trueNetProfit / totalRevenue) * 100).toFixed(1) : 0}%`],
+          ['Outstanding Debt',        `KSh ${fmt(data?.stats?.debts?.total_outstanding)}`],
+          ['Total Transactions',      `${allSales.length} sales`],
         ],
         theme: 'grid',
         headStyles: { fillColor: [59, 130, 246] },
@@ -332,7 +340,13 @@ export default function Reports() {
   const debtStats  = stats?.debts || {};
   const invStats   = stats?.inventory || {};
 
-  const netProfit = (salesStats.total_revenue || 0) - (expStats.total_expenses || 0);
+  const totalRevenue = salesStats.total_revenue || 0;
+  const totalCOGS    = salesStats.total_cogs    || 0;
+  const grossProfit  = totalRevenue - totalCOGS;
+  const totalExpenses = expStats.total_expenses  || 0;
+  const netProfit    = grossProfit - totalExpenses;
+  const grossMarginPct = totalRevenue ? ((grossProfit / totalRevenue) * 100).toFixed(1) : '0.0';
+  const netMarginPct   = totalRevenue ? ((netProfit   / totalRevenue) * 100).toFixed(1) : '0.0';
   const debtRatio = salesStats.total_revenue
     ? Math.round((debtStats.total_outstanding / salesStats.total_revenue) * 100)
     : 0;
@@ -384,11 +398,12 @@ export default function Reports() {
 
       {/* ── KPI Row ── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 24 }}>
-        <MetricCard title="Net Profit" value={`KSh ${fmt(netProfit)}`} sub="Revenue minus expenses" icon={netProfit >= 0 ? TrendingUp : TrendingDown} color={netProfit >= 0 ? '#10B981' : '#EF4444'} border />
-        <MetricCard title="Total Revenue" value={`KSh ${fmt(salesStats.total_revenue)}`} sub={`${salesStats.total_sales || 0} transactions`} icon={ShoppingCart} color="#3B82F6" border />
-        <MetricCard title="Total Expenses" value={`KSh ${fmt(expStats.total_expenses)}`} sub="All recorded expenses" icon={TrendingDown} color="#F59E0B" border />
-        <MetricCard title="Inventory Value" value={`KSh ${fmt(invStats.total_valuation)}`} sub="Real-time asset value" icon={Package} color="#8B5CF6" border />
-        <MetricCard title="Debt Outstanding" value={`KSh ${fmt(debtStats.total_outstanding)}`} sub={`${debtRatio}% of revenue`} icon={FileText} color="#EF4444" border />
+        <MetricCard title="Gross Profit" value={`KSh ${fmt(grossProfit)}`} sub={`Margin: ${grossMarginPct}%`} icon={grossProfit >= 0 ? TrendingUp : TrendingDown} color={grossProfit >= 0 ? '#10B981' : '#EF4444'} border />
+        <MetricCard title="Net Profit" value={`KSh ${fmt(netProfit)}`} sub={`Margin: ${netMarginPct}%`} icon={netProfit >= 0 ? TrendingUp : TrendingDown} color={netProfit >= 0 ? '#3B82F6' : '#EF4444'} border />
+        <MetricCard title="Total Revenue" value={`KSh ${fmt(totalRevenue)}`} sub={`${salesStats.total_sales || 0} transactions`} icon={ShoppingCart} color="#8B5CF6" border />
+        <MetricCard title="Total COGS" value={`KSh ${fmt(totalCOGS)}`} sub="Cost of goods sold" icon={TrendingDown} color="#F59E0B" border />
+        <MetricCard title="Operating Expenses" value={`KSh ${fmt(totalExpenses)}`} sub="All recorded expenses" icon={TrendingDown} color="#EF4444" border />
+        <MetricCard title="Debt Outstanding" value={`KSh ${fmt(debtStats.total_outstanding)}`} sub={`${debtRatio}% of revenue`} icon={FileText} color="#6366F1" border />
       </div>
 
       {/* ── Charts Row 1: Revenue Trend + Payment Mix ── */}

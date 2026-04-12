@@ -11,7 +11,7 @@ export default function Products() {
   const [error, setError] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
-  const [formData, setFormData] = useState({ name: '', category: '', price: '', stockQuantity: '', unit: 'pcs' });
+  const [formData, setFormData] = useState({ name: '', category: '', price: '', costPrice: '', stockQuantity: '', unit: 'pcs' });
 
   const socket = useSocket();
 
@@ -44,12 +44,13 @@ export default function Products() {
         name: product.name, 
         category: product.category, 
         price: product.price, 
+        costPrice: product.costPrice || '',
         stockQuantity: product.stockQuantity,
         unit: product.unit || 'pcs'
       });
     } else {
       setEditingProduct(null);
-      setFormData({ name: '', category: '', price: '', stockQuantity: '', unit: 'pcs' });
+      setFormData({ name: '', category: '', price: '', costPrice: '', stockQuantity: '', unit: 'pcs' });
     }
     setIsModalOpen(true);
   };
@@ -105,7 +106,9 @@ export default function Products() {
             <tr>
               <th>Product Name</th>
               <th>Category</th>
-              <th>Unit Price</th>
+              <th>Cost Price</th>
+              <th>Selling Price</th>
+              <th>Margin</th>
               <th>Stock Status</th>
               <th>Actions</th>
             </tr>
@@ -125,7 +128,25 @@ export default function Products() {
                     </div>
                   </td>
                   <td data-label="Category" style={{ color: 'var(--text-muted)' }}>{product.category}</td>
-                  <td data-label="Unit Price" className="price" style={{ fontWeight: 800 }}>KSh {Number(product.price).toLocaleString()}</td>
+                  <td data-label="Cost Price" style={{ color: 'var(--text-muted)', fontSize: '13px' }}>
+                    {product.costPrice > 0 ? `KSh ${Number(product.costPrice).toLocaleString()}` : <span style={{ opacity: 0.4 }}>—</span>}
+                  </td>
+                  <td data-label="Selling Price" className="price" style={{ fontWeight: 800 }}>KSh {Number(product.price).toLocaleString()}</td>
+                  <td data-label="Margin">
+                    {product.costPrice > 0 ? (
+                      (() => {
+                        const margin = ((product.price - product.costPrice) / product.price) * 100;
+                        const isGood = margin >= 20;
+                        return (
+                          <span style={{
+                            background: isGood ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)',
+                            color: isGood ? 'var(--accent)' : 'var(--danger)',
+                            padding: '4px 10px', borderRadius: '20px', fontSize: '12px', fontWeight: 700
+                          }}>{margin.toFixed(1)}%</span>
+                        );
+                      })()
+                    ) : <span style={{ opacity: 0.4, fontSize: '12px' }}>No cost set</span>}
+                  </td>
                   <td data-label="Stock Status">
                     <div className="stock-badge" style={{ 
                       backgroundColor: product.stockQuantity < 10 ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)',
@@ -186,7 +207,22 @@ export default function Products() {
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', background: 'var(--bg)', padding: '16px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)' }}>
                 <div className="input-group">
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--accent)', fontWeight: 700 }}><DollarSign size={14} /> Price (KSh)</label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--danger)', fontWeight: 700 }}><DollarSign size={14} /> Cost Price (KSh)</label>
+                  <input 
+                    type="number" 
+                    value={formData.costPrice} 
+                    onChange={e => setFormData({...formData, costPrice: e.target.value})} 
+                    placeholder="Your buying price"
+                    style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
+                  />
+                  {formData.costPrice && formData.price && (
+                    <small style={{ color: 'var(--accent)', marginTop: '4px', display: 'block' }}>
+                      Margin: {(((formData.price - formData.costPrice) / formData.price) * 100).toFixed(1)}%
+                    </small>
+                  )}
+                </div>
+                <div className="input-group">
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--accent)', fontWeight: 700 }}><DollarSign size={14} /> Selling Price (KSh)</label>
                   <input 
                     type="number" 
                     value={formData.price} 
@@ -195,8 +231,9 @@ export default function Products() {
                     style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
                   />
                 </div>
-                <div className="input-group">
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--accent)', fontWeight: 700 }}><Package size={14} /> Stock Qty</label>
+              </div>
+              <div className="input-group">
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--accent)', fontWeight: 700 }}><Package size={14} /> Stock Qty</label>
                   <div style={{ display: 'flex', gap: '8px' }}>
                     <input 
                       type="number" 
@@ -218,7 +255,6 @@ export default function Products() {
                       <option value="ml">ml</option>
                     </select>
                   </div>
-                </div>
               </div>
               <button type="submit" className="btn-primary" style={{ padding: '14px', fontSize: '16px', marginTop: '12px' }}>
                 {editingProduct ? 'Update Changes' : 'Create Product'}

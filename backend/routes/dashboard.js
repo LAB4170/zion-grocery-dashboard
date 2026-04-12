@@ -81,16 +81,19 @@ router.get('/stats', catchAsync(async (req, res) => {
       stats = {
         sales: {
           total_revenue: Number(salesSummary.total_revenue || 0),
+          total_cogs: Number(salesSummary.total_cogs || 0),
           total_sales: Number(salesSummary.total_sales || 0),
           cash_sales: Number(salesSummary.cash_sales || 0),
           mpesa_sales: Number(salesSummary.mpesa_sales || 0),
           debt_sales: Number(salesSummary.debt_sales || 0),
           today_revenue: Number(todaySales.total_revenue || 0),
+          today_cogs: Number(todaySales.total_cogs || 0),
           today_sales: Number(todaySales.total_sales || 0),
           today_cash: Number(todaySales.cash_sales || 0),
           today_mpesa: Number(todaySales.mpesa_sales || 0),
           today_debt: Number(todaySales.debt_sales || 0),
           monthly_revenue: Number(monthlySales.total_revenue || 0),
+          monthly_cogs: Number(monthlySales.total_cogs || 0),
           monthly_sales: Number(monthlySales.total_sales || 0)
         },
         expenses: {

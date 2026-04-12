@@ -18,6 +18,7 @@ class Product {
     this.name = data.name;
     this.category = data.category;
     this.price = parseFloat(data.price);
+    this.costPrice = parseFloat(data.costPrice || data.cost_price || 0);
     this.stockQuantity = parseFloat(data.stockQuantity || data.stock_quantity || 0);
     this.unit = data.unit || 'pcs';
     this.metadata = data.metadata || {}; // Universal JSONB metadata
@@ -42,6 +43,7 @@ class Product {
       name: productData.name,
       category: productData.category,
       price: parseFloat(productData.price),
+      cost_price: parseFloat(productData.costPrice || productData.cost_price || 0),
       stock_quantity: parseFloat(productData.stockQuantity || productData.stock_quantity || 0),
       unit: productData.unit || 'pcs',
       metadata: productData.metadata || {},
@@ -81,6 +83,7 @@ class Product {
       name: product.name,
       category: product.category,
       price: product.price,
+      costPrice: parseFloat(product.cost_price || 0),
       stockQuantity: parseFloat(product.stock_quantity),
       unit: product.unit || 'pcs',
       metadata: product.metadata || {},
@@ -117,6 +120,7 @@ class Product {
       name: product.name,
       category: product.category,
       price: product.price,
+      costPrice: parseFloat(product.cost_price || 0),
       stockQuantity: parseFloat(product.stock_quantity),
       unit: product.unit || 'pcs',
       metadata: product.metadata || {},
@@ -146,6 +150,7 @@ class Product {
       name: product.name,
       category: product.category,
       price: product.price,
+      costPrice: parseFloat(product.cost_price || 0),
       stockQuantity: parseFloat(product.stock_quantity),
       unit: product.unit || 'pcs',
       metadata: product.metadata || {},
@@ -169,6 +174,9 @@ class Product {
     }
     if (updateData.hasOwnProperty('price')) {
       dbData.price = parseFloat(updateData.price);
+    }
+    if (updateData.hasOwnProperty('costPrice')) {
+      dbData.cost_price = parseFloat(updateData.costPrice);
     }
 
     // Allow stock updates when explicitly provided; validate non-negative number

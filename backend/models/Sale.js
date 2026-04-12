@@ -50,6 +50,7 @@ class Sale {
       quantity: parseFloat(sale.quantity),
       unitPrice: typeof sale.unit_price === 'string' ? parseFloat(sale.unit_price) : sale.unit_price,
       total: typeof sale.total === 'string' ? parseFloat(sale.total) : sale.total,
+      unitCost: typeof sale.unit_cost === 'string' ? parseFloat(sale.unit_cost) : (sale.unit_cost || 0),
       paymentMethod: sale.payment_method,
       customerName: sale.customer_name,
       customerPhone: sale.customer_phone,
@@ -100,6 +101,7 @@ class Sale {
           product_name: sale.productName,
           quantity: sale.quantity,
           unit_price: sale.unitPrice,
+          unit_cost: product.cost_price || 0,
           total: sale.total,
           payment_method: sale.paymentMethod,
           customer_name: sale.customerName,
@@ -706,6 +708,7 @@ class Sale {
       .select(
         getDatabase().raw('COUNT(*) as total_sales'),
         getDatabase().raw('SUM(total) as total_revenue'),
+        getDatabase().raw('SUM(unit_cost * quantity) as total_cogs'),
         getDatabase().raw('SUM(CASE WHEN payment_method = ? THEN total ELSE 0 END) as cash_sales', ['cash']),
         getDatabase().raw('SUM(CASE WHEN payment_method = ? THEN total ELSE 0 END) as mpesa_sales', ['mpesa']),
         getDatabase().raw('SUM(CASE WHEN payment_method = ? THEN total ELSE 0 END) as debt_sales', ['debt'])
@@ -715,6 +718,7 @@ class Sale {
     return {
       total_sales: parseInt(summary.total_sales) || 0,
       total_revenue: parseFloat(summary.total_revenue) || 0,
+      total_cogs: parseFloat(summary.total_cogs) || 0,
       cash_sales: parseFloat(summary.cash_sales) || 0,
       mpesa_sales: parseFloat(summary.mpesa_sales) || 0,
       debt_sales: parseFloat(summary.debt_sales) || 0
