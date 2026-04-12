@@ -34,7 +34,9 @@ async function runManualMigration() {
         subscription_ends_at TIMESTAMP WITH TIME ZONE,
         mpesa_number VARCHAR(20),
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        business_category VARCHAR(100) DEFAULT 'retail', -- For multi-category support
+        settings JSONB DEFAULT '{}'::jsonb -- For high-scale configuration
       )
     `);
     console.log('✅ Businesses table created');
@@ -53,7 +55,8 @@ async function runManualMigration() {
         min_stock DECIMAL(10, 2) DEFAULT 0,
         is_active BOOLEAN DEFAULT TRUE,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        metadata JSONB DEFAULT '{}'::jsonb -- Category-specific data (Pharma/Restaurant/etc)
       )
     `);
     console.log('✅ Products table created');
@@ -77,7 +80,8 @@ async function runManualMigration() {
         date DATE DEFAULT CURRENT_DATE,
         created_by VARCHAR(255) DEFAULT 'system',
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        metadata JSONB DEFAULT '{}'::jsonb -- Per-transaction category data
       )
     `);
     console.log('✅ Sales table created');
@@ -137,35 +141,37 @@ async function runManualMigration() {
     
     // 7. Add columns if tables existed but were missing business_id or unit
     const tables = ['products', 'sales', 'expenses', 'debts'];
-    for (const table of tables) {
+    // 7. Ensure NEW columns exist for existing tables (Migration Path)
+    const newColumns = [
+      { name: 'businesses', col: 'business_category', type: 'VARCHAR(100) DEFAULT \'retail\'' },
+      { name: 'businesses', col: 'settings', type: 'JSONB DEFAULT \'{}\'::jsonb' },
+      { name: 'products', col: 'metadata', type: 'JSONB DEFAULT \'{}\'::jsonb' },
+      { name: 'sales', col: 'metadata', type: 'JSONB DEFAULT \'{}\'::jsonb' },
+      { name: 'products', col: 'unit', type: 'VARCHAR(50) DEFAULT \'pcs\'' }
+    ];
+
+    for (const item of newColumns) {
       await client.query(`
         DO $$ 
         BEGIN 
           BEGIN
-            ALTER TABLE ${table} ADD COLUMN business_id UUID REFERENCES businesses(id) ON DELETE CASCADE;
+            ALTER TABLE ${item.name} ADD COLUMN ${item.col} ${item.type};
           EXCEPTION
-            WHEN duplicate_column THEN RAISE NOTICE 'column business_id already exists in ${table}';
+            WHEN duplicate_column THEN RAISE NOTICE 'column ${item.col} already exists in ${item.name}';
           END;
         END $$;
       `);
     }
 
-    // Specifically add 'unit' to products if it doesn't exist
-    await client.query(`
-      DO $$ 
-      BEGIN 
-        BEGIN
-          ALTER TABLE products ADD COLUMN unit VARCHAR(50) DEFAULT 'pcs';
-        EXCEPTION
-          WHEN duplicate_column THEN RAISE NOTICE 'column unit already exists in products';
-        END;
-      END $$;
-    `);
+    // 8. Create GIN Indexes for performance
+    await client.query('CREATE INDEX IF NOT EXISTS idx_businesses_settings ON businesses USING GIN (settings)');
+    await client.query('CREATE INDEX IF NOT EXISTS idx_products_metadata ON products USING GIN (metadata)');
+    await client.query('CREATE INDEX IF NOT EXISTS idx_sales_metadata ON sales USING GIN (metadata)');
 
-    console.log('🚀 Unified Multitenant Schema Applied Successfully');
+    console.log('🚀 Unified Multitenant Schema Evolved Successfully');
 
   } catch (err) {
-    console.error('❌ Error in manual migration:', err.message);
+    console.error('❌ Error in manual migration:', err.stack);
   } finally {
     await client.end();
   }

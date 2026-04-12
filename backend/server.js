@@ -12,6 +12,9 @@ require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
 const app = express();
 const { initWorker } = require('./workers/statsWorker');
+const { client, pubClient, subClient, initRedis } = require('./config/redis');
+const { createAdapter } = require('@socket.io/redis-adapter');
+const RedisStore = require('rate-limit-redis').default;
 
 // Utility: normalize origin by removing trailing slash and lowercasing
 function normalizeOrigin(value) {
@@ -62,7 +65,7 @@ app.set('trust proxy', true);
 const server = http.createServer(app);
 const PORT = process.env.PORT || 5000;
 
-// Configure Socket.IO with CORS
+// Configure Socket.IO with CORS and Redis Adapter for Scaling
 const io = socketIo(server, {
   cors: {
     origin: function (origin, callback) {
@@ -75,6 +78,9 @@ const io = socketIo(server, {
   transports: ['websocket', 'polling'],
   allowEIO3: true
 });
+
+// Attach Redis Adapter
+io.adapter(createAdapter(pubClient, subClient));
 
 // PostgreSQL database connection - required
 const { db, testConnection } = require('./config/database');
@@ -119,10 +125,24 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false,
   crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" } // CRITICAL for Firebase Google Sign-In popups
 }));
-app.use(compression());
+// Helper for stateless Redis commanding
+const redisCommand = async (...args) => {
+  try {
+    if (!client.isOpen) await client.connect();
+    return await client.sendCommand(args);
+  } catch (err) {
+    console.error('Redis RateLimit Command Error:', err.message);
+    // Fallback or rethrow? For security (protection), we should handle this gracefully
+    throw err;
+  }
+};
 
-// Rate limiting (skip dev)
+// Rate limiting (Stateless with Redis)
 const limiter = rateLimit({
+  store: new RedisStore({ 
+    sendCommand: (...args) => redisCommand(...args),
+    prefix: 'rl:gen:'
+  }),
   windowMs: (process.env.RATE_LIMIT_WINDOW || 15) * 60 * 1000,
   max: parseInt(process.env.RATE_LIMIT_MAX) || 500,
   skip: () => process.env.NODE_ENV === 'development',
@@ -131,32 +151,48 @@ const limiter = rateLimit({
 
 // Stricter limiter for onboarding/registration
 const onboardingLimiter = rateLimit({
+  store: new RedisStore({ 
+    sendCommand: (...args) => redisCommand(...args),
+    prefix: 'rl:onboard:'
+  }),
   windowMs: 15 * 60 * 1000, 
-  max: 10, // 10 attempts per 15 mins
+  max: 10,
   skip: () => process.env.NODE_ENV === 'development',
   message: { success: false, error: 'Too many registration attempts. Please wait 15 minutes.' }
 });
 
-// Strict limiter for payments (expensive resources)
+// Strict limiter for payments
 const paymentLimiter = rateLimit({
+  store: new RedisStore({ 
+    sendCommand: (...args) => redisCommand(...args),
+    prefix: 'rl:pay:'
+  }),
   windowMs: 15 * 60 * 1000,
-  max: 5, // 5 attempts per 15 mins
+  max: 5,
   skip: () => process.env.NODE_ENV === 'development',
   message: { success: false, error: 'Too many payment attempts. Please wait 15 minutes.' }
 });
 
 // General API data limiter to prevent scraping
 const apiGeneralLimiter = rateLimit({
+  store: new RedisStore({ 
+    sendCommand: (...args) => redisCommand(...args),
+    prefix: 'rl:api:'
+  }),
   windowMs: 1 * 60 * 1000,
-  max: 100, // 100 requests per minute
+  max: 100,
   skip: () => process.env.NODE_ENV === 'development',
   message: { success: false, error: 'High traffic detected. Please slow down.' }
 });
 
-// Admin Dashboard limiter (heavy queries)
+// Admin Dashboard limiter
 const adminDashboardLimiter = rateLimit({
+  store: new RedisStore({ 
+    sendCommand: (...args) => redisCommand(...args),
+    prefix: 'rl:admin:'
+  }),
   windowMs: 1 * 60 * 1000,
-  max: 30, // 30 requests per minute
+  max: 30,
   skip: () => process.env.NODE_ENV === 'development',
   message: { success: false, error: 'Too many admin requests. Please wait a minute.' }
 });
@@ -321,8 +357,10 @@ process.on('SIGINT', () => {
 
 // Start server
 if (process.env.NODE_ENV !== 'test') {
-  // Initialize background workers
-  initWorker();
+  // Initialize background systems and workers
+  initRedis().then(() => {
+    initWorker();
+  });
   const isDevelopment = process.env.NODE_ENV === 'development';
   const environment = process.env.NODE_ENV || 'development';
   const frontendUrl = process.env.FRONTEND_URL || `http://localhost:${PORT}`;

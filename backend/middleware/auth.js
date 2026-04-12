@@ -1,5 +1,6 @@
 const { db } = require('../config/database');
 const { admin, isFirebaseInitialized } = require('../config/firebase');
+const { getCachedBusiness, cacheBusinessResult } = require('../utils/cache');
 
 /**
  * Multi-Tenant Auth Middleware
@@ -69,7 +70,21 @@ const requireBusinessAuth = async (req, res, next) => {
     }
 
     // 2. Look up the business associated with this email
-    const business = await db('businesses').where('owner_email', userEmail).first();
+    // FIRST: Check Cache
+    let business = await getCachedBusiness(userEmail);
+    
+    if (!business) {
+      console.log(`🔍 Cache Miss for ${userEmail}. Fetching from DB.`);
+      business = await db('businesses').where('owner_email', userEmail).first();
+      
+      if (business) {
+        // SECOND: Populate Cache for next request
+        await cacheBusinessResult(userEmail, business);
+        console.log(`✅ Cached business for ${userEmail}`);
+      }
+    } else {
+      console.log(`⚡ Cache Hit for ${userEmail}`);
+    }
 
     if (!business) {
         return res.status(404).json({

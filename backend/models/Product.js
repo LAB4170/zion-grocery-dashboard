@@ -10,6 +10,7 @@ function getDatabase() {
 }
 
 const { v4: uuidv4 } = require('uuid');
+const { validateCategoryMetadata } = require('../config/categories');
 
 class Product {
   constructor(data) {
@@ -19,12 +20,21 @@ class Product {
     this.price = parseFloat(data.price);
     this.stockQuantity = parseFloat(data.stockQuantity || data.stock_quantity || 0);
     this.unit = data.unit || 'pcs';
+    this.metadata = data.metadata || {}; // Universal JSONB metadata
     this.createdAt = data.createdAt || data.created_at || new Date().toISOString();
     this.updatedAt = data.updatedAt || data.updated_at;
   }
 
   // Create new product with simplified fields
   static async create(productData) {
+    // 1. Validate Category Metadata (Pharma/Restaurant specific requirements)
+    if (productData.businessCategory) {
+      const vResult = validateCategoryMetadata(productData.businessCategory, productData.metadata);
+      if (!vResult.valid) {
+        throw new Error(`Category Validation Error: ${vResult.errors.join(', ')}`);
+      }
+    }
+
     const db = getDatabase();
     const dbData = {
       id: productData.id || uuidv4(),
@@ -34,6 +44,7 @@ class Product {
       price: parseFloat(productData.price),
       stock_quantity: parseFloat(productData.stockQuantity || productData.stock_quantity || 0),
       unit: productData.unit || 'pcs',
+      metadata: productData.metadata || {},
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
@@ -72,6 +83,7 @@ class Product {
       price: product.price,
       stockQuantity: parseFloat(product.stock_quantity),
       unit: product.unit || 'pcs',
+      metadata: product.metadata || {},
       createdAt: product.created_at,
       updatedAt: product.updated_at
     }));
@@ -107,6 +119,7 @@ class Product {
       price: product.price,
       stockQuantity: parseFloat(product.stock_quantity),
       unit: product.unit || 'pcs',
+      metadata: product.metadata || {},
       createdAt: product.created_at,
       updatedAt: product.updated_at
     }));
@@ -135,6 +148,7 @@ class Product {
       price: product.price,
       stockQuantity: parseFloat(product.stock_quantity),
       unit: product.unit || 'pcs',
+      metadata: product.metadata || {},
       createdAt: product.created_at,
       updatedAt: product.updated_at
     };
@@ -169,6 +183,10 @@ class Product {
     
     if (updateData.hasOwnProperty('unit')) {
       dbData.unit = updateData.unit;
+    }
+    
+    if (updateData.hasOwnProperty('metadata')) {
+      dbData.metadata = updateData.metadata;
     }
     
     const [updatedProduct] = await db('products')

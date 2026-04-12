@@ -12,6 +12,8 @@ import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { useBusiness } from '../context/BusinessContext';
 import { useSocket } from '../context/SocketContext';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 const COLORS = ['#10B981', '#3B82F6', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'];
 const fmt = (n) => Number(n || 0).toLocaleString('en-KE', { minimumFractionDigits: 0 });
@@ -54,6 +56,8 @@ export default function Reports() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [exporting, setExporting] = useState(false);
+  const [dateRange, setDateRange] = useState([null, null]);
+  const [startDate, endDate] = dateRange;
   const backoffRef = useRef(false);
   const socket = useSocket();
 
@@ -61,10 +65,18 @@ export default function Reports() {
     if (backoffRef.current) return;
     try {
       setLoading(true);
+      let queryParams = '';
+      if (startDate && endDate) {
+        // Adjust end date to capture end of the selected day
+        const to = new Date(endDate);
+        to.setHours(23, 59, 59, 999);
+        queryParams = `?date_from=${startDate.toISOString()}&date_to=${to.toISOString()}`;
+      }
+
       const [statsRes, chartsRes, salesRes] = await Promise.allSettled([
-        api.get('/dashboard/stats'),
-        api.get('/dashboard/charts'),
-        api.get('/sales?sortBy=created_at&sortDir=desc')
+        api.get(`/dashboard/stats${queryParams}`),
+        api.get(`/dashboard/charts${queryParams}`),
+        api.get(`/sales${queryParams ? queryParams + '&' : '?'}sortBy=created_at&sortDir=desc`)
       ]);
 
       // Handle 429
@@ -93,7 +105,7 @@ export default function Reports() {
     fetchReports();
     const interval = setInterval(fetchReports, 60000);
     return () => clearInterval(interval);
-  }, []);
+  }, [startDate, endDate]);
 
   useEffect(() => {
     if (!socket) return;
@@ -133,6 +145,167 @@ export default function Reports() {
     a.click();
     window.URL.revokeObjectURL(url);
     setExporting(false);
+  };
+
+  // ── PDF Export ──
+  const exportPDF = () => {
+    if (!allSales.length) return;
+    setExporting(true);
+    try {
+      const doc = new jsPDF();
+      const prefix = business?.name ? business.name : 'Business';
+
+      // Header: Premium look
+      doc.setFontSize(26);
+      doc.setTextColor(15, 23, 42); // Slate 900
+      doc.text(prefix.toUpperCase(), 14, 22);
+      
+      doc.setFontSize(14);
+      doc.setTextColor(100, 116, 139); // Slate 500
+      doc.text('FINANCIAL INTELLIGENCE REPORT', 14, 30);
+
+      // Date Range Info + Generated stamp aligned right
+      doc.setFontSize(10);
+      doc.setTextColor(100, 100, 100);
+      const generatedStamp = `Generated: ${new Date().toLocaleString()}`;
+      const rangeText = startDate && endDate 
+        ? `Snapshot Period: ${startDate.toLocaleDateString()} to ${endDate.toLocaleDateString()}` 
+        : `Snapshot Period: All-Time`;
+      
+      doc.text(rangeText, 14, 38);
+      doc.text(generatedStamp, doc.internal.pageSize.width - 14, 38, { align: 'right' });
+      
+      // Decorative line
+      doc.setDrawColor(226, 232, 240); // Slate 200
+      doc.setLineWidth(0.5);
+      doc.line(14, 42, doc.internal.pageSize.width - 14, 42);
+
+      const netProfit = ((data?.stats?.sales?.total_revenue || 0) - (data?.stats?.expenses?.total_expenses || 0));
+
+      // Financial Summary Block
+      autoTable(doc, {
+        startY: 50,
+        head: [['Metric', 'Value']],
+        body: [
+          ['Total Revenue', `KSh ${fmt(data?.stats?.sales?.total_revenue)}`],
+          ['Total Expenses', `KSh ${fmt(data?.stats?.expenses?.total_expenses)}`],
+          ['Net Profit', `KSh ${fmt(netProfit)}`],
+          ['Outstanding Debt', `KSh ${fmt(data?.stats?.debts?.total_outstanding)}`],
+          ['Total Transactions', `${allSales.length}`],
+        ],
+        theme: 'grid',
+        headStyles: { fillColor: [59, 130, 246] },
+        styles: { fontSize: 11, cellPadding: 4 },
+        columnStyles: { 0: { fontStyle: 'bold', minCellWidth: 60 } },
+        margin: { top: 10, bottom: 10 }
+      });
+
+      // Split Analytics section
+      doc.setFontSize(14);
+      doc.setTextColor(40, 40, 40);
+      doc.text('Operational Analytics', 14, doc.lastAutoTable.finalY + 14);
+
+      // Payment Breakdown & Expenses (Side by Side simulation or stacked if simple)
+      const payDist = data?.charts?.payment_distribution || {};
+      const breakdownBody = [
+        ['Cash', `KSh ${fmt(payDist.cash || 0)}`],
+        ['M-Pesa', `KSh ${fmt(payDist.mpesa || 0)}`],
+        ['Debt', `KSh ${fmt(payDist.debt || 0)}`]
+      ];
+
+      autoTable(doc, {
+        startY: doc.lastAutoTable.finalY + 20,
+        head: [['Payment Method', 'Collected']],
+        body: breakdownBody,
+        theme: 'striped',
+        headStyles: { fillColor: [245, 158, 11] },
+        styles: { fontSize: 9 },
+        margin: { right: 110 } // Left side table
+      });
+      const breakdownFinalY = doc.lastAutoTable.finalY;
+
+      const expensesData = (data?.charts?.expenses_by_category || []).map(e => [e.category, `KSh ${fmt(e.total_amount)}`]);
+      let expensesFinalY = doc.lastAutoTable.finalY;
+      
+      if (expensesData.length > 0) {
+        autoTable(doc, {
+          startY: doc.lastAutoTable.finalY - breakdownBody.length * 10 - 15, // Align with left table
+          head: [['Expense Category', 'Outflow']],
+          body: expensesData,
+          theme: 'striped',
+          headStyles: { fillColor: [239, 68, 68] },
+          styles: { fontSize: 9 },
+          margin: { left: 110 } // Right side table
+        });
+        expensesFinalY = doc.lastAutoTable.finalY;
+      }
+
+      const maxY = Math.max(breakdownFinalY, expensesFinalY);
+
+      // Top Products Table
+      const topProductsData = (data?.charts?.top_products || []).slice(0, 5).map(p => [
+        (p.productName || p.product_name || 'Unknown Item').substring(0, 30),
+        p.quantity_sold,
+        `KSh ${fmt(p.revenue)}`
+      ]);
+
+      if (topProductsData.length > 0) {
+        doc.text('Top Performing Products', 14, maxY + 14);
+        autoTable(doc, {
+          startY: maxY + 20,
+          head: [['Product', 'Units Sold', 'Total Revenue']],
+          body: topProductsData,
+          theme: 'grid',
+          headStyles: { fillColor: [139, 92, 246] },
+          styles: { fontSize: 9 }
+        });
+      }
+
+      // Full Transactions Ledger
+      doc.addPage();
+      doc.setFontSize(18);
+      doc.setTextColor(15, 23, 42);
+      doc.text('Detailed Transaction Ledger', 14, 20);
+      
+      doc.setFontSize(10);
+      doc.setTextColor(100, 116, 139);
+      doc.text('Itemized receipt of all recorded interactions matching this snapshot.', 14, 26);
+
+      const tableColumn = ["Date", "Item Sold", "Qty", "Unit Price", "Pmt Method", "Total"];
+      const tableRows = [];
+
+      allSales.forEach(sale => {
+        const qty = Number(sale.quantity || 1);
+        const itemPrice = Number(sale.unitPrice || sale.unit_price || (sale.total / qty) || 0);
+
+        const saleData = [
+          new Date(sale.createdAt || sale.created_at).toLocaleString('en-KE', { dateStyle: 'short', timeStyle: 'short' }),
+          (sale.productName || sale.product_name || 'Unknown Item').substring(0, 30),
+          `${qty}`,
+          `KSh ${fmt(itemPrice)}`,
+          (sale.paymentMethod || sale.payment_method || '').toUpperCase(),
+          `KSh ${fmt(sale.total)}`
+        ];
+        tableRows.push(saleData);
+      });
+
+      autoTable(doc, {
+        startY: 34,
+        head: [tableColumn],
+        body: tableRows,
+        theme: 'striped',
+        headStyles: { fillColor: [15, 23, 42], textColor: [255, 255, 255] },
+        styles: { fontSize: 9, cellPadding: 4 },
+        alternateRowStyles: { fillColor: [248, 250, 252] }
+      });
+
+      doc.save(`${prefix.toLowerCase().replace(/\s+/g, '-')}-financial-report.pdf`);
+    } catch (err) {
+      console.error(err);
+      setError('Failed to generate PDF. Make sure all files are loaded.');
+    } finally {
+      setExporting(false);
+    }
   };
 
   if (loading) return (
@@ -178,18 +351,34 @@ export default function Reports() {
   return (
     <div style={{ padding: '0 0 40px' }}>
       {/* ── Header ── */}
-      <header className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 28 }}>
+      <header className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 28, flexWrap: 'wrap', gap: 16 }}>
         <div>
           <h1 style={{ fontSize: '24px', fontWeight: 800 }}>Financial Intelligence</h1>
-          <p style={{ color: 'var(--text-muted)', marginTop: 4 }}>Real-time auditing and performance reporting</p>
+          <p style={{ color: 'var(--text-muted)', marginTop: 4 }}>Real-time auditing and historical reporting</p>
         </div>
-        <div style={{ display: 'flex', gap: 12 }}>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '10px', padding: '2px', overflow: 'hidden' }}>
+            <DatePicker
+              selectsRange={true}
+              startDate={startDate}
+              endDate={endDate}
+              onChange={(update) => setDateRange(update)}
+              isClearable={true}
+              placeholderText="Select Custom Date Range"
+              className="date-picker-input custom-input"
+            />
+          </div>
           <button onClick={fetchReports} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: '10px', background: 'var(--surface-hover)', border: '1px solid var(--border)', fontWeight: 700, fontSize: 13, cursor: 'pointer', color: 'var(--text)' }}>
             <RefreshCw size={14} /> Refresh
           </button>
-          <button onClick={exportCSV} disabled={exporting || !allSales.length} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: '10px', background: 'var(--accent)', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer', border: 'none', opacity: !allSales.length ? 0.5 : 1 }}>
-            <Download size={14} /> Export CSV
-          </button>
+          <div style={{ display: 'flex', background: 'var(--surface-hover)', borderRadius: '10px', overflow: 'hidden', padding: 2 }}>
+            <button onClick={exportCSV} disabled={exporting || !allSales.length} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: '8px', background: 'transparent', color: 'var(--text)', fontWeight: 700, fontSize: 13, cursor: 'pointer', border: 'none', opacity: !allSales.length ? 0.5 : 1 }}>
+              <Download size={14} /> CSV
+            </button>
+            <button onClick={exportPDF} disabled={exporting || !allSales.length} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: '8px', background: 'var(--accent)', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer', border: 'none', opacity: !allSales.length ? 0.5 : 1 }}>
+              <Download size={14} /> PDF
+            </button>
+          </div>
         </div>
       </header>
 
@@ -205,8 +394,8 @@ export default function Reports() {
       {/* ── Charts Row 1: Revenue Trend + Payment Mix ── */}
       <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: 20, marginBottom: 20, overflow: 'hidden' }}>
         <section className="card-elevated" style={{ padding: '24px', minWidth: 0, minHeight: 0 }}>
-          <h3 style={{ fontSize: '16px', fontWeight: 800, marginBottom: 6 }}>Revenue Trend — Last 7 Days</h3>
-          <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: 20 }}>Daily sales revenue from the database</p>
+          <h3 style={{ fontSize: '16px', fontWeight: 800, marginBottom: 6 }}>Revenue Trend</h3>
+          <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: 20 }}>Daily sales revenue for selected period</p>
           {dailySales.length === 0 ? (
             <div style={{ height: 240, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 8 }}>
               <TrendingUp size={30} style={{ color: 'var(--text-muted)', opacity: 0.4 }} />

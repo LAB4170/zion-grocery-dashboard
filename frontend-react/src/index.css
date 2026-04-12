@@ -1527,3 +1527,17 @@ button {
     margin-top: 4px;
   }
 }
+
+/* Date Range Custom Input */
+.custom-input {
+  background: transparent;
+  border: none;
+  color: var(--text);
+  outline: none;
+  font-weight: 500;
+  font-family: inherit;
+  font-size: 13px;
+  width: 200px;
+  text-align: center;
+  cursor: pointer;
+}

@@ -294,10 +294,14 @@ class Expense {
   }
 
   // Get expenses by category
-  static async getByCategory(businessId) {
+  static async getByCategory(businessId, filters = {}) {
     if (!businessId) throw new Error('businessId is required');
-    const categories = await getDatabase()('expenses')
-      .where('business_id', businessId)
+    let query = getDatabase()('expenses').where('business_id', businessId);
+    
+    if (filters.date_from) query = query.where('created_at', '>=', filters.date_from);
+    if (filters.date_to) query = query.where('created_at', '<=', filters.date_to);
+
+    const categories = await query
       .select('category')
       .sum('amount as total_amount')
       .count('* as count')

@@ -46,6 +46,11 @@ function ViewModal({ sale, onClose }) {
     ['Status', <span style={{ background: sc.bg, color: sc.color, borderRadius: '6px', padding: '2px 10px', fontWeight: 800, fontSize: 12, textTransform: 'uppercase' }}>{sale.status}</span>],
     ['Notes', sale.notes || '—'],
     ['Date', new Date(sale.createdAt).toLocaleString('en-KE')],
+    ['Fiscal Sig', sale.metadata?.fiscal?.fiscal_signature ? (
+      <span style={{ fontFamily: 'monospace', color: 'var(--accent)', fontWeight: 800 }}>
+        {sale.metadata.fiscal.fiscal_signature}
+      </span>
+    ) : 'Pending…'],
   ];
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '20px' }}>

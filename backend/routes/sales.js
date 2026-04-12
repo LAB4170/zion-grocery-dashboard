@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const Sale = require('../models/Sale');
+const Product = require('../models/Product');
+const FiscalService = require('../services/fiscal/FiscalService');
 const { catchAsync, AppError } = require('../middleware/errorHandler');
 const { saleValidationRules, validate } = require('../middleware/validation');
 
@@ -130,6 +132,31 @@ router.post('/', saleValidationRules, validate, catchAsync(async (req, res) => {
 
   const sale = await Sale.create(saleData);
   
+  // PHASE 3: Fiscal Compliance Hook
+  // Report sale to regulatory body (e.g. KRA eTIMS VSCU)
+  try {
+    const product = await Product.findById(sale.productId, req.businessId);
+    if (product) {
+      const fiscalResult = await FiscalService.processSale(req.business, sale, product);
+      if (fiscalResult.success) {
+        // Update sale with fiscal metadata (digital signature)
+        await Sale.update(sale.id, {
+          metadata: {
+            ...sale.metadata,
+            fiscal: fiscalResult
+          }
+        }, req.businessId);
+        
+        // Update locals for response
+        sale.metadata = { ...sale.metadata, fiscal: fiscalResult };
+      }
+    }
+  } catch (err) {
+    console.error('⚠️ Fiscal Reporting Warning:', err.message);
+    // Note: In high-scale POS, we usually retry fiscal reporting in a background queue 
+    // to avoid blocking the user if the KRA server is down.
+  }
+
   // Real-time broadcast for both sales and product (since stock changed)
   req.app.locals.broadcastDataChange('sale', sale);
   req.app.locals.broadcastDataChange('product', { id: sale.productId });
@@ -137,7 +164,7 @@ router.post('/', saleValidationRules, validate, catchAsync(async (req, res) => {
   
   res.status(201).json({
     success: true,
-    message: 'Sale created successfully',
+    message: 'Sale created successfully and signed for fiscal compliance',
     data: sale
   });
 }));

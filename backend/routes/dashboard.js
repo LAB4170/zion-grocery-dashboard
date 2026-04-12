@@ -40,7 +40,10 @@ const clearDashboardCache = () => {
 
 // GET /api/dashboard/stats - Get dashboard statistics
 router.get('/stats', catchAsync(async (req, res) => {
-  const cacheKey = `dashboard:stats:${req.businessId}`;
+  const { date_from, date_to } = req.query;
+  const isCustomDate = date_from || date_to;
+
+  const cacheKey = `dashboard:stats:${req.businessId}${isCustomDate ? `:${date_from}:${date_to}` : ''}`;
   
   try {
     // Try to get from cache first
@@ -52,18 +55,22 @@ router.get('/stats', catchAsync(async (req, res) => {
       const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
       const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
       
-      // Get sales summary
-      const salesSummary = (await Sale.getSummary({}, req.businessId)) || {};
+      const customFilters = {};
+      if (date_from) customFilters.date_from = new Date(date_from);
+      if (date_to) customFilters.date_to = new Date(date_to);
+
+      // Get sales summary: Period vs Today vs Month
+      const salesSummary = (await Sale.getSummary(isCustomDate ? customFilters : {}, req.businessId)) || {};
       const todaySales = (await Sale.getSummary({ date_from: startOfDay, date_to: today }, req.businessId)) || {};
       const monthlySales = (await Sale.getSummary({ date_from: startOfMonth, date_to: today }, req.businessId)) || {};
       
       // Get expenses summary
-      const expensesSummary = (await Expense.getSummary({}, req.businessId)) || {};
+      const expensesSummary = (await Expense.getSummary(isCustomDate ? customFilters : {}, req.businessId)) || {};
       const todayExpenses = (await Expense.getSummary({ date_from: startOfDay, date_to: today }, req.businessId)) || {};
       const monthlyExpenses = (await Expense.getSummary({ date_from: startOfMonth, date_to: today }, req.businessId)) || {};
       
       // Get debts summary
-      const debtsSummary = (await Debt.getSummary({}, req.businessId)) || {};
+      const debtsSummary = (await Debt.getSummary(isCustomDate ? customFilters : {}, req.businessId)) || {};
       const todayDebts = (await Debt.getSummary({ date_from: startOfDay, date_to: today }, req.businessId)) || {};
       const monthlyDebts = (await Debt.getSummary({ date_from: startOfMonth, date_to: today }, req.businessId)) || {};
       
@@ -124,20 +131,32 @@ router.get('/stats', catchAsync(async (req, res) => {
 
 // GET /api/dashboard/charts - Get chart data
 router.get('/charts', catchAsync(async (req, res) => {
-  const cacheKey = `dashboard:charts:${req.businessId}`;
+  const { date_from, date_to } = req.query;
+  const isCustomDate = date_from || date_to;
+
+  const cacheKey = `dashboard:charts:${req.businessId}${isCustomDate ? `:${date_from}:${date_to}` : ''}`;
   
   try {
     let chartData = getFromCache(cacheKey);
     
     if (!chartData) {
-      // Get daily sales for the last 7 days
-      const dailySales = (await Sale.getDailySales(7, req.businessId)) || [];
-      
-      // Get top selling products
-      const topProducts = (await Sale.getTopProducts(10, req.businessId)) || [];
+      // Chart 1: Revenue Trend (Daily Sales)
+      let dailySales;
+      if (isCustomDate && date_from && date_to) {
+          dailySales = (await Sale.getTrend(date_from, date_to, req.businessId)) || [];
+      } else {
+          dailySales = (await Sale.getDailySales(7, req.businessId)) || [];
+      }
       
       // Get sales by payment method
-      const salesSummary = (await Sale.getSummary({}, req.businessId)) || {};
+      const customFilters = {};
+      if (date_from) customFilters.date_from = new Date(date_from);
+      if (date_to) customFilters.date_to = new Date(date_to);
+
+      // Top selling products
+      const topProducts = (await Sale.getTopProducts(10, req.businessId, isCustomDate ? customFilters : {})) || [];
+
+      const salesSummary = (await Sale.getSummary(isCustomDate ? customFilters : {}, req.businessId)) || {};
       const paymentDistribution = {
         cash: Number(salesSummary.cash_sales || 0),
         mpesa: Number(salesSummary.mpesa_sales || 0),
@@ -145,7 +164,7 @@ router.get('/charts', catchAsync(async (req, res) => {
       };
       
       // Get expenses by category
-      const expensesByCategory = (await Expense.getByCategory(req.businessId)) || [];
+      const expensesByCategory = (await Expense.getByCategory(req.businessId, isCustomDate ? customFilters : {})) || [];
       
       chartData = {
         daily_sales: dailySales,

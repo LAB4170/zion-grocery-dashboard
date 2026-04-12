@@ -663,13 +663,17 @@ class Sale {
   }
 
   // Get top products by quantity sold
-  static async getTopProducts(limit = 10, businessId) {
+  static async getTopProducts(limit = 10, businessId, filters = {}) {
     if (!businessId) throw new Error('businessId is required');
     const dbx = getDatabase();
     const lim = Math.max(Math.min(parseInt(limit) || 10, 100), 1);
 
-    const rows = await dbx('sales')
-      .where('business_id', businessId)
+    let query = dbx('sales').where('business_id', businessId);
+
+    if (filters.date_from) query = query.where('created_at', '>=', filters.date_from);
+    if (filters.date_to) query = query.where('created_at', '<=', filters.date_to);
+
+    const rows = await query
       .select('product_id', 'product_name')
       .sum({ quantity_sold: 'quantity' })
       .sum({ revenue: 'total' })
@@ -758,6 +762,54 @@ class Sale {
         debt:  row ? parseFloat(row.debt)  || 0 : 0
       });
     }
+    return result;
+  }
+
+  // Get daily sales for a specific arbitrary date range
+  static async getTrend(dateFrom, dateTo, businessId) {
+    if (!businessId) throw new Error('businessId is required');
+    const dbx = getDatabase();
+    
+    const start = new Date(dateFrom);
+    const end = new Date(dateTo);
+    start.setHours(0, 0, 0, 0);
+    end.setHours(23, 59, 59, 999);
+
+    const rows = await dbx('sales')
+      .where('business_id', businessId)
+      .andWhere('created_at', '>=', start.toISOString())
+      .andWhere('created_at', '<=', end.toISOString())
+      .select(
+        dbx.raw(`DATE(created_at) as date`),
+        dbx.raw('SUM(total) as total_revenue')
+      )
+      .groupByRaw('DATE(created_at)')
+      .orderBy('date', 'asc');
+
+    // Compute diff in days to fill zeros
+    const diffTime = Math.abs(end - start);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    // Safety clamp (max 366 days for performance)
+    const renderDays = Math.min(diffDays || 1, 366);
+
+    const result = [];
+    for (let i = 0; i < renderDays; i++) {
+        const d = new Date(start);
+        d.setDate(d.getDate() + i);
+        const dateStr = d.toISOString().split('T')[0];
+        
+        const row = rows.find(r => {
+            const rd = typeof r.date === 'string' ? r.date : new Date(r.date).toISOString().split('T')[0];
+            return rd === dateStr;
+        });
+
+        result.push({
+            date: dateStr,
+            total_revenue: row ? parseFloat(row.total_revenue) || 0 : 0
+        });
+    }
+
     return result;
   }
 

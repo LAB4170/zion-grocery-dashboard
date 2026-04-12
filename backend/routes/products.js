@@ -106,7 +106,8 @@ router.get('/:id/can-delete', catchAsync(async (req, res) => {
 router.post('/', productValidationRules, validate, catchAsync(async (req, res) => {
   const productData = {
     ...req.body,
-    businessId: req.businessId
+    businessId: req.businessId,
+    businessCategory: req.business?.business_category || 'retail'
   };
 
   const product = await Product.create(productData);
