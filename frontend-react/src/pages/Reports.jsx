@@ -283,14 +283,19 @@ export default function Reports() {
       const tableRows = [];
 
       allSales.forEach(sale => {
-        const qty = Number(sale.quantity || 1);
-        const itemPrice = Number(sale.unitPrice || sale.unit_price || (sale.total / qty) || 0);
+        // Multi-item formatting: Combine all items into a single descriptive string
+        let itemDescription = 'Unknown Item';
+        if (sale.items && sale.items.length > 0) {
+          itemDescription = sale.items.map(i => `${i.product_name || i.productName} (x${i.quantity})`).join('\n');
+        } else if (sale.productName || sale.product_name) {
+          itemDescription = `${sale.productName || sale.product_name} (x${sale.quantity || 1})`;
+        }
 
         const saleData = [
           new Date(sale.createdAt || sale.created_at).toLocaleString('en-KE', { dateStyle: 'short', timeStyle: 'short' }),
-          (sale.productName || sale.product_name || 'Unknown Item').substring(0, 30),
-          `${qty}`,
-          `KSh ${fmt(itemPrice)}`,
+          itemDescription,
+          sale.items?.length > 0 ? `${sale.items.reduce((s, i) => s + Number(i.quantity), 0)}` : `${sale.quantity || 1}`,
+          sale.items?.length === 1 ? `KSh ${fmt(sale.items[0].unit_price || sale.items[0].unitPrice)}` : 'Mixed',
           (sale.paymentMethod || sale.payment_method || '').toUpperCase(),
           `KSh ${fmt(sale.total)}`
         ];

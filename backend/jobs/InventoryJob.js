@@ -4,6 +4,7 @@
  * Runs every 60 minutes via node-cron.
  */
 const cron = require('node-cron');
+const SmsService = require('../services/communication/SmsService');
 
 let db = null;
 let io = null;
@@ -63,6 +64,22 @@ async function scanLowStock() {
     // Emit real-time alert to the business's Socket.IO room
     if (io) {
       io.to(businessId).emit('automation-alert', alertPayload);
+    }
+
+    // 📩 NEW: Send SMS Alert to the Owner (One summary SMS per business)
+    if (items.length > 0) {
+       const summary = items.map(i => `${i.name} (${parseFloat(i.stock_quantity)})`).join(', ');
+       const message = `⚠️ NEXUS STOCK ALERT:
+Low stock detected for ${items.length} item(s):
+${summary}
+Please check your dashboard to restock.`;
+       
+       // Note: In multicountry/multitenant, we would get the owner phone from the business settings.
+       // For now, we use the global AT_OWNER_PHONE from .env.
+       const ownerPhone = process.env.AT_OWNER_PHONE;
+       if (ownerPhone && ownerPhone !== '+254700000000') {
+          SmsService.sendSMS(ownerPhone, message).catch(e => console.error('Failed to send stock SMS:', e.message));
+       }
     }
   }
 }

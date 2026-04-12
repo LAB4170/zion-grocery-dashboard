@@ -4,6 +4,7 @@ const axios = require('axios');
 const { catchAsync, AppError } = require('../middleware/errorHandler');
 const Sale = require('../models/Sale');
 const Debt = require('../models/Debt');
+const SmsService = require('../services/communication/SmsService');
 
 // M-Pesa Configuration
 const MPESA_CONFIG = {
@@ -56,7 +57,7 @@ const generatePassword = (timestamp) => {
 
 // POST /api/mpesa/stk-push - Initiate STK Push
 router.post('/stk-push', catchAsync(async (req, res) => {
-  const { phone_number, amount, account_reference, transaction_desc } = req.body;
+  const { phone_number, amount, account_reference, transaction_desc, sale_id } = req.body;
 
   // Validation
   if (!phone_number || !amount) {
@@ -106,6 +107,14 @@ router.post('/stk-push', catchAsync(async (req, res) => {
         }
       }
     );
+
+    // NEW: Persist the association immediately so the callback can find this sale
+    if (sale_id) {
+      await Sale.update(sale_id, {
+        transaction_id: response.data.CheckoutRequestID,
+        status: 'pending' // Mark as pending while waiting for callback
+      }, req.businessId);
+    }
 
     res.json({
       success: true,
@@ -160,13 +169,50 @@ router.post('/callback', catchAsync(async (req, res) => {
 
     console.log('Payment Successful:', paymentData);
 
-    // Here you can update your database with the successful payment
-    // For example, update a sale status or debt payment
-    
-    // You might want to store this callback data for reconciliation
-    // await storeCallbackData(MerchantRequestID, CheckoutRequestID, paymentData);
+    // 🚀 NEW: Automatic Reconciliation
+    try {
+      const { db } = require('../config/database');
+      
+      // 1. Find the sale matching this checkout session
+      const sale = await db('sales').where('transaction_id', CheckoutRequestID).first();
+      
+      if (sale) {
+        // 2. Update sale to completed
+        const updatedSale = await Sale.update(sale.id, {
+          status: 'completed',
+          mpesa_code: paymentData.mpesa_receipt_number,
+          metadata: {
+            ...sale.metadata,
+            mpesa_callback: paymentData
+          }
+        }, sale.business_id);
+
+        console.log(`✅ Sale ${sale.id} reconciled via M-Pesa callback.`);
+
+        // 3. Trigger SMS Receipt
+        await SmsService.sendReceipt(updatedSale);
+
+        // 4. Real-time broadcast to UI
+        if (req.app.locals.broadcastDataChange) {
+          req.app.locals.broadcastDataChange('sale', updatedSale);
+        }
+      } else {
+        console.warn(`⚠️ M-Pesa callback received for unknown TransactionID: ${CheckoutRequestID}`);
+      }
+    } catch (err) {
+      console.error('❌ Error in M-Pesa automation reconciliation:', err.message);
+    }
   } else {
     console.log('Payment Failed:', { ResultCode, ResultDesc });
+    
+    // Auto-cancel the sale if it was pending
+    try {
+      const { db } = require('../config/database');
+      const sale = await db('sales').where('transaction_id', CheckoutRequestID).first();
+      if (sale && sale.status === 'pending') {
+        await Sale.update(sale.id, { status: 'cancelled' }, sale.business_id);
+      }
+    } catch (e) { /* ignore */ }
   }
 
   // Always respond with success to M-Pesa

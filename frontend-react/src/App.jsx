@@ -17,6 +17,7 @@ import Debts from './pages/Debts';
 import Reports from './pages/Reports';
 import Settings from './pages/Settings';
 import SalesRecords from './pages/SalesRecords';
+import Procurement from './pages/Procurement';
 import LegalPrivacy from './pages/LegalPrivacy';
 import LegalTerms from './pages/LegalTerms';
 
@@ -96,6 +97,7 @@ function App() {
                   <Route path="expenses" element={<Expenses />} />
                   <Route path="debts" element={<Debts />} />
                   <Route path="reports" element={<Reports />} />
+                  <Route path="procurement" element={<Procurement />} />
                   <Route path="settings" element={<Settings />} />
                 </Route>
                 

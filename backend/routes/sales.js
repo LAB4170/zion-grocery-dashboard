@@ -120,51 +120,53 @@ router.get('/:id', catchAsync(async (req, res) => {
   });
 }));
 
-// POST /api/sales - Create new sale
+// POST /api/sales - Create new sale (supports multi-item baskets)
 router.post('/', saleValidationRules, validate, catchAsync(async (req, res) => {
-  // FIX: Enforce 100% accurate mathematical precision avoiding float drift
-  const computedTotal = (parseFloat(req.body.unit_price || 0) * parseFloat(req.body.quantity || 0)).toFixed(2);
   const saleData = {
     ...req.body,
     businessId: req.businessId,
-    total: req.body.total ? Number(parseFloat(req.body.total).toFixed(2)) : Number(computedTotal)
+    // total is now computed by the model from item array
   };
 
   const sale = await Sale.create(saleData);
   
-  // PHASE 3: Fiscal Compliance Hook
-  // Report sale to regulatory body (e.g. KRA eTIMS VSCU)
+  // PHASE 3: Fiscal Compliance Hook (Bulk/Multi-item)
   try {
-    const product = await Product.findById(sale.productId, req.businessId);
-    if (product) {
-      const fiscalResult = await FiscalService.processSale(req.business, sale, product);
-      if (fiscalResult.success) {
-        // Update sale with fiscal metadata (digital signature)
-        await Sale.update(sale.id, {
-          metadata: {
-            ...sale.metadata,
-            fiscal: fiscalResult
-          }
-        }, req.businessId);
-        
-        // Update locals for response
-        sale.metadata = { ...sale.metadata, fiscal: fiscalResult };
+    for (const item of sale.items) {
+      const product = await Product.findById(item.productId, req.businessId);
+      if (product) {
+        // Report each line item to fiscal device / eTIMS
+        const fiscalResult = await FiscalService.processSale(req.business, { ...sale, ...item }, product);
+        if (fiscalResult.success) {
+           // We append fiscal metadata to the aggregated sale record
+           await Sale.update(sale.id, {
+             metadata: {
+               ...sale.metadata,
+               [`fiscal_${item.productId}`]: fiscalResult
+             }
+           }, req.businessId);
+        }
       }
     }
   } catch (err) {
     console.error('⚠️ Fiscal Reporting Warning:', err.message);
-    // Note: In high-scale POS, we usually retry fiscal reporting in a background queue 
-    // to avoid blocking the user if the KRA server is down.
   }
 
-  // Real-time broadcast for both sales and product (since stock changed)
+  // Real-time broadcast
   req.app.locals.broadcastDataChange('sale', sale);
-  req.app.locals.broadcastDataChange('product', { id: sale.productId });
+  
+  // Broadcast product updates for all items in basket
+  if (sale.items && Array.isArray(sale.items)) {
+    sale.items.forEach(item => {
+      req.app.locals.broadcastDataChange('product', { id: item.productId });
+    });
+  }
+  
   req.app.locals.clearDashboardCache();
   
   res.status(201).json({
     success: true,
-    message: 'Sale created successfully and signed for fiscal compliance',
+    message: 'Sale created successfully (Relational Basket)',
     data: sale
   });
 }));

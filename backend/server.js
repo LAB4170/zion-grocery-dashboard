@@ -94,6 +94,7 @@ const debtRoutes = require('./routes/debts');
 const businessRoutes = require('./routes/businesses');
 const paymentsRoutes = require('./routes/payments');
 const adminRoutes = require('./routes/admin');
+const procurementRoutes = require('./routes/procurement');
 
 // Import middleware
 const { errorHandler } = require('./middleware/errorHandler');
@@ -293,6 +294,7 @@ app.use('/api/expenses', requireBusinessAuth, requireTenantContext, requireActiv
 app.use('/api/debts', requireBusinessAuth, requireTenantContext, requireActiveSubscription, debtRoutes);
 app.use('/api/dashboard', apiGeneralLimiter, requireBusinessAuth, requireTenantContext, requireActiveSubscription, dashboardRoutes);
 app.use('/api/payments', paymentLimiter, requireBusinessAuth, requireTenantContext, paymentsRoutes);
+app.use('/api/procurement', apiGeneralLimiter, requireBusinessAuth, requireTenantContext, requireActiveSubscription, procurementRoutes);
 app.use('/api/admin', adminDashboardLimiter, dualAdminAuth, adminRoutes);
 
 // Handle React frontend routing - Catch all to serve index.html

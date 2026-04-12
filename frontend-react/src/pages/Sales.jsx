@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { ShoppingCart, Search, Plus, Minus, Trash2, CreditCard, Wallet, User, Phone, CheckCircle, AlertCircle } from 'lucide-react';
+import { ShoppingCart, Search, Plus, Minus, Trash2, CreditCard, Wallet, User, Phone, CheckCircle, AlertCircle, CloudOff, Cloud } from 'lucide-react';
 import api from '../services/api';
 import { useSocket } from '../context/SocketContext';
+import { getProductsLocal, saveProductsLocal, queueSaleOffline } from '../utils/db';
 
 export default function Sales() {
   const [products, setProducts] = useState([]);
@@ -12,25 +13,73 @@ export default function Sales() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [error, setError] = useState('');
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   const socket = useSocket();
 
   useEffect(() => {
     fetchProducts();
+    
+    // 🔍 NATIVE BARCODE SCANNER INTEGRATION
+    let barcodeBuffer = '';
+    let lastKeyTime = Date.now();
+
+    const handleKeyPress = (e) => {
+      // Barcode scanners usually fire very fast
+      const now = Date.now();
+      if (now - lastKeyTime > 50) {
+        barcodeBuffer = ''; // Reset if slow (human typing)
+      }
+      lastKeyTime = now;
+
+      if (e.key === 'Enter') {
+        if (barcodeBuffer.length > 3) {
+           const match = products.find(p => p.id === barcodeBuffer || p.sku === barcodeBuffer);
+           if (match) addToCart(match);
+        }
+        barcodeBuffer = '';
+      } else if (e.key !== 'Shift') {
+        barcodeBuffer += e.key;
+      }
+    };
+
+    window.addEventListener('keypress', handleKeyPress);
+
+    // 🌐 CONNECTION OBSERVER
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
     if (socket) {
       socket.on('data-update', (data) => {
         if (data.type === 'product') fetchProducts();
       });
     }
-    return () => socket?.off('data-update');
-  }, [socket]);
+    return () => {
+      socket?.off('data-update');
+      window.removeEventListener('keypress', handleKeyPress);
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, [socket, products]);
 
   const fetchProducts = async () => {
     try {
-      const { data } = await api.get('/products');
-      setProducts(data.data.filter(p => p.stockQuantity > 0) || []);
+      if (navigator.onLine) {
+        const { data } = await api.get('/products');
+        const items = data.data.filter(p => p.stockQuantity > 0) || [];
+        setProducts(items);
+        saveProductsLocal(items); // Refresh local cache
+      } else {
+        const localItems = await getProductsLocal();
+        setProducts(localItems);
+      }
     } catch (err) {
-      console.error('Failed to fetch products', err);
+      console.error('Failed to fetch products, falling back to local storage', err);
+      const localItems = await getProductsLocal();
+      setProducts(localItems);
     }
   };
 
@@ -87,31 +136,44 @@ export default function Sales() {
 
     setIsProcessing(true);
     setError('');
-    try {
-      // Create a sale for each item (Matching backend model which expects one record per product)
-      // Note: A more advanced POS would have a "Transaction" model, but here Sale = Record.
-      const promises = cart.map(item => api.post('/sales', {
+
+    const payload = {
+      items: cart.map(item => ({
         productId: item.id,
         productName: item.name,
         quantity: item.quantity,
         unitPrice: item.price,
-        total: item.price * item.quantity,
-        paymentMethod: paymentMethod,
-        customerName: customer.name || null,
-        customerPhone: customer.phone || null,
-        status: 'completed'
-      }));
+        total: item.price * item.quantity
+      })),
+      paymentMethod: paymentMethod,
+      customerName: customer.name || null,
+      customerPhone: customer.phone || null,
+      status: 'completed',
+      createdAt: new Date().toISOString()
+    };
 
-      await Promise.all(promises);
+    try {
+      if (isOnline) {
+        const response = await api.post('/sales', payload);
+        setSuccessMessage('Sale completed successfully!');
+        fetchProducts();
+      } else {
+        // 📴 OFFLINE MODE: Save to IndexedDB
+        await queueSaleOffline(payload);
+        setSuccessMessage('Internet disconnected. Sale saved locally and will sync once online.');
+      }
       
-      setSuccessMessage('Transaction completed successfully! Stock updated.');
       setCart([]);
       setCustomer({ name: '', phone: '' });
-      fetchProducts();
-      
       setTimeout(() => setSuccessMessage(''), 5000);
     } catch (err) {
-      setError(err.response?.data?.message || 'Transaction failed. Please check stock levels.');
+      if (!isOnline || err.code === 'ERR_NETWORK') {
+         await queueSaleOffline(payload);
+         setSuccessMessage('Network error. Sale saved to local outbox for sync.');
+         setCart([]);
+      } else {
+         setError(err.response?.data?.message || 'Transaction failed. Please check stock levels.');
+      }
     } finally {
       setIsProcessing(false);
     }
@@ -121,9 +183,22 @@ export default function Sales() {
     <div className="sales-terminal" style={{ display: 'grid', gridTemplateColumns: '1fr 400px', gap: '24px', height: 'calc(100vh - 120px)' }}>
       {/* Left Column: Product Selection */}
       <section className="card-elevated" style={{ display: 'flex', flexDirection: 'column', padding: '24px' }}>
-        <header style={{ marginBottom: '24px' }}>
-          <h1>POS Terminal</h1>
-          <div className="search-box card-elevated" style={{ marginTop: '16px', background: 'var(--bg)', border: '1px solid var(--border)' }}>
+        <header style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div>
+            <h1 style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+               POS Terminal
+               {!isOnline ? (
+                 <span style={{ fontSize: '11px', background: 'var(--danger)', color: 'white', padding: '4px 10px', borderRadius: '20px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                   <CloudOff size={12} /> OFFLINE MODE
+                 </span>
+               ) : (
+                 <span style={{ fontSize: '11px', background: 'rgba(16, 185, 129, 0.1)', color: 'var(--accent)', padding: '4px 10px', borderRadius: '20px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                   <Cloud size={12} /> CLOUD SYNC ACTIVE
+                 </span>
+               )}
+            </h1>
+          </div>
+          <div className="search-box card-elevated" style={{ width: '300px', background: 'var(--bg)', border: '1px solid var(--border)' }}>
              <Search size={18} style={{ color: 'var(--text-muted)' }} />
              <input 
                type="text" 

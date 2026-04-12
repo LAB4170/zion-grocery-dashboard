@@ -3,19 +3,37 @@ import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { 
   Menu, X, LayoutDashboard, Package, ShoppingCart, 
   ArrowRightLeft, Users, Sun, Moon, LogOut, ChevronRight,
-  BarChart3, History, Settings
+  BarChart3, History, Settings, Truck
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useBusiness } from '../context/BusinessContext';
+import SyncManager from '../services/SyncManager';
+import { CloudLightning } from 'lucide-react';
 
 export default function DashboardLayout() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const { currentUser, logout } = useAuth();
   const { isDarkMode, toggleTheme } = useTheme();
-  const { business } = useBusiness();
+  const business = useBusiness()?.business;
   const navigate = useNavigate();
   const location = useLocation();
+  const [syncMessage, setSyncMessage] = useState('');
+
+  useEffect(() => {
+    // 🌐 START GLOBAL SYNC WATCHER
+    SyncManager.init((success, fail) => {
+      let msg = '';
+      if (success > 0 && fail === 0) msg = `${success} offline sale(s) synced successfully!`;
+      else if (success > 0 && fail > 0) msg = `Synced ${success} sales, but ${fail} had conflicts. Check history.`;
+      else if (fail > 0) msg = `${fail} sales failed to sync due to stock conflicts.`;
+      
+      if (msg) {
+        setSyncMessage(msg);
+        setTimeout(() => setSyncMessage(''), 8000);
+      }
+    });
+  }, []);
 
   const menuItems = [
     { name: 'Overview', path: '/app/dashboard', icon: LayoutDashboard, color: '#3B82F6', bg: 'rgba(59, 130, 246, 0.15)' },
@@ -24,6 +42,7 @@ export default function DashboardLayout() {
     { name: 'Sales POS', path: '/app/sales', icon: ShoppingCart, color: '#8B5CF6', bg: 'rgba(139, 92, 246, 0.15)' },
     { name: 'Sales History', path: '/app/sales/history', icon: History, color: '#EC4899', bg: 'rgba(236, 72, 153, 0.15)' },
     { name: 'Expenses', path: '/app/expenses', icon: ArrowRightLeft, color: '#EF4444', bg: 'rgba(239, 68, 68, 0.15)' },
+    { name: 'Purchase Orders', path: '/app/procurement', icon: Truck, color: '#F59E0B', bg: 'rgba(245, 158, 11, 0.15)' },
     { name: 'Debts', path: '/app/debts', icon: Users, color: '#06B6D4', bg: 'rgba(6, 182, 212, 0.15)' },
     { name: 'Settings', path: '/app/settings', icon: Settings, color: '#64748B', bg: 'rgba(100, 116, 139, 0.15)' },
   ];
@@ -102,7 +121,26 @@ export default function DashboardLayout() {
       </aside>
 
       <main className="main-content">
-        {/* <GlobalBillingBanner business={business} navigate={navigate} /> */}
+        {syncMessage && (
+          <div className="glass" style={{
+            position: 'fixed',
+            bottom: '24px',
+            right: '24px',
+            zIndex: 1000,
+            padding: '16px 24px',
+            background: 'var(--accent)',
+            color: 'white',
+            borderRadius: '16px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            boxShadow: '0 10px 40px rgba(16, 185, 129, 0.4)',
+            animation: 'slideUp 0.3s ease-out'
+          }}>
+            <CloudLightning size={20} />
+            <span style={{ fontWeight: 700 }}>{syncMessage}</span>
+          </div>
+        )}
         
         <header className="content-top-bar glass" style={{
           display: 'flex',

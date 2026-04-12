@@ -13,24 +13,7 @@ const { v4: uuidv4 } = require('uuid');
 
 class Sale {
   constructor(data) {
-    this.id = data.id; 
-    this.productId = data.productId || data.product_id;
-    this.productName = data.productName || data.product_name;
-    this.quantity = parseFloat(data.quantity);
-    this.unitPrice = parseFloat(data.unitPrice || data.unit_price);
-    this.total = parseFloat(data.total);
-    // Normalize payment method to lowercase to avoid case issues
-    const pm = data.paymentMethod || data.payment_method || '';
-    this.paymentMethod = typeof pm === 'string' ? pm.toLowerCase() : pm;
-    this.customerName = data.customerName || data.customer_name || null;
-    this.customerPhone = data.customerPhone || data.customer_phone || null;
-    this.status = data.status || 'completed';
-    this.mpesaCode = data.mpesaCode || data.mpesa_code || null;
-    this.notes = data.notes || null;
-    this.date = data.date || new Date().toISOString().split('T')[0];
-    this.createdBy = data.createdBy || data.created_by || null;
-    this.createdAt = data.createdAt || data.created_at || new Date().toISOString();
-    this.businessId = data.businessId || data.business_id;
+    this.items = data.items || [];
     this.updatedAt = data.updatedAt || data.updated_at;
   }
 
@@ -45,15 +28,11 @@ class Sale {
     
     return {
       id: sale.id,
-      productId: sale.product_id,
-      productName: sale.product_name,
-      quantity: parseFloat(sale.quantity),
-      unitPrice: typeof sale.unit_price === 'string' ? parseFloat(sale.unit_price) : sale.unit_price,
-      total: typeof sale.total === 'string' ? parseFloat(sale.total) : sale.total,
-      unitCost: typeof sale.unit_cost === 'string' ? parseFloat(sale.unit_cost) : (sale.unit_cost || 0),
       paymentMethod: sale.payment_method,
       customerName: sale.customer_name,
       customerPhone: sale.customer_phone,
+      total: typeof sale.total === 'string' ? parseFloat(sale.total) : sale.total,
+      totalCogs: typeof sale.total_cogs === 'string' ? parseFloat(sale.total_cogs) : (sale.total_cogs || 0),
       status: sale.status,
       mpesaCode: sale.mpesa_code,
       notes: sale.notes,
@@ -61,89 +40,129 @@ class Sale {
       createdBy: sale.created_by,
       createdAt: createdAtISO,
       updatedAt: sale.updated_at,
-      businessId: sale.business_id
+      businessId: sale.business_id,
+      metadata: sale.metadata,
+      items: sale.items || []
     };
   }
 
   // Create new sale
   static async create(saleData) {
     if (!saleData.businessId) throw new Error('businessId is required');
-    const sale = new Sale(saleData);
+    const dbx = getDatabase();
     
-    // Generate UUID if not provided
-    if (!sale.id) {
-      sale.id = uuidv4();
+    // Support legacy single-item requests by wrapping in items array
+    if (!saleData.items && saleData.productId) {
+      saleData.items = [{
+        productId: saleData.productId,
+        productName: saleData.productName,
+        quantity: saleData.quantity,
+        unitPrice: saleData.unitPrice || saleData.unit_price,
+        total: saleData.total
+      }];
     }
-    
-    // Start transaction
-    const trx = await getDatabase().transaction();
+
+    if (!saleData.items || saleData.items.length === 0) {
+      throw new Error('At least one item is required for a sale');
+    }
+
+    const saleId = saleData.id || uuidv4();
+    const trx = await dbx.transaction();
     
     try {
-      // Check product stock
-      const product = await trx('products')
-        .where('id', sale.productId)
-        .andWhere('business_id', sale.businessId)
-        .first();
-      if (!product) {
-        throw new Error('Product not found');
+      let totalRevenue = 0;
+      let totalCogs = 0;
+      const saleItemsToInsert = [];
+
+      // Loop through items for validation and preparation
+      for (const item of saleData.items) {
+        const product = await trx('products')
+          .where('id', item.productId)
+          .andWhere('business_id', saleData.businessId)
+          .first();
+
+        if (!product) throw new Error(`Product not found: ${item.productName || item.productId}`);
+        if (product.stock_quantity < Number(item.quantity)) {
+          throw new Error(`Insufficient stock for ${product.name}`);
+        }
+
+        const qty = parseFloat(item.quantity);
+        const price = parseFloat(item.unitPrice || product.price);
+        const cost = parseFloat(product.cost_price || 0);
+        const lineTotal = price * qty;
+        
+        totalRevenue += lineTotal;
+        totalCogs += (cost * qty);
+
+        saleItemsToInsert.push({
+          id: uuidv4(),
+          sale_id: saleId,
+          product_id: item.productId,
+          product_name: product.name,
+          quantity: qty,
+          unit_price: price,
+          unit_cost: cost,
+          total: lineTotal
+        });
+
+        // Decrement stock
+        await trx('products')
+          .where('id', item.productId)
+          .decrement('stock_quantity', qty)
+          .update('updated_at', new Date().toISOString());
       }
-      
-      if (product.stock_quantity < Number(sale.quantity)) {
-        throw new Error('Insufficient stock');
-      }
-      
-      // Create sale record
+
+      // 1. Create sale record (Parent)
       const [newSale] = await trx('sales')
         .insert({
-          id: sale.id,
-          business_id: sale.businessId,
-          product_id: sale.productId,
-          product_name: sale.productName,
-          quantity: sale.quantity,
-          unit_price: sale.unitPrice,
-          unit_cost: product.cost_price || 0,
-          total: sale.total,
-          payment_method: sale.paymentMethod,
-          customer_name: sale.customerName,
-          customer_phone: sale.customerPhone,
-          status: sale.status,
-          mpesa_code: sale.mpesaCode,
-          notes: sale.notes,
-          date: sale.date,
-          created_by: sale.createdBy,
-          created_at: sale.createdAt,
+          id: saleId,
+          business_id: saleData.businessId,
+          total: totalRevenue,
+          total_cogs: totalCogs,
+          payment_method: (saleData.paymentMethod || 'cash').toLowerCase(),
+          customer_name: saleData.customerName,
+          customer_phone: saleData.customerPhone,
+          status: saleData.status || 'completed',
+          mpesa_code: saleData.mpesaCode,
+          notes: saleData.notes,
+          date: saleData.date || new Date().toISOString().split('T')[0],
+          created_by: saleData.createdBy,
+          created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         })
         .returning('*');
-      
-      // Update product stock
-      await trx('products')
-        .where('id', sale.productId)
-        .andWhere('business_id', sale.businessId)
-        .decrement('stock_quantity', Number(sale.quantity))
-        .update('updated_at', new Date().toISOString());
-      
-      // If payment method is debt, create simple debt record
-      if (sale.paymentMethod === 'debt') {
+
+      // 2. Insert items (Children)
+      await trx('sale_items').insert(saleItemsToInsert);
+
+      // 3. Handle Debt
+      if (newSale.payment_method === 'debt') {
+        const notes = saleItemsToInsert.length === 1 
+          ? `Sale: ${saleItemsToInsert[0].product_name}` 
+          : `Batch Sale: ${saleItemsToInsert.length} items`;
+
         await trx('debts').insert({
           id: uuidv4(),
-          business_id: sale.businessId,
-          sale_id: newSale.id,
-          customer_name: sale.customerName,
-          customer_phone: sale.customerPhone,
-          amount: sale.total,
-          amount_paid: 0, // ensure required field present
-          balance: sale.total, // initial balance equals total
+          business_id: saleData.businessId,
+          sale_id: saleId,
+          customer_name: saleData.customerName,
+          customer_phone: saleData.customerPhone,
+          amount: totalRevenue,
+          amount_paid: 0,
+          balance: totalRevenue,
           status: 'pending',
-          notes: `Sale: ${sale.productName} (${sale.quantity} units)`,
-          created_by: sale.createdBy,
+          notes: notes,
+          created_by: saleData.createdBy,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         });
       }
       
       await trx.commit();
-      return Sale.mapRow(newSale); // Map row to camelCase
+      
+      // Return with hydrated items
+      newSale.items = saleItemsToInsert;
+      return Sale.mapRow(newSale);
     } catch (error) {
       await trx.rollback();
       throw error;
@@ -153,27 +172,35 @@ class Sale {
   // Get all sales with basic filters
   static async findAll(filters = {}, businessId) {
     if (!businessId) throw new Error('businessId is required');
-    let query = getDatabase()('sales').where('business_id', businessId).select('*');
+    const dbx = getDatabase();
     
+    let query = dbx('sales as s')
+      .where('s.business_id', businessId)
+      .leftJoin('sale_items as si', 's.id', 'si.sale_id')
+      .select([
+        's.*',
+        dbx.raw("COALESCE(json_agg(si.*) FILTER (WHERE si.id IS NOT NULL), '[]') as items")
+      ])
+      .groupBy('s.id');
+
     if (filters.date_from) {
-      query = query.where('created_at', '>=', filters.date_from);
+      query = query.where('s.created_at', '>=', filters.date_from);
     }
     
     if (filters.date_to) {
-      // Make date_to inclusive for whole day if only a YYYY-MM-DD is provided
       const to = filters.date_to.length === 10 ? filters.date_to + 'T23:59:59.999Z' : filters.date_to;
-      query = query.where('created_at', '<=', to);
+      query = query.where('s.created_at', '<=', to);
     }
     
     if (filters.payment_method) {
-      query = query.where('payment_method', filters.payment_method);
+      query = query.where('s.payment_method', filters.payment_method);
     }
     
     if (filters.customer_name) {
-      query = query.where('customer_name', 'ilike', `%${filters.customer_name}%`);
+      query = query.where('s.customer_name', 'ilike', `%${filters.customer_name}%`);
     }
     
-    const sales = await query.orderBy('created_at', 'desc');
+    const sales = await query.orderBy('s.created_at', 'desc');
     return sales.map(Sale.mapRow);
   }
 
@@ -193,50 +220,71 @@ class Sale {
     if (!businessId) throw new Error('businessId is required');
     const dbx = getDatabase();
 
-    // Base query with filters
-    let base = dbx('sales').where('business_id', businessId);
+    // Base query with filters and item aggregation
+    let base = dbx('sales as s')
+      .where('s.business_id', businessId)
+      .leftJoin('sale_items as si', 's.id', 'si.sale_id')
+      .groupBy('s.id');
 
-    if (date_from) base = base.where('created_at', '>=', date_from);
+    if (date_from) base = base.where('s.created_at', '>=', date_from);
     if (date_to) {
       const to = date_to.length === 10 ? date_to + 'T23:59:59.999Z' : date_to;
-      base = base.where('created_at', '<=', to);
+      base = base.where('s.created_at', '<=', to);
     }
-    if (payment_method) base = base.where('payment_method', payment_method);
-    if (status) base = base.where('status', status);
-    if (customer_name) base = base.where('customer_name', 'ilike', `%${customer_name}%`);
+    if (payment_method) base = base.where('s.payment_method', payment_method);
+    if (status) base = base.where('s.status', status);
+    if (customer_name) base = base.where('s.customer_name', 'ilike', `%${customer_name}%`);
 
-    // Total count (before pagination)
-    const [{ count }] = await base.clone().count('* as count');
-    const total = parseInt(count) || 0;
+    // Total count
+    const [{ total_count }] = await dbx('sales')
+      .where('business_id', businessId)
+      .modify(query => {
+         if (date_from) query.where('created_at', '>=', date_from);
+         if (date_to) query.where('created_at', '<=', (date_to.length === 10 ? date_to + 'T23:59:59.999Z' : date_to));
+         if (payment_method) query.where('payment_method', payment_method);
+         if (status) query.where('status', status);
+         if (customer_name) query.where('customer_name', 'ilike', `%${customer_name}%`);
+      })
+      .count('* as total_count');
+    
+    const total = parseInt(total_count) || 0;
 
-    // Clamp perPage and page
-    const safePerPage = Math.min(Math.max(parseInt(perPage) || 25, 1), 1000);
-    const safePage = Math.max(parseInt(page) || 1, 1);
-    const offset = (safePage - 1) * safePerPage;
-
-    // Fetch page items
+    // Fetch page items with aggregation
     const rows = await base
       .clone()
-      .select('*')
-      .orderBy(sortBy, sortDir.toLowerCase() === 'asc' ? 'asc' : 'desc')
-      .limit(safePerPage)
-      .offset(offset);
-
-    const items = rows.map(Sale.mapRow);
+      .select([
+        's.*',
+        dbx.raw("COALESCE(json_agg(si.*) FILTER (WHERE si.id IS NOT NULL), '[]') as items")
+      ])
+      .orderBy(`s.${sortBy}`, sortDir.toLowerCase() === 'asc' ? 'asc' : 'desc')
+      .limit(Math.min(Math.max(parseInt(perPage) || 25, 1), 1000))
+      .offset((Math.max(parseInt(page) || 1, 1) - 1) * Math.min(Math.max(parseInt(perPage) || 25, 1), 1000));
 
     return {
-      items,
+      items: rows.map(Sale.mapRow),
       total,
-      page: safePage,
-      perPage: safePerPage,
-      totalPages: Math.max(Math.ceil(total / safePerPage), 1)
+      page: Math.max(parseInt(page) || 1, 1),
+      perPage: Math.min(Math.max(parseInt(perPage) || 25, 1), 1000),
+      totalPages: Math.max(Math.ceil(total / Math.min(Math.max(parseInt(perPage) || 25, 1), 1000)), 1)
     };
   }
 
   // Get sale by ID
   static async findById(id, businessId) {
     if (!businessId) throw new Error('businessId is required');
-    const sale = await getDatabase()('sales').where('id', id).andWhere('business_id', businessId).first();
+    const dbx = getDatabase();
+    
+    const sale = await dbx('sales as s')
+      .where('s.id', id)
+      .andWhere('s.business_id', businessId)
+      .leftJoin('sale_items as si', 's.id', 'si.sale_id')
+      .select([
+        's.*',
+        dbx.raw("COALESCE(json_agg(si.*) FILTER (WHERE si.id IS NOT NULL), '[]') as items")
+      ])
+      .groupBy('s.id')
+      .first();
+      
     return Sale.mapRow(sale);
   }
 
@@ -670,16 +718,18 @@ class Sale {
     const dbx = getDatabase();
     const lim = Math.max(Math.min(parseInt(limit) || 10, 100), 1);
 
-    let query = dbx('sales').where('business_id', businessId);
+    let query = dbx('sale_items as si')
+      .join('sales as s', 'si.sale_id', 's.id')
+      .where('s.business_id', businessId);
 
-    if (filters.date_from) query = query.where('created_at', '>=', filters.date_from);
-    if (filters.date_to) query = query.where('created_at', '<=', filters.date_to);
+    if (filters.date_from) query = query.where('s.created_at', '>=', filters.date_from);
+    if (filters.date_to) query = query.where('s.created_at', '<=', filters.date_to);
 
     const rows = await query
-      .select('product_id', 'product_name')
-      .sum({ quantity_sold: 'quantity' })
-      .sum({ revenue: 'total' })
-      .groupBy('product_id', 'product_name')
+      .select('si.product_id', 'si.product_name')
+      .sum({ quantity_sold: 'si.quantity' })
+      .sum({ revenue: 'si.total' })
+      .groupBy('si.product_id', 'si.product_name')
       .orderBy([{ column: 'quantity_sold', order: 'desc' }, { column: 'revenue', order: 'desc' }])
       .limit(lim);
 
@@ -694,24 +744,21 @@ class Sale {
   // Get basic sales summary for dashboard
   static async getSummary(filters = {}, businessId) {
     if (!businessId) throw new Error('businessId is required');
-    let query = getDatabase()('sales').where('business_id', businessId);
+    const dbx = getDatabase();
     
-    if (filters.date_from) {
-      query = query.where('created_at', '>=', filters.date_from);
-    }
-    
-    if (filters.date_to) {
-      query = query.where('created_at', '<=', filters.date_to);
-    }
+    // Aggregates computed from parent sales records
+    let query = dbx('sales').where('business_id', businessId);
+    if (filters.date_from) query = query.where('created_at', '>=', filters.date_from);
+    if (filters.date_to)   query = query.where('created_at', '<=', filters.date_to);
     
     const summary = await query
       .select(
-        getDatabase().raw('COUNT(*) as total_sales'),
-        getDatabase().raw('SUM(total) as total_revenue'),
-        getDatabase().raw('SUM(unit_cost * quantity) as total_cogs'),
-        getDatabase().raw('SUM(CASE WHEN payment_method = ? THEN total ELSE 0 END) as cash_sales', ['cash']),
-        getDatabase().raw('SUM(CASE WHEN payment_method = ? THEN total ELSE 0 END) as mpesa_sales', ['mpesa']),
-        getDatabase().raw('SUM(CASE WHEN payment_method = ? THEN total ELSE 0 END) as debt_sales', ['debt'])
+        dbx.raw('COUNT(*) as total_sales'),
+        dbx.raw('SUM(total) as total_revenue'),
+        dbx.raw('SUM(total_cogs) as total_cogs'), // Now stored as pre-calculated aggregate in parent
+        dbx.raw('SUM(CASE WHEN payment_method = ? THEN total ELSE 0 END) as cash_sales', ['cash']),
+        dbx.raw('SUM(CASE WHEN payment_method = ? THEN total ELSE 0 END) as mpesa_sales', ['mpesa']),
+        dbx.raw('SUM(CASE WHEN payment_method = ? THEN total ELSE 0 END) as debt_sales', ['debt'])
       )
       .first();
     
