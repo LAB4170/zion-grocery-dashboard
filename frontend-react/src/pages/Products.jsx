@@ -205,7 +205,7 @@ export default function Products() {
                   placeholder="e.g. Dairy"
                 />
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', background: 'var(--bg)', padding: '16px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', background: 'var(--surface-hover)', padding: '16px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)' }}>
                 <div className="input-group">
                   <label style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--danger)', fontWeight: 700 }}><DollarSign size={14} /> Cost Price (KSh)</label>
                   <input 
@@ -213,7 +213,6 @@ export default function Products() {
                     value={formData.costPrice} 
                     onChange={e => setFormData({...formData, costPrice: e.target.value})} 
                     placeholder="Your buying price"
-                    style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
                   />
                   {formData.costPrice && formData.price && (
                     <small style={{ color: 'var(--accent)', marginTop: '4px', display: 'block' }}>
@@ -228,7 +227,6 @@ export default function Products() {
                     value={formData.price} 
                     onChange={e => setFormData({...formData, price: e.target.value})} 
                     required 
-                    style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
                   />
                 </div>
               </div>
@@ -241,12 +239,12 @@ export default function Products() {
                       value={formData.stockQuantity} 
                       onChange={e => setFormData({...formData, stockQuantity: e.target.value})} 
                       required 
-                      style={{ flex: 1, background: 'var(--surface)', border: '1px solid var(--border)' }}
+                      style={{ flex: 1 }}
                     />
                     <select 
                       value={formData.unit} 
                       onChange={e => setFormData({...formData, unit: e.target.value})}
-                      style={{ padding: '0 8px', borderRadius: '8px', background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)', fontSize: '12px' }}
+                      style={{ width: 'auto', flex: '0 0 72px', padding: '0 8px', fontSize: '12px' }}
                     >
                       <option value="pcs">pcs</option>
                       <option value="kg">kg</option>

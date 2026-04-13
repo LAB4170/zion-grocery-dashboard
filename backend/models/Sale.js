@@ -88,7 +88,7 @@ class Sale {
 
         const qty = parseFloat(item.quantity);
         const price = parseFloat(item.unitPrice || product.price);
-        const cost = parseFloat(product.cost_price || 0);
+        const cost = parseFloat(product.unit_cost || product.cost_price || 0);
         const lineTotal = price * qty;
         
         totalRevenue += lineTotal;
@@ -864,32 +864,50 @@ class Sale {
     return result;
   }
 
-  // Simple validation matching frontend
+  // Relational validation supporting both legacy and multi-item structures
   static validate(data) {
     const errors = [];
     
-    if ((!data.productId && !data.product_id)) {
-      errors.push('Product ID is required');
+    // items must exist and be a non-empty array
+    const items = data.items || [];
+    if (items.length === 0 && !data.productId && !data.product_id) {
+       errors.push('At least one product is required for a sale');
+       return errors;
     }
+
+    // Validate either the single legacy item or the items array
+    const itemsToValidate = items.length > 0 ? items : [data];
+
+    itemsToValidate.forEach((item, index) => {
+      const label = items.length > 1 ? `Item ${index + 1}: ` : '';
+      
+      if (!item.productId && !item.product_id && !item.id) {
+        errors.push(`${label}Product ID is required`);
+      }
+      
+      if (!item.quantity || isNaN(parseFloat(item.quantity)) || parseFloat(item.quantity) <= 0) {
+        errors.push(`${label}Valid quantity is required`);
+      }
+      
+      if (!item.unitPrice && !item.unit_price && !item.price) {
+        // unit price is required unless we fetch from DB (which we do in create), 
+        // but for validation consistency we expect it from frontend
+        errors.push(`${label}Unit price is required`);
+      }
+    });
     
-    if ((!data.quantity) || isNaN(parseFloat(data.quantity)) || parseFloat(data.quantity) <= 0) {
-      errors.push('Valid quantity is required');
-    }
-    
-    if (((!data.unitPrice && !data.unit_price)) || isNaN(parseFloat(data.unitPrice || data.unit_price)) || parseFloat(data.unitPrice || data.unit_price) <= 0) {
-      errors.push('Valid unit price is required');
-    }
-    
-    if (((!data.paymentMethod && !data.payment_method)) || !['cash', 'mpesa', 'debt'].includes(data.paymentMethod || data.payment_method)) {
+    const paymentMethod = data.paymentMethod || data.payment_method;
+    if (!paymentMethod || !['cash', 'mpesa', 'debt'].includes(paymentMethod)) {
       errors.push('Valid payment method is required (cash, mpesa, or debt)');
     }
     
-    if ((data.paymentMethod === 'debt' || data.payment_method === 'debt')) {
-      if (((!data.customerName && !data.customer_name) || ((data.customerName || data.customer_name || '').trim().length === 0))) {
+    if (paymentMethod === 'debt') {
+      const name = data.customerName || data.customer_name;
+      const phone = data.customerPhone || data.customer_phone;
+      if (!name || name.trim().length === 0) {
         errors.push('Customer name is required for debt payments');
       }
-      
-      if (((!data.customerPhone && !data.customer_phone) || ((data.customerPhone || data.customer_phone || '').trim().length === 0))) {
+      if (!phone || phone.trim().length === 0) {
         errors.push('Customer phone is required for debt payments');
       }
     }

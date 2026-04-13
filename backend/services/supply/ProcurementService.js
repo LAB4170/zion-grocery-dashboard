@@ -31,7 +31,7 @@ class ProcurementService {
 
     return db.transaction(async (trx) => {
       // 1. Create the Purchase Order Header
-      const [po] = await trx('purchase_orders')
+      const poResults = await trx('purchase_orders')
         .insert({
           supplier_id: supplierId,
           business_id: businessId,
@@ -41,6 +41,8 @@ class ProcurementService {
           notes: notes
         })
         .returning('*');
+      
+      const po = poResults[0];
 
       // 2. Process each item
       for (const item of items) {
@@ -73,7 +75,7 @@ class ProcurementService {
             .where({ id: item.productId })
             .update({
               stock_quantity: currentStock + newQty,
-              unit_cost: weightedCost.toFixed(2),
+              unit_cost: parseFloat(weightedCost.toFixed(2)),
               updated_at: trx.fn.now()
             });
         }

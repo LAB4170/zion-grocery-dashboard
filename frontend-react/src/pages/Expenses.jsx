@@ -180,8 +180,6 @@ export default function Expenses() {
                 <select 
                   value={formData.category} 
                   onChange={e => setFormData({...formData, category: e.target.value})}
-                  className="glass"
-                  style={{ width: '100%', padding: '12px', borderRadius: '12px', background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }}
                 >
                   {categories.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { 
   Users, Truck, Plus, Package, History, Search, 
   Phone, Mail, MapPin, CheckCircle, AlertCircle, 
-  ArrowRight, ShoppingBag, DollarSign
+  ArrowRight, ShoppingBag, DollarSign, X
 } from 'lucide-react';
 import api from '../services/api';
 
@@ -73,7 +73,7 @@ export default function Procurement() {
       productId: product.id, 
       name: product.name, 
       quantity: 1, 
-      unitCost: product.unit_cost || 0 
+      unitCost: product.unitCost || 0 
     }]);
   };
 
@@ -98,7 +98,11 @@ export default function Procurement() {
       const payload = {
         supplierId: selectedSupplier,
         referenceNumber: refNumber,
-        items: restockCart,
+        items: restockCart.map(item => ({
+          ...item,
+          quantity: parseFloat(item.quantity || 0),
+          unitCost: parseFloat(item.unitCost || 0)
+        })),
         notes: ''
       };
       await api.post('/procurement/receive', payload);
@@ -193,8 +197,8 @@ export default function Procurement() {
 
             <div className="products-selection" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '16px', maxHeight: '500px', overflowY: 'auto' }}>
               {products.map(p => (
-                <div key={p.id} className="glass" style={{ padding: '16px', borderRadius: '16px', cursor: 'pointer' }} onClick={() => addToRestock(p)}>
-                  <p style={{ fontWeight: 700, fontSize: '14px', marginBottom: '4px' }}>{p.name}</p>
+                <div key={p.id} className="card-elevated" style={{ padding: '16px', borderRadius: '16px', cursor: 'pointer', background: 'var(--surface)' }} onClick={() => addToRestock(p)}>
+                  <p style={{ fontWeight: 700, fontSize: '14px', marginBottom: '4px', color: 'var(--text)' }}>{p.name}</p>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', fontSize: '12px' }}>
                     <span style={{ color: p.stockQuantity < 5 ? 'var(--danger)' : 'var(--text-muted)' }}>In Stock: {p.stockQuantity}</span>
                     <button style={{ color: 'var(--accent)' }}><Plus size={16} /></button>
@@ -223,9 +227,9 @@ export default function Procurement() {
             <h4 style={{ fontSize: '14px', color: 'var(--text-muted)', marginBottom: '16px' }}>Batch Items ({restockCart.length})</h4>
             <div className="restock-cart" style={{ flex: 1, overflowY: 'auto', marginBottom: '24px' }}>
                {restockCart.map(i => (
-                 <div key={i.productId} className="glass" style={{ padding: '12px', borderRadius: '12px', marginBottom: '12px' }}>
+                 <div key={i.productId} className="card-elevated" style={{ padding: '16px', borderRadius: '16px', marginBottom: '16px', background: 'var(--surface)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
-                       <span style={{ fontWeight: 700, fontSize: '13px' }}>{i.name}</span>
+                       <span style={{ fontWeight: 700, fontSize: '13px', color: 'var(--text)' }}>{i.name}</span>
                        <button onClick={() => removeRestockItem(i.productId)} style={{ color: 'var(--danger)' }}><ArrowRight size={14} /></button>
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
@@ -289,102 +293,184 @@ export default function Procurement() {
         </section>
       )}
 
-      {/* MODAL: ADD SUPPLIER */}
+      {/* MODAL: ADD SUPPLIER - PREMIUM REDESIGN */}
       {showSupplierModal && (
-        <div className="modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-           <div className="glass modal-content" style={{ padding: '32px', borderRadius: '24px', width: '100%', maxWidth: '500px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-                 <h2 style={{ fontSize: '24px' }}>Register New Supplier</h2>
-                 <button onClick={() => setShowSupplierModal(false)}><ArrowRight size={24} style={{ transform: 'rotate(270deg)' }} /></button>
+        <div className="modal-overlay" style={{ 
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', 
+          backdropFilter: 'blur(8px)', zIndex: 2000, display: 'flex', 
+          alignItems: 'center', justifyContent: 'center', padding: '20px',
+          animation: 'fadeIn 0.2s ease-out'
+        }}>
+           <div className="glass modal-content" style={{ 
+             padding: '40px', borderRadius: '28px', width: '100%', maxWidth: '600px',
+             boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5), inset 0 1px 1px rgba(255,255,255,0.05)',
+             background: 'var(--surface)',
+             position: 'relative',
+             border: '1px solid var(--glass-border)',
+             animation: 'slideUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)'
+           }}>
+              <button 
+                onClick={() => setShowSupplierModal(false)}
+                style={{ position: 'absolute', top: '24px', right: '24px', background: 'var(--border)', color: 'var(--text)', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              >
+                <X size={20} />
+              </button>
+
+              <div style={{ marginBottom: '32px' }}>
+                 <h2 style={{ fontSize: '28px', fontWeight: 800, letterSpacing: '-0.5px', marginBottom: '8px', color: 'var(--text)' }}>New Vendor Partner</h2>
+                 <p style={{ color: 'var(--text-muted)', fontSize: '14px' }}>Establish a new supply relationship in your inventory system.</p>
               </div>
-              <form onSubmit={handleAddSupplier} style={{ display: 'grid', gap: '16px' }}>
+
+              <form onSubmit={handleAddSupplier} style={{ display: 'grid', gap: '20px' }}>
                  <div className="input-group">
-                    <label>Company Name *</label>
-                    <input type="text" required placeholder="e.g. Zion Groceries LTD" value={newSupplier.name} onChange={(e) => setNewSupplier({...newSupplier, name: e.target.value})} />
+                    <label>Company Name <span style={{ color: 'var(--accent)' }}>*</span></label>
+                    <div className="input-wrapper">
+                      <Truck size={16} className="input-icon" />
+                      <input type="text" required placeholder="e.g. Zion Groceries LTD" value={newSupplier.name} onChange={(e) => setNewSupplier({...newSupplier, name: e.target.value})} />
+                    </div>
                  </div>
-                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+
+                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
                     <div className="input-group">
                         <label>Contact Person</label>
-                        <input type="text" placeholder="Full name" value={newSupplier.contact_person} onChange={(e) => setNewSupplier({...newSupplier, contact_person: e.target.value})} />
+                        <div className="input-wrapper">
+                          <Users size={16} className="input-icon" />
+                          <input type="text" placeholder="Full name" value={newSupplier.contact_person} onChange={(e) => setNewSupplier({...newSupplier, contact_person: e.target.value})} />
+                        </div>
                     </div>
                     <div className="input-group">
                         <label>Phone Number</label>
-                        <input type="text" placeholder="+254..." value={newSupplier.phone} onChange={(e) => setNewSupplier({...newSupplier, phone: e.target.value})} />
+                        <div className="input-wrapper">
+                          <Phone size={16} className="input-icon" />
+                          <input type="text" placeholder="+254..." value={newSupplier.phone} onChange={(e) => setNewSupplier({...newSupplier, phone: e.target.value})} />
+                        </div>
                     </div>
                  </div>
-                 <div className="input-group">
-                    <label>Email Address</label>
-                    <input type="email" placeholder="vendor@example.com" value={newSupplier.email} onChange={(e) => setNewSupplier({...newSupplier, email: e.target.value})} />
+
+                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                    <div className="input-group">
+                      <label>Email Address</label>
+                      <div className="input-wrapper">
+                        <Mail size={16} className="input-icon" />
+                        <input type="email" placeholder="vendor@example.com" value={newSupplier.email} onChange={(e) => setNewSupplier({...newSupplier, email: e.target.value})} />
+                      </div>
+                    </div>
+                    <div className="input-group">
+                      <label>Category</label>
+                      <div className="input-wrapper">
+                        <ShoppingBag size={16} className="input-icon" />
+                        <input type="text" placeholder="e.g. Dry Goods" value={newSupplier.category} onChange={(e) => setNewSupplier({...newSupplier, category: e.target.value})} />
+                      </div>
+                    </div>
                  </div>
-                 <div className="input-group">
-                    <label>Category</label>
-                    <input type="text" placeholder="e.g. Dry Goods, Beverages" value={newSupplier.category} onChange={(e) => setNewSupplier({...newSupplier, category: e.target.value})} />
-                 </div>
+
                  <div className="input-group">
                     <label>Business Address</label>
-                    <textarea placeholder="Physical location..." value={newSupplier.address} onChange={(e) => setNewSupplier({...newSupplier, address: e.target.value})} />
+                    <div className="input-wrapper" style={{ alignItems: 'flex-start' }}>
+                      <MapPin size={16} className="input-icon" style={{ marginTop: '16px' }} />
+                      <textarea 
+                        rows={3}
+                        placeholder="Physical location..." 
+                        style={{ background: 'transparent', border: 'none', width: '100%', color: 'var(--text)', outline: 'none', resize: 'none', padding: '12px 14px 12px 40px', fontSize: '14px', fontWeight: 500 }}
+                        value={newSupplier.address} 
+                        onChange={(e) => setNewSupplier({...newSupplier, address: e.target.value})} 
+                      />
+                    </div>
                  </div>
-                 <button type="submit" className="btn-primary" style={{ marginTop: '16px', padding: '16px' }} disabled={isProcessing}>
-                    {isProcessing ? 'Saving...' : 'Register Vendor'}
-                 </button>
+
+                 <div style={{ display: 'flex', gap: '12px', marginTop: '12px' }}>
+                    <button type="button" onClick={() => setShowSupplierModal(false)} className="btn-secondary" style={{ flex: 1, padding: '16px', borderRadius: '14px', background: 'var(--surface-hover)', color: 'var(--text)', fontWeight: 700, border: '1.5px solid var(--border)' }}>Cancel</button>
+                    <button type="submit" className="btn-primary" style={{ flex: 2, padding: '16px', borderRadius: '14px', boxShadow: '0 10px 20px rgba(16, 185, 129, 0.3)' }} disabled={isProcessing}>
+                        {isProcessing ? 'Onboarding Vendor...' : 'Complete Registration'}
+                    </button>
+                 </div>
               </form>
            </div>
         </div>
       )}
 
       <style jsx="true">{`
-        .tab-btn {
-          padding: 10px 20px;
+        .input-group label {
+          font-weight: 700;
+          font-size: 11px;
+          color: var(--text-muted);
+          margin-bottom: 8px;
+          display: block;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+        .input-wrapper {
+          display: flex;
+          align-items: center;
+          position: relative;
+          background: var(--surface);
+          border: 1.5px solid var(--border);
           border-radius: 12px;
+          transition: border-color 0.2s ease, box-shadow 0.2s ease;
+          box-shadow: var(--shadow-sm);
+        }
+        .input-wrapper:focus-within {
+          border-color: var(--accent);
+          box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.12);
+        }
+        .input-icon {
+          position: absolute;
+          left: 13px;
+          color: var(--text-muted);
+          opacity: 0.65;
+          pointer-events: none;
+        }
+        .input-wrapper input {
+          width: 100%;
+          background: transparent;
+          border: none;
+          color: var(--text);
+          font-size: 14px;
+          outline: none;
+          font-weight: 500;
+          padding: 12px 14px 12px 40px;
+        }
+        .input-wrapper input::placeholder {
+          color: var(--text-muted);
+          opacity: 0.5;
+        }
+        .tab-btn {
+          padding: 12px 24px;
+          border-radius: 14px;
           display: flex;
           align-items: center;
           gap: 10px;
           font-weight: 700;
           font-size: 14px;
           color: var(--text-muted);
-          transition: all 0.3s ease;
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
         .tab-btn.active {
-          background: var(--bg);
-          color: var(--text);
-          box-shadow: var(--shadow-sm);
-        }
-        .input-group label {
-          font-weight: 700;
-          font-size: 13px;
-          color: var(--text-muted);
-          margin-bottom: 6px;
-          display: block;
-        }
-        .input-group input, .input-group select, .input-group textarea {
-          width: 100%;
-          padding: 12px;
-          border-radius: 10px;
-          background: var(--bg);
+          background: var(--surface);
+          color: var(--accent);
+          box-shadow: 0 4px 20px rgba(0,0,0,0.2);
           border: 1px solid var(--border);
-          color: var(--text);
-          font-size: 14px;
         }
         .btn-primary {
           background: var(--accent);
           color: white;
           border: none;
-          border-radius: 12px;
+          border-radius: 14px;
           font-weight: 800;
           cursor: pointer;
           display: flex;
           align-items: center;
-          gap: 8px;
-          padding: 10px 20px;
-          transition: var(--transition);
+          justify-content: center;
+          gap: 10px;
+          transition: all 0.2s ease;
         }
-        .btn-primary:active {
-          transform: scale(0.98);
+        .btn-primary:hover:not(:disabled) {
+          transform: translateY(-2px);
+          filter: brightness(1.1);
         }
-         .glass {
-          background: var(--glass-bg);
-          backdrop-filter: blur(var(--glass-blur));
-          border: 1px solid var(--glass-border);
+        @keyframes slideUp {
+          from { opacity: 0; transform: translateY(30px) scale(0.95); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
         }
       `}</style>
     </div>

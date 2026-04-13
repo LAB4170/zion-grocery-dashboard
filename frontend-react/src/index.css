@@ -10,17 +10,18 @@
   --radius-lg: 16px;
 
   /* Theme: Dark (Default) */
-  --bg: #0B0F19; /* Slightly deeper dark */
-  --surface: #161B2A; /* Better contrast against deeper bg */
+  --bg: #0B0F19;
+  --surface: #161B2A;
   --surface-hover: #1F2937;
   --text: #F9FAFB;
   --text-muted: #94A3B8;
-  --border: rgba(255, 255, 255, 0.06);
+  --border: rgba(255, 255, 255, 0.09);
+  --glass-border: rgba(255, 255, 255, 0.07);
   --accent: #10B981;
-  --accent-secondary: #3B82F6; /* Adding secondary for charts */
+  --accent-secondary: #3B82F6;
   --accent-hover: #059669;
   --danger: #EF4444;
-  --sidebar-width: 280px; /* Wider for premium feel */
+  --sidebar-width: 280px;
   
   /* Elevation Shadows */
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
@@ -30,19 +31,21 @@
 }
 
 [data-theme='light'] {
-  --bg: #F3F4F6; /* Softer light gray */
+  --bg: #F0F2F5;
   --surface: #FFFFFF;
-  --surface-hover: #F9FAFB;
+  --surface-hover: #F7F8FA;
   --text: #111827;
   --text-muted: #6B7280;
-  --border: rgba(0, 0, 0, 0.05);
+  --border: rgba(0, 0, 0, 0.12);
+  --glass-border: rgba(0, 0, 0, 0.1);
   --accent: #10B981;
   --accent-secondary: #2563EB;
   --accent-hover: #059669;
   
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.02);
+  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -1px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
 }
 
 * {
@@ -162,31 +165,156 @@ button {
   flex-direction: column;
   gap: 20px;
 }
+/* ============================================================
+   PREMIUM INPUT DESIGN SYSTEM
+   Theme-adaptive: works perfectly in Light and Dark Mode
+   ============================================================ */
+
 .input-group {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
+
 .input-group label {
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 11.5px;
+  font-weight: 700;
   color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
 }
-.input-group input {
+
+/* Base input, select, textarea styles */
+.input-group input,
+.input-group select,
+.input-group textarea,
+input[type="text"],
+input[type="number"],
+input[type="email"],
+input[type="password"],
+input[type="tel"],
+input[type="date"],
+select,
+textarea {
   width: 100%;
-  padding: 12px 16px;
+  padding: 11px 14px;
   border-radius: var(--radius-md);
-  background-color: var(--bg);
-  border: 1px solid var(--border);
+  background-color: var(--surface);
+  border: 1.5px solid var(--border);
   color: var(--text);
-  font-family: inherit;
-  transition: var(--transition);
+  font-family: var(--font-main);
+  font-size: 14px;
+  font-weight: 500;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+  appearance: none;
+  -webkit-appearance: none;
+  box-shadow: var(--shadow-sm);
 }
-.input-group input:focus {
+
+.input-group input:hover,
+.input-group select:hover,
+.input-group textarea:hover,
+input[type="text"]:hover,
+input[type="number"]:hover,
+input[type="email"]:hover,
+select:hover {
+  border-color: var(--text-muted);
+}
+
+.input-group input:focus,
+.input-group select:focus,
+.input-group textarea:focus,
+input[type="text"]:focus,
+input[type="number"]:focus,
+input[type="email"]:focus,
+input[type="password"]:focus,
+input[type="tel"]:focus,
+input[type="date"]:focus,
+select:focus,
+textarea:focus {
   border-color: var(--accent);
   outline: none;
-  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.1);
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.12);
+  background-color: var(--surface);
 }
+
+.input-group input::placeholder,
+input::placeholder,
+textarea::placeholder {
+  color: var(--text-muted);
+  opacity: 0.6;
+  font-weight: 400;
+}
+
+/* Select arrow */
+select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236B7280' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  padding-right: 40px;
+  cursor: pointer;
+}
+
+textarea {
+  resize: vertical;
+  min-height: 90px;
+  line-height: 1.6;
+}
+
+/* Input Wrapper with icon slot */
+.input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input-wrapper input {
+  width: 100%;
+  padding-left: 40px !important;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 500;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: var(--shadow-sm);
+}
+
+.input-wrapper input:focus {
+  border-color: var(--accent);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.12);
+}
+
+.input-icon {
+  position: absolute;
+  left: 13px;
+  color: var(--text-muted);
+  pointer-events: none;
+  opacity: 0.7;
+  flex-shrink: 0;
+}
+
+/* Fix select option backgrounds for dark/light themes */
+option {
+  background-color: var(--surface);
+  color: var(--text);
+}
+
+/* Global modal backdrop */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.5) !important;
+  backdrop-filter: blur(8px);
+}
+
 .btn-primary {
   background-color: var(--accent);
   color: white;
@@ -472,16 +600,31 @@ button {
   gap: 16px;
   align-items: center;
 }
+/* --- Search Box --- */
 .search-box {
   display: flex;
   align-items: center;
   background: var(--surface);
-  border: 1px solid var(--border);
-  padding: 8px 16px;
+  border: 1.5px solid var(--border);
+  padding: 9px 16px;
   border-radius: var(--radius-md);
-  gap: 12px;
+  gap: 10px;
   min-width: 300px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: var(--shadow-sm);
 }
+
+.search-box:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.12);
+}
+
+.search-box svg {
+  color: var(--text-muted);
+  opacity: 0.6;
+  flex-shrink: 0;
+}
+
 .search-box input {
   background: transparent;
   border: none;
@@ -489,7 +632,16 @@ button {
   outline: none;
   width: 100%;
   font-weight: 500;
+  font-size: 14px;
+  box-shadow: none !important;
+  padding: 0 !important;
 }
+
+.search-box input::placeholder {
+  color: var(--text-muted);
+  opacity: 0.6;
+}
+
 .table-card {
   border-radius: var(--radius-lg);
   overflow: hidden;
@@ -596,21 +748,25 @@ button {
   }
   .sidebar {
     position: fixed;
-    top: 64px;
+    top: 0;
     left: 0;
+    bottom: 0;
     transform: translateX(-100%);
-    height: calc(100vh - 64px);
-    background-color: var(--bg);
+    height: 100vh;
+    background-color: var(--surface);
     width: 280px !important;
     z-index: 1050;
-    transition: transform 0.3s ease;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border-right: 1px solid var(--border);
+    display: flex !important; /* Force flex in drawer */
   }
   .sidebar.open {
     transform: translateX(0);
-    box-shadow: 20px 0 50px rgba(0,0,0,0.5);
+    box-shadow: 20px 0 80px rgba(0,0,0,0.6);
   }
   .sidebar-header {
-    display: none;
+    display: flex; /* Re-enable in mobile drawer */
+    margin-bottom: 32px;
   }
   .main-content {
     padding: 84px 16px 40px;
@@ -624,9 +780,24 @@ button {
   .sales-terminal {
     grid-template-columns: 1fr !important;
     height: auto !important;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
   }
   .sales-terminal section {
     height: auto !important;
+    max-height: none !important;
+  }
+  .basket-section {
+    order: -1; /* Show basket at top on mobile if needed, or keep bottom? Keeping bottom for thumb reach */
+    position: sticky;
+    bottom: 0;
+    background: var(--surface);
+    z-index: 100;
+    margin: 0 -16px -16px;
+    padding: 16px;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    border-top: 1px solid var(--border);
   }
 }
 

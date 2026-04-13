@@ -18,7 +18,7 @@ class Product {
     this.name = data.name;
     this.category = data.category;
     this.price = parseFloat(data.price);
-    this.costPrice = parseFloat(data.costPrice || data.cost_price || 0);
+    this.unitCost = parseFloat(data.unitCost || data.unit_cost || data.costPrice || data.cost_price || 0);
     this.stockQuantity = parseFloat(data.stockQuantity || data.stock_quantity || 0);
     this.unit = data.unit || 'pcs';
     this.metadata = data.metadata || {}; // Universal JSONB metadata
@@ -43,6 +43,7 @@ class Product {
       name: productData.name,
       category: productData.category,
       price: parseFloat(productData.price),
+      unit_cost: parseFloat(productData.unitCost || productData.unit_cost || productData.costPrice || productData.cost_price || 0),
       cost_price: parseFloat(productData.costPrice || productData.cost_price || 0),
       stock_quantity: parseFloat(productData.stockQuantity || productData.stock_quantity || 0),
       unit: productData.unit || 'pcs',
@@ -83,6 +84,7 @@ class Product {
       name: product.name,
       category: product.category,
       price: product.price,
+      unitCost: parseFloat(product.unit_cost || product.cost_price || 0),
       costPrice: parseFloat(product.cost_price || 0),
       stockQuantity: parseFloat(product.stock_quantity),
       unit: product.unit || 'pcs',
@@ -120,6 +122,7 @@ class Product {
       name: product.name,
       category: product.category,
       price: product.price,
+      unitCost: parseFloat(product.unit_cost || product.cost_price || 0),
       costPrice: parseFloat(product.cost_price || 0),
       stockQuantity: parseFloat(product.stock_quantity),
       unit: product.unit || 'pcs',
@@ -150,6 +153,7 @@ class Product {
       name: product.name,
       category: product.category,
       price: product.price,
+      unitCost: parseFloat(product.unit_cost || product.cost_price || 0),
       costPrice: parseFloat(product.cost_price || 0),
       stockQuantity: parseFloat(product.stock_quantity),
       unit: product.unit || 'pcs',
@@ -175,8 +179,11 @@ class Product {
     if (updateData.hasOwnProperty('price')) {
       dbData.price = parseFloat(updateData.price);
     }
-    if (updateData.hasOwnProperty('costPrice')) {
-      dbData.cost_price = parseFloat(updateData.costPrice);
+    if (updateData.hasOwnProperty('costPrice') || updateData.hasOwnProperty('cost_price')) {
+      dbData.cost_price = parseFloat(updateData.costPrice || updateData.cost_price);
+    }
+    if (updateData.hasOwnProperty('unitCost') || updateData.hasOwnProperty('unit_cost')) {
+      dbData.unit_cost = parseFloat(updateData.unitCost || updateData.unit_cost);
     }
 
     // Allow stock updates when explicitly provided; validate non-negative number
@@ -259,9 +266,16 @@ class Product {
     const db = getDatabase();
     const result = await db('products')
       .where('business_id', businessId)
-      .select(db.raw('SUM(stock_quantity * price) as total_value'))
+      .select(
+        db.raw('SUM(stock_quantity * price) as retail_value'),
+        db.raw('SUM(stock_quantity * COALESCE(unit_cost, cost_price, 0)) as cost_value')
+      )
       .first();
-    return parseFloat(result.total_value) || 0;
+    
+    return {
+      total_retail: parseFloat(result.retail_value) || 0,
+      total_cost: parseFloat(result.cost_value) || 0
+    };
   }
 
   // Get low stock products
@@ -278,6 +292,7 @@ class Product {
       name: p.name,
       category: p.category,
       price: p.price,
+      unitCost: parseFloat(p.unit_cost || p.cost_price || 0),
       stock: parseFloat(p.stock_quantity),
       createdAt: p.created_at,
       updatedAt: p.updated_at
