@@ -10,11 +10,11 @@ const { getCachedBusiness, cacheBusinessResult } = require('../utils/cache');
 const requireBusinessAuth = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
-    const userEmailHeader = req.headers['x-user-email'];
-    let userEmail = userEmailHeader;
+    let userEmail = null;
 
     // Bypass for creating a new business (onboarding) OR checking if one exists (me)
-    const isNewBusinessRoute = req.baseUrl === '/api/business' && (req.method === 'POST' || (req.method === 'GET' && req.path === '/me'));
+    const isNewBusinessRoute = (req.baseUrl === '/api/business' || req.originalUrl === '/api/business/me') && 
+                               (req.method === 'POST' || (req.method === 'GET' && (req.path === '/me' || req.path === '/')));
 
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.split('Bearer ')[1];
@@ -87,8 +87,11 @@ const requireBusinessAuth = async (req, res, next) => {
     }
 
     if (!business) {
-        return res.status(404).json({
-            success: false,
+        // Special case: if we're just checking 'me', return 200 with null data to keep console clean
+        const isMeRoute = req.path === '/me' || req.originalUrl.endsWith('/me');
+        return res.status(isMeRoute ? 200 : 404).json({
+            success: isMeRoute,
+            data: null,
             message: 'No business found for this user. Please register a business.',
             code: 'NO_BUSINESS_REGISTERED'
         });

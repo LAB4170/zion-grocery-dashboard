@@ -94,31 +94,17 @@ const debtRoutes = require('./routes/debts');
 const businessRoutes = require('./routes/businesses');
 const paymentsRoutes = require('./routes/payments');
 const adminRoutes = require('./routes/admin');
-const procurementRoutes = require('./routes/procurement');
 
 // Import middleware
 const { errorHandler } = require('./middleware/errorHandler');
 const { requireBusinessAuth } = require('./middleware/auth');
-const { requireAdminAuth } = require('./middleware/adminAuth');
 const { requireFirebaseAdminAuth } = require('./middleware/firebaseAdminAuth');
 const { requireTenantContext } = require('./middleware/tenantGuard');
 const { requireActiveSubscription } = require('./middleware/billingGuard');
 
-/**
- * Dual Admin Auth — accepts either:
- *  (A) Legacy: x-admin-key header (backward compat during migration)
- *  (B) New:    Authorization: Bearer <firebase-token> with role:'admin' claim
- * 
- * Once all admin users have the Firebase claim set, remove requireAdminAuth.
- */
-const dualAdminAuth = async (req, res, next) => {
-  // If they're using the new Firebase token method, use Firebase auth
-  if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
-    return requireFirebaseAdminAuth(req, res, next);
-  }
-  // Otherwise fall back to the static key (legacy)
-  return requireAdminAuth(req, res, next);
-};
+// Admin authentication middleware - Enforces Firebase Custom Claims (role: 'admin')
+const adminAuth = requireFirebaseAdminAuth;
+
 
 
 // Security middleware
@@ -294,8 +280,7 @@ app.use('/api/expenses', requireBusinessAuth, requireTenantContext, requireActiv
 app.use('/api/debts', requireBusinessAuth, requireTenantContext, requireActiveSubscription, debtRoutes);
 app.use('/api/dashboard', apiGeneralLimiter, requireBusinessAuth, requireTenantContext, requireActiveSubscription, dashboardRoutes);
 app.use('/api/payments', paymentLimiter, requireBusinessAuth, requireTenantContext, paymentsRoutes);
-app.use('/api/procurement', apiGeneralLimiter, requireBusinessAuth, requireTenantContext, requireActiveSubscription, procurementRoutes);
-app.use('/api/admin', adminDashboardLimiter, dualAdminAuth, adminRoutes);
+app.use('/api/admin', adminDashboardLimiter, adminAuth, adminRoutes);
 
 // Handle React frontend routing - Catch all to serve index.html
 // Important: send index.html with no-cache so browsers always get the latest asset references

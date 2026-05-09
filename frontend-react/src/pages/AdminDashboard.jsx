@@ -29,6 +29,8 @@ import {
   PieChart, Pie, Cell, Legend
 } from 'recharts';
 import { useTheme } from '../context/ThemeContext';
+import { useAuth } from '../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
@@ -36,7 +38,8 @@ const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6'];
 
 export default function AdminDashboard() {
   const { theme, toggleTheme } = useTheme();
-  const [adminKey, setAdminKey] = useState(localStorage.getItem('nexus_admin_key') || '');
+  const { currentUser, logout } = useAuth();
+  const navigate = useNavigate();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [activeTab, setActiveTab] = useState('overview'); // overview, businesses, activities
   const [overview, setOverview] = useState(null);
@@ -49,13 +52,22 @@ export default function AdminDashboard() {
   const [showDetail, setShowDetail] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
   const [adminNotes, setAdminNotes] = useState('');
+  const [token, setToken] = useState('');
 
-  const fetchAdminData = async (key) => {
+  const fetchAdminData = async () => {
+    if (!currentUser) {
+      setError('Please sign in with your admin account.');
+      return;
+    }
+    
     try {
       setLoading(true);
       setError('');
       
-      const config = { headers: { 'x-admin-key': key } };
+      const idToken = await currentUser.getIdToken();
+      setToken(idToken);
+      
+      const config = { headers: { 'Authorization': `Bearer ${idToken}` } };
 
       const [overviewRes, businessesRes, activitiesRes] = await Promise.all([
         axios.get(`${API_BASE}/admin/overview`, config),
@@ -67,9 +79,8 @@ export default function AdminDashboard() {
       setBusinesses(businessesRes.data.data);
       setActivities(activitiesRes.data.data);
       setIsAuthenticated(true);
-      localStorage.setItem('nexus_admin_key', key);
     } catch (err) {
-      setError(err.response?.data?.message || 'Authentication failed.');
+      setError(err.response?.data?.message || 'Authentication failed. Make sure you have admin privileges.');
       setIsAuthenticated(false);
     } finally {
       setLoading(false);
@@ -79,7 +90,7 @@ export default function AdminDashboard() {
   const fetchBusinessDetail = async (id) => {
     try {
       setDetailLoading(true);
-      const config = { headers: { 'x-admin-key': adminKey } };
+      const config = { headers: { 'Authorization': `Bearer ${token}` } };
       const res = await axios.get(`${API_BASE}/admin/businesses/${id}`, config);
       setSelectedBusiness(res.data.data);
       setAdminNotes(res.data.data.business.admin_notes || '');
@@ -92,18 +103,23 @@ export default function AdminDashboard() {
   };
 
   useEffect(() => {
-    if (adminKey) fetchAdminData(adminKey);
-  }, []);
+    if (currentUser) {
+      fetchAdminData();
+    }
+  }, [currentUser]);
 
-  const handleLogin = (e) => {
-    e.preventDefault();
-    fetchAdminData(adminKey);
+  const handleLoginRedirect = () => {
+    navigate('/login?redirect=/admin');
   };
 
-  const handleLogout = () => {
-    setIsAuthenticated(false);
-    setAdminKey('');
-    localStorage.removeItem('nexus_admin_key');
+  const handleLogout = async () => {
+    try {
+      await logout();
+      setIsAuthenticated(false);
+      navigate('/');
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const filteredBusinesses = businesses.filter(b => 
@@ -113,13 +129,13 @@ export default function AdminDashboard() {
 
   const handleSuspendToggle = async (bId, currentStatus) => {
     try {
-      const config = { headers: { 'x-admin-key': adminKey } };
+      const config = { headers: { 'Authorization': `Bearer ${token}` } };
       await axios.post(`${API_BASE}/admin/businesses/${bId}/status`, {
         is_suspended: !currentStatus,
         admin_notes: adminNotes
       }, config);
       alert(`Business ${!currentStatus ? 'suspended' : 'activated'} successfully.`);
-      fetchAdminData(adminKey);
+      fetchAdminData();
       fetchBusinessDetail(bId);
     } catch (err) {
       alert('Failed to update status.');
@@ -128,10 +144,10 @@ export default function AdminDashboard() {
 
   const handleExtendTrial = async (bId) => {
     try {
-      const config = { headers: { 'x-admin-key': adminKey } };
+      const config = { headers: { 'Authorization': `Bearer ${token}` } };
       await axios.post(`${API_BASE}/admin/businesses/${bId}/extend-trial`, { days: 7 }, config);
       alert('Trial extended by 7 days.');
-      fetchAdminData(adminKey);
+      fetchAdminData();
       fetchBusinessDetail(bId);
     } catch (err) {
       alert('Failed to extend trial.');
@@ -140,7 +156,7 @@ export default function AdminDashboard() {
 
   const handleImpersonate = async (bId) => {
     try {
-      const config = { headers: { 'x-admin-key': adminKey } };
+      const config = { headers: { 'Authorization': `Bearer ${token}` } };
       const res = await axios.post(`${API_BASE}/admin/businesses/${bId}/impersonate`, {}, config);
       
       // Navigate to the consumer frontend with the token
@@ -176,16 +192,26 @@ export default function AdminDashboard() {
           </div>
           <h1 style={{ fontSize: '24px', marginBottom: '8px' }}>Master Terminal</h1>
           <p style={{ color: 'var(--text-muted)', marginBottom: '32px', fontSize: '14px' }}>System oversight access restricted.</p>
-          <form onSubmit={handleLogin}>
-            <div className="input-group" style={{ textAlign: 'left', marginBottom: '24px' }}>
-              <label style={{ fontSize: '12px', fontWeight: 800, color: 'var(--text-muted)', marginBottom: '8px', display: 'block' }}>X-ADMIN-KEY</label>
-              <input type="password" value={adminKey} onChange={(e) => setAdminKey(e.target.value)} required autoFocus className="input-premium" />
+          {!currentUser ? (
+            <div>
+              <button onClick={handleLoginRedirect} className="btn-primary" style={{ width: '100%', height: '52px' }}>
+                Sign In with Firebase
+              </button>
             </div>
-            {error && <div className="error-alert" style={{ marginBottom: '24px', fontSize: '13px' }}>{error}</div>}
-            <button type="submit" className="btn-primary" style={{ width: '100%', height: '52px' }} disabled={loading}>
-              {loading ? <RefreshCw size={18} className="animate-spin" /> : 'Authenticate Access'}
-            </button>
-          </form>
+          ) : (
+            <div>
+              <p style={{ marginBottom: '24px', fontSize: '14px' }}>
+                Signed in as: <strong>{currentUser.email}</strong>
+              </p>
+              {error && <div className="error-alert" style={{ marginBottom: '24px', fontSize: '13px' }}>{error}</div>}
+              <button onClick={fetchAdminData} className="btn-primary" style={{ width: '100%', height: '52px', marginBottom: '12px' }} disabled={loading}>
+                {loading ? <RefreshCw size={18} className="animate-spin" /> : 'Authenticate Access'}
+              </button>
+              <button onClick={handleLogout} style={{ width: '100%', padding: '12px', background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontWeight: 'bold' }}>
+                Sign Out
+              </button>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -226,7 +252,7 @@ export default function AdminDashboard() {
              <div style={{ fontSize: '14px', fontWeight: 800 }}>{overview?.retentionRate}%</div>
           </div>
           <button onClick={toggleTheme} className="btn-icon-premium">{theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}</button>
-          <button onClick={() => fetchAdminData(adminKey)} className="btn-icon-premium"><RefreshCw size={18} className={loading ? 'animate-spin' : ''} /></button>
+          <button onClick={() => fetchAdminData()} className="btn-icon-premium"><RefreshCw size={18} className={loading ? 'animate-spin' : ''} /></button>
           <button onClick={handleLogout} style={{ 
             fontSize: '11px', fontWeight: 800, padding: '8px 16px', borderRadius: '8px',
             background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.2)'

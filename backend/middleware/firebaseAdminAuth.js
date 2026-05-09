@@ -1,25 +1,18 @@
 /**
  * Firebase Admin Auth Middleware (Custom Claims)
  * 
- * This is the NEXT-GENERATION admin auth that uses Firebase Custom Claims
- * instead of a static secret key. It requires the request to include a valid
- * Firebase ID token (Bearer) whose decoded payload contains { role: 'admin' }.
+ * This is the PRIMARY admin authentication method for the Nexus POS platform.
+ * It requires the request to include a valid Firebase ID token (Bearer) 
+ * whose decoded payload contains { role: 'admin' }.
  * 
- * Benefits over static x-admin-key:
- *  - Named audit trail: we know exactly WHO is accessing admin endpoints
- *  - Revocable: remove claim via setAdminClaim.js --revoke, no code deploy needed
- *  - Token expiry: Firebase tokens expire after 1 hour, limiting exposure
- *  - MFA compatible: works with Firebase's built-in MFA
+ * SECURITY DESIGN:
+ *  - No static keys: prevents broad compromise from single key leak.
+ *  - Identity-linked: every admin action is linked to a specific Firebase UID/Email.
+ *  - Time-bound: Firebase tokens expire after 1 hour.
+ *  - Revocable: access can be revoked instantly by removing the 'admin' claim in Firebase.
  * 
  * ACTIVATION:
- *  1. Run: node backend/scripts/setAdminClaim.js <your-firebase-uid>
- *  2. Update server.js to use requireFirebaseAdminAuth instead of requireAdminAuth
- *     for /api/admin routes
- *  3. Update AdminDashboard.jsx to use Firebase Login instead of password field
- * 
- * COMPATIBILITY:
- *  The old requireAdminAuth (x-admin-key) remains active as a fallback during
- *  the transition period. Both middlewares can coexist.
+ *  - Admin claims are managed via the 'backend/scripts/setAdminClaim.js' utility.
  */
 const { admin, isFirebaseInitialized } = require('../config/firebase');
 

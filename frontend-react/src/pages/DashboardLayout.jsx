@@ -42,7 +42,6 @@ export default function DashboardLayout() {
     { name: 'Sales POS', path: '/app/sales', icon: ShoppingCart, color: '#8B5CF6', bg: 'rgba(139, 92, 246, 0.15)' },
     { name: 'Sales History', path: '/app/sales/history', icon: History, color: '#EC4899', bg: 'rgba(236, 72, 153, 0.15)' },
     { name: 'Expenses', path: '/app/expenses', icon: ArrowRightLeft, color: '#EF4444', bg: 'rgba(239, 68, 68, 0.15)' },
-    { name: 'Purchase Orders', path: '/app/procurement', icon: Truck, color: '#F59E0B', bg: 'rgba(245, 158, 11, 0.15)' },
     { name: 'Debts', path: '/app/debts', icon: Users, color: '#06B6D4', bg: 'rgba(6, 182, 212, 0.15)' },
     { name: 'Settings', path: '/app/settings', icon: Settings, color: '#64748B', bg: 'rgba(100, 116, 139, 0.15)' },
   ];

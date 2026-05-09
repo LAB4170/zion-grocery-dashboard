@@ -114,7 +114,9 @@ export default function Procurement() {
       fetchHistory();
       setTimeout(() => setSuccessMessage(''), 5000);
     } catch (err) {
-      setError('Failed to receive order.');
+      const msg = err.response?.data?.message || err.message || 'Failed to receive order.';
+      setError(msg);
+      console.error('Procurement receive error:', err);
     } finally {
       setIsProcessing(false);
     }

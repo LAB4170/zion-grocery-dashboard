@@ -37,6 +37,7 @@ router.post('/receive', async (req, res) => {
     const po = await ProcurementService.receivePurchaseOrder(req.businessId, req.body);
     res.status(201).json({ success: true, data: po });
   } catch (err) {
+    console.error('❌ [Procurement /receive] Error:', err.message);
     res.status(500).json({ success: false, message: err.message });
   }
 });

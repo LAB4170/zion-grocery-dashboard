@@ -16,73 +16,34 @@ const VALID_ADMIN_KEY = process.env.ADMIN_SECRET;
 
 // ─── ADMIN AUTH TESTS ──────────────────────────────────────────────────────
 
-describe('Admin Authentication Middleware', () => {
-  test('GET /api/admin/overview → 401 when no x-admin-key header', async () => {
+describe('Admin Authentication Middleware (Firebase Enforced)', () => {
+  test('GET /api/admin/overview → 401 when no Authorization header', async () => {
     const res = await request(app).get('/api/admin/overview');
     expect(res.status).toBe(401);
-    expect(res.body.success).toBe(false);
+    expect(res.body.message).toMatch(/Bearer token/i);
   });
 
-  test('GET /api/admin/overview → 401 when x-admin-key is wrong', async () => {
+  test('GET /api/admin/overview → 401 when using legacy x-admin-key (Now Disabled)', async () => {
     const res = await request(app)
       .get('/api/admin/overview')
-      .set('x-admin-key', 'completely_wrong_key_that_wont_work!!');
+      .set('x-admin-key', VALID_ADMIN_KEY || 'any_key');
+    // The middleware for x-admin-key is removed, so it should be ignored or fail
     expect(res.status).toBe(401);
-    expect(res.body.success).toBe(false);
   });
 
-  test('GET /api/admin/overview → 200 with correct x-admin-key', async () => {
-    const res = await request(app)
-      .get('/api/admin/overview')
-      .set('x-admin-key', VALID_ADMIN_KEY);
-    expect(res.status).toBe(200);
-    expect(res.body.success).toBe(true);
-    expect(res.body.data).toBeDefined();
-  });
-
-  test('GET /api/admin/overview response has required metric fields', async () => {
-    const res = await request(app)
-      .get('/api/admin/overview')
-      .set('x-admin-key', VALID_ADMIN_KEY);
-    const { data } = res.body;
-    expect(data).toHaveProperty('totalBusinesses');
-    expect(data).toHaveProperty('totalRevenue');
-    expect(data).toHaveProperty('retentionRate');
-    expect(data).toHaveProperty('growth');
-    expect(data.growth).toHaveProperty('revenue');
-    expect(data.growth).toHaveProperty('activeTenants');
-  });
-
-  test('GET /api/admin/businesses → 401 with no key', async () => {
+  test('GET /api/admin/businesses → 401 with no token', async () => {
     const res = await request(app).get('/api/admin/businesses');
     expect(res.status).toBe(401);
   });
 
-  test('GET /api/admin/businesses → 200 with valid key and returns array', async () => {
-    const res = await request(app)
-      .get('/api/admin/businesses')
-      .set('x-admin-key', VALID_ADMIN_KEY);
-    expect(res.status).toBe(200);
-    expect(Array.isArray(res.body.data)).toBe(true);
-  });
-
-  test('GET /api/admin/activities → 401 with no key', async () => {
+  test('GET /api/admin/activities → 401 with no token', async () => {
     const res = await request(app).get('/api/admin/activities');
     expect(res.status).toBe(401);
   });
 
-  test('GET /api/admin/audit-log → 200 with valid key and returns audit records', async () => {
-    const res = await request(app)
-      .get('/api/admin/audit-log')
-      .set('x-admin-key', VALID_ADMIN_KEY);
-    expect(res.status).toBe(200);
-    expect(res.body.success).toBe(true);
-    expect(Array.isArray(res.body.data)).toBe(true);
-  });
-
-  test('ADMIN_SECRET must be ≥32 characters (entropy check)', () => {
-    expect(VALID_ADMIN_KEY).toBeDefined();
-    expect(VALID_ADMIN_KEY.length).toBeGreaterThanOrEqual(32);
+  test('GET /api/admin/audit-log → 401 with no token', async () => {
+    const res = await request(app).get('/api/admin/audit-log');
+    expect(res.status).toBe(401);
   });
 });
 

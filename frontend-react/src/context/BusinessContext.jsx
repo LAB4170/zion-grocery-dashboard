@@ -30,10 +30,27 @@ export function BusinessProvider({ children }) {
         // Add a brief delay to ensure Firebase token is ready in the api interceptor
         await new Promise(resolve => setTimeout(resolve, 500));
         
+        // 1. Check if user is a Super Admin via Firebase Custom Claims
+        const idTokenResult = await currentUser.getIdTokenResult();
+        const isAdmin = idTokenResult.claims.role === 'admin';
+        
+        if (isAdmin) {
+          console.log("🛡️ Admin session detected. Skipping standard merchant context.");
+          setBusiness(null);
+          setNeedsOnboarding(false);
+          setLoadingBusiness(false);
+          return;
+        }
+
         const response = await api.get('/business/me');
         if (isMounted) {
-          setBusiness(response.data.data);
-          setNeedsOnboarding(false);
+          if (!response.data.data) {
+            setNeedsOnboarding(true);
+            setBusiness(null);
+          } else {
+            setBusiness(response.data.data);
+            setNeedsOnboarding(false);
+          }
         }
       } catch (error) {
         if (isMounted) {

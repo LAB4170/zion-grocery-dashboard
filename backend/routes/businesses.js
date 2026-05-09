@@ -17,7 +17,7 @@ const businessValidationRules = [
 router.get('/me', catchAsync(async (req, res) => {
   const business = await db('businesses').where('owner_email', req.userEmail).first();
   if (!business) {
-    return res.status(404).json({ success: false, message: 'No registered business', code: 'NO_BUSINESS_REGISTERED' });
+    return res.status(200).json({ success: true, data: null, message: 'No registered business', code: 'NO_BUSINESS_REGISTERED' });
   }
 
   res.json({ success: true, data: business });

@@ -17,7 +17,6 @@ import Debts from './pages/Debts';
 import Reports from './pages/Reports';
 import Settings from './pages/Settings';
 import SalesRecords from './pages/SalesRecords';
-import Procurement from './pages/Procurement';
 import LegalPrivacy from './pages/LegalPrivacy';
 import LegalTerms from './pages/LegalTerms';
 
@@ -39,7 +38,13 @@ function ProtectedRoute({ children }) {
     );
   }
 
-  if (needsOnboarding || !business) {
+  if (needsOnboarding) {
+    return <Navigate to="/onboarding" replace />;
+  }
+  
+  if (!business) {
+    // This state should ideally not be reached if loadingBusiness is false and needsOnboarding is false,
+    // but as a safety measure, we redirect to onboarding if we have no business data.
     return <Navigate to="/onboarding" replace />;
   }
 
@@ -74,7 +79,7 @@ function App() {
       <AuthProvider>
         <BusinessProvider>
           <SocketProvider>
-            <Router>
+            <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
               <Routes>
                 {/* Public Route */}
                 <Route path="/" element={<LandingPage />} />
@@ -97,7 +102,6 @@ function App() {
                   <Route path="expenses" element={<Expenses />} />
                   <Route path="debts" element={<Debts />} />
                   <Route path="reports" element={<Reports />} />
-                  <Route path="procurement" element={<Procurement />} />
                   <Route path="settings" element={<Settings />} />
                 </Route>
                 
