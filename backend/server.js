@@ -14,7 +14,7 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 const { initWorker } = require('./workers/statsWorker');
 const { initJobs } = require('./jobs/index');
-const { client, pubClient, subClient, initRedis } = require('./config/redis');
+const { client, pubClient, subClient, initRedis, isRedisEnabled } = require('./config/redis');
 const { createAdapter } = require('@socket.io/redis-adapter');
 const RedisStore = require('rate-limit-redis').default;
 
@@ -76,6 +76,11 @@ const io = socketIo(server, {
   transports: ['websocket', 'polling']
 });
 
+// Use Redis Adapter for Socket.IO only if Redis is enabled
+if (isRedisEnabled && pubClient && subClient) {
+  io.adapter(createAdapter(pubClient, subClient));
+}
+
 const { db, testConnection } = require('./config/database');
 const { router: dashboardRoutes, clearDashboardCache } = require('./routes/dashboard');
 const productRoutes = require('./routes/products');
@@ -101,10 +106,30 @@ app.use(compression());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-const apiGeneralLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 1000 });
-const adminDashboardLimiter = rateLimit({ windowMs: 1 * 60 * 1000, max: 60 });
-const onboardingLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 20 });
-const paymentLimiter = rateLimit({ windowMs: 5 * 60 * 1000, max: 50 });
+// Rate Limiters - Use RedisStore only if Redis is enabled
+const apiGeneralLimiter = rateLimit({ 
+  windowMs: 15 * 60 * 1000, 
+  max: 1000,
+  store: isRedisEnabled ? new RedisStore({ sendCommand: (...args) => client.sendCommand(args) }) : undefined
+});
+
+const adminDashboardLimiter = rateLimit({ 
+  windowMs: 1 * 60 * 1000, 
+  max: 60,
+  store: isRedisEnabled ? new RedisStore({ sendCommand: (...args) => client.sendCommand(args) }) : undefined
+});
+
+const onboardingLimiter = rateLimit({ 
+  windowMs: 60 * 60 * 1000, 
+  max: 20,
+  store: isRedisEnabled ? new RedisStore({ sendCommand: (...args) => client.sendCommand(args) }) : undefined
+});
+
+const paymentLimiter = rateLimit({ 
+  windowMs: 5 * 60 * 1000, 
+  max: 50,
+  store: isRedisEnabled ? new RedisStore({ sendCommand: (...args) => client.sendCommand(args) }) : undefined
+});
 
 app.get('/health', async (req, res) => {
   try { await db.raw('SELECT 1'); res.json({ status: 'OK', database: 'Connected' }); }

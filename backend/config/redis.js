@@ -2,27 +2,40 @@ const { createClient } = require('redis');
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '../../.env') });
 
-const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+const redisUrl = process.env.REDIS_URL;
 
-// Main client for cache and general use
-const client = createClient({ url: redisUrl });
+let client = null;
+let pubClient = null;
+let subClient = null;
+let isRedisEnabled = false;
 
-// Secondary clients for Socket.IO (Must have their own connection)
-const pubClient = createClient({ url: redisUrl });
-const subClient = pubClient.duplicate();
+if (redisUrl && redisUrl !== 'redis://localhost:6379') {
+  console.log('🌐 Redis URL detected, attempting connection...');
+  client = createClient({ url: redisUrl });
+  pubClient = createClient({ url: redisUrl });
+  subClient = pubClient.duplicate();
 
-client.on('error', (err) => console.error('Redis Client Error:', err));
-pubClient.on('error', (err) => console.error('Redis Pub Client Error:', err));
-subClient.on('error', (err) => console.error('Redis Sub Client Error:', err));
+  client.on('error', (err) => console.warn('⚠️ Redis Client Error (Fallback to Memory):', err.message));
+  pubClient.on('error', (err) => console.warn('⚠️ Redis Pub Client Error:', err.message));
+  subClient.on('error', (err) => console.warn('⚠️ Redis Sub Client Error:', err.message));
+  
+  isRedisEnabled = true;
+} else {
+  console.log('ℹ️ No production Redis URL found. Using In-Memory Caching (Default).');
+}
 
 const initRedis = async () => {
+  if (!isRedisEnabled) return;
   try {
-    if (!client.isOpen) await client.connect();
-    if (!pubClient.isOpen) await pubClient.connect();
-    if (!subClient.isOpen) await subClient.connect();
-    console.log('✅ Redis Cluster (Cache + Pub/Sub) Connected');
+    await Promise.all([
+      client.connect(),
+      pubClient.connect(),
+      subClient.connect()
+    ]);
+    console.log('✅ Redis Cluster Connected');
   } catch (err) {
-    console.error('❌ Redis Initialization Failed:', err.message);
+    console.warn('⚠️ Redis Connection Failed. System will use local memory fallback.');
+    isRedisEnabled = false;
   }
 };
 
@@ -30,5 +43,6 @@ module.exports = {
   client,
   pubClient,
   subClient,
-  initRedis
+  initRedis,
+  isRedisEnabled
 };
