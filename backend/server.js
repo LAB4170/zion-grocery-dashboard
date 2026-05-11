@@ -11,81 +11,72 @@ const socketIo = require('socket.io');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
 const app = express();
+const PORT = process.env.PORT || 5000;
 const { initWorker } = require('./workers/statsWorker');
 const { initJobs } = require('./jobs/index');
 const { client, pubClient, subClient, initRedis } = require('./config/redis');
 const { createAdapter } = require('@socket.io/redis-adapter');
 const RedisStore = require('rate-limit-redis').default;
 
-// Utility: normalize origin by removing trailing slash and lowercasing
+/**
+ * NEXUS POS MASTER SERVER
+ * Multi-tenant backend for grocery operations, stats, and real-time syncing.
+ */
+
+// Global Route Inspector (Debug Only)
+app.get('/api/debug-routes', (req, res) => {
+  const routes = [];
+  function print(path, layer) {
+    if (layer.route) {
+      layer.route.stack.forEach(print.bind(null, path + layer.route.path));
+    } else if (layer.name === 'router' && layer.handle.stack) {
+      layer.handle.stack.forEach(print.bind(null, path + (layer.regexp.source.replace('^\\/', '').replace('\\/?(?=\\/|$)', '').replace('\\/', '/'))));
+    } else if (layer.method) {
+      routes.push(`${layer.method.toUpperCase()} ${path}`);
+    }
+  }
+  app._router.stack.forEach(print.bind(null, ''));
+  res.json(routes);
+});
+
+// Utility: normalize origin
 function normalizeOrigin(value) {
   if (!value) return value;
   try {
-    // If it's a full URL, use URL parsing, else trim only
     const u = new URL(value);
-    const normalized = `${u.protocol}//${u.host}`.toLowerCase();
-    return normalized;
+    return `${u.protocol}//${u.host}`.toLowerCase();
   } catch {
     return value.replace(/\/$/, '').toLowerCase();
   }
 }
 
-// Build allowed origins list from env
 function getAllowedOrigins() {
   const isDevelopment = process.env.NODE_ENV === 'development';
   if (isDevelopment) {
-    return [
-      'http://localhost:5000', 
-      'http://127.0.0.1:5000', 
-      'http://localhost:5173', 
-      'http://127.0.0.1:5173',
-      'http://localhost:8080'
-    ].map(normalizeOrigin);
+    return ['http://localhost:5000', 'http://localhost:5173', 'http://localhost:8080'].map(normalizeOrigin);
   }
-  // Production: support single FRONTEND_URL or comma-separated FRONTEND_URLS
-  const single = process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : [];
-  const multi = process.env.FRONTEND_URLS ? process.env.FRONTEND_URLS.split(',').map(s => s.trim()).filter(Boolean) : [];
-  const all = [...single, ...multi].map(normalizeOrigin);
+  const all = (process.env.FRONTEND_URLS ? process.env.FRONTEND_URLS.split(',') : [process.env.FRONTEND_URL]).filter(Boolean).map(normalizeOrigin);
   return all;
 }
 
 function isAllowedOrigin(origin) {
-  if (!origin) return true; // allow curl/mobile apps
+  if (!origin) return true;
   const allowed = getAllowedOrigins();
-  if (allowed.length === 0) {
-    // No FRONTEND_URL configured: allow origin (lenient fallback to avoid hardcoding providers)
-    return true;
-  }
-  const normalizedOrigin = normalizeOrigin(origin);
-  return allowed.includes(normalizedOrigin);
+  return allowed.length === 0 || allowed.includes(normalizeOrigin(origin));
 }
 
-// CRITICAL: Trust proxy for deployment
 app.set('trust proxy', true);
-
 const server = http.createServer(app);
-const PORT = process.env.PORT || 5000;
-
-// Configure Socket.IO with CORS and Redis Adapter for Scaling
 const io = socketIo(server, {
   cors: {
-    origin: function (origin, callback) {
-      if (isAllowedOrigin(origin)) return callback(null, true);
-      return callback(new Error('Not allowed by CORS'));
-    },
+    origin: (origin, cb) => isAllowedOrigin(origin) ? cb(null, true) : cb(new Error('CORS')),
     methods: ["GET", "POST"],
     credentials: true
   },
-  transports: ['websocket', 'polling'],
-  allowEIO3: true
+  transports: ['websocket', 'polling']
 });
 
-// Attach Redis Adapter
-io.adapter(createAdapter(pubClient, subClient));
-
-// PostgreSQL database connection - required
 const { db, testConnection } = require('./config/database');
-// Import routes
 const { router: dashboardRoutes, clearDashboardCache } = require('./routes/dashboard');
 const productRoutes = require('./routes/products');
 const salesRoutes = require('./routes/sales');
@@ -94,167 +85,32 @@ const debtRoutes = require('./routes/debts');
 const businessRoutes = require('./routes/businesses');
 const paymentsRoutes = require('./routes/payments');
 const adminRoutes = require('./routes/admin');
+const supportRoutes = require('./routes/support');
 
-// Import middleware
 const { errorHandler } = require('./middleware/errorHandler');
 const { requireBusinessAuth } = require('./middleware/auth');
 const { requireFirebaseAdminAuth } = require('./middleware/firebaseAdminAuth');
 const { requireTenantContext } = require('./middleware/tenantGuard');
 const { requireActiveSubscription } = require('./middleware/billingGuard');
 
-// Admin authentication middleware - Enforces Firebase Custom Claims (role: 'admin')
 const adminAuth = requireFirebaseAdminAuth;
 
+app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false, crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" } }));
+app.use(morgan('dev'));
+app.use(compression());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
+const apiGeneralLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 1000 });
+const adminDashboardLimiter = rateLimit({ windowMs: 1 * 60 * 1000, max: 60 });
+const onboardingLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 20 });
+const paymentLimiter = rateLimit({ windowMs: 5 * 60 * 1000, max: 50 });
 
-// Security middleware
-app.use(helmet({
-  contentSecurityPolicy: false, // Allow inline scripts for frontend
-  crossOriginEmbedderPolicy: false,
-  crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" } // CRITICAL for Firebase Google Sign-In popups
-}));
-// Helper for stateless Redis commanding
-const redisCommand = async (...args) => {
-  try {
-    if (!client.isOpen) await client.connect();
-    return await client.sendCommand(args);
-  } catch (err) {
-    console.error('Redis RateLimit Command Error:', err.message);
-    // Fallback or rethrow? For security (protection), we should handle this gracefully
-    throw err;
-  }
-};
-
-// Rate limiting (Stateless with Redis)
-const limiter = rateLimit({
-  store: new RedisStore({ 
-    sendCommand: (...args) => redisCommand(...args),
-    prefix: 'rl:gen:'
-  }),
-  windowMs: (process.env.RATE_LIMIT_WINDOW || 15) * 60 * 1000,
-  max: parseInt(process.env.RATE_LIMIT_MAX) || 500,
-  skip: () => process.env.NODE_ENV === 'development',
-  message: { success: false, error: 'Too many requests. Please try again later.' }
-});
-
-// Stricter limiter for onboarding/registration
-const onboardingLimiter = rateLimit({
-  store: new RedisStore({ 
-    sendCommand: (...args) => redisCommand(...args),
-    prefix: 'rl:onboard:'
-  }),
-  windowMs: 15 * 60 * 1000, 
-  max: 10,
-  skip: () => process.env.NODE_ENV === 'development',
-  message: { success: false, error: 'Too many registration attempts. Please wait 15 minutes.' }
-});
-
-// Strict limiter for payments
-const paymentLimiter = rateLimit({
-  store: new RedisStore({ 
-    sendCommand: (...args) => redisCommand(...args),
-    prefix: 'rl:pay:'
-  }),
-  windowMs: 15 * 60 * 1000,
-  max: 5,
-  skip: () => process.env.NODE_ENV === 'development',
-  message: { success: false, error: 'Too many payment attempts. Please wait 15 minutes.' }
-});
-
-// General API data limiter to prevent scraping
-const apiGeneralLimiter = rateLimit({
-  store: new RedisStore({ 
-    sendCommand: (...args) => redisCommand(...args),
-    prefix: 'rl:api:'
-  }),
-  windowMs: 1 * 60 * 1000,
-  max: 100,
-  skip: () => process.env.NODE_ENV === 'development',
-  message: { success: false, error: 'High traffic detected. Please slow down.' }
-});
-
-// Admin Dashboard limiter
-const adminDashboardLimiter = rateLimit({
-  store: new RedisStore({ 
-    sendCommand: (...args) => redisCommand(...args),
-    prefix: 'rl:admin:'
-  }),
-  windowMs: 1 * 60 * 1000,
-  max: 30,
-  skip: () => process.env.NODE_ENV === 'development',
-  message: { success: false, error: 'Too many admin requests. Please wait a minute.' }
-});
-
-app.use('/api/', limiter);
-app.use('/api/products', apiGeneralLimiter);
-app.use('/api/sales', apiGeneralLimiter);
-app.use('/api/expenses', apiGeneralLimiter);
-app.use('/api/debts', apiGeneralLimiter);
-
-// CORS configuration
-app.use(cors({
-  origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-
-    if (isAllowedOrigin(origin)) return callback(null, true);
-
-    return callback(new Error('Not allowed by CORS'));
-  },
-  credentials: true
-}));
-
-// Body parsing middleware
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-
-// Logging middleware
-if (process.env.NODE_ENV !== 'production') {
-  app.use(morgan('dev'));
-} else {
-  app.use(morgan('combined'));
-}
-
-// Serve from backend/public — build step copies frontend-react/dist here.
-// path.join(__dirname, 'public') is always relative to this file, never ambiguous.
-const frontendPath = path.join(__dirname, 'public');
-
-console.log('📡 Serving frontend from:', frontendPath);
-console.log('📡 public/ exists:', fs.existsSync(frontendPath));
-console.log('📡 index.html exists:', fs.existsSync(path.join(frontendPath, 'index.html')));
-
-// Serve static assets with long cache (hashed filenames, safe to cache)
-app.use(express.static(frontendPath, {
-  maxAge: '1y',
-  etag: true,
-  index: false // Disable automatic index.html serving so it falls through to our custom catch-all route with no-cache headers
-}));
-
-// Socket.IO connection handling
-io.on('connection', (socket) => {
-  console.log('📡 Socket.IO client connected:', socket.id);
-  socket.join('grocery-dashboard');
-  socket.on('disconnect', () => {
-    console.log('📡 Socket.IO client disconnected:', socket.id);
-  });
-});
-
-// Broadcast function for data changes (Stub if needed)
-const broadcastDataChange = (type, data) => {
-  io.to('grocery-dashboard').emit('data-update', { type, data, timestamp: Date.now() });
-};
-app.locals.broadcastDataChange = broadcastDataChange;
-app.locals.clearDashboardCache = clearDashboardCache;
-
-// Health check endpoint
 app.get('/health', async (req, res) => {
-  try {
-    await db.raw('SELECT 1');
-    res.json({ status: 'OK', database: 'Connected', timestamp: new Date().toISOString() });
-  } catch (error) {
-    res.status(503).json({ status: 'ERROR', database: 'Disconnected' });
-  }
+  try { await db.raw('SELECT 1'); res.json({ status: 'OK', database: 'Connected' }); }
+  catch (e) { res.status(503).json({ status: 'ERROR' }); }
 });
+
 // API routes
 app.use('/api/business', onboardingLimiter, requireBusinessAuth, businessRoutes);
 app.use('/api/products', requireBusinessAuth, requireTenantContext, requireActiveSubscription, productRoutes);
@@ -263,91 +119,26 @@ app.use('/api/expenses', requireBusinessAuth, requireTenantContext, requireActiv
 app.use('/api/debts', requireBusinessAuth, requireTenantContext, requireActiveSubscription, debtRoutes);
 app.use('/api/dashboard', apiGeneralLimiter, requireBusinessAuth, requireTenantContext, requireActiveSubscription, dashboardRoutes);
 app.use('/api/payments', paymentLimiter, requireBusinessAuth, requireTenantContext, paymentsRoutes);
+app.use('/api/support', apiGeneralLimiter, requireBusinessAuth, requireTenantContext, supportRoutes);
 app.use('/api/admin', adminDashboardLimiter, adminAuth, adminRoutes);
 
-// Handle React frontend routing - Catch all to serve index.html
-// Important: send index.html with no-cache so browsers always get the latest asset references
+// Frontend
+const frontendPath = path.join(__dirname, '../frontend-react/dist');
+app.use(express.static(frontendPath));
 app.get('*', (req, res) => {
   if (req.path.startsWith('/api/')) return res.status(404).json({ success: false, message: 'API not found' });
-
-  const indexPath = path.join(frontendPath, 'index.html');
-  if (fs.existsSync(indexPath)) {
-    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
-    res.setHeader('Pragma', 'no-cache');
-    res.sendFile(indexPath);
-  } else {
-    res.status(500).json({ 
-      success: false, 
-      message: 'Frontend build not found.',
-      frontendPath,
-      frontendExists: fs.existsSync(frontendPath),
-      indexPath,
-      cwd: process.cwd(),
-      dirname: __dirname
-    });
-  }
+  res.sendFile(path.join(frontendPath, 'index.html'));
 });
 
-// Initialize Backup System
-const BackupSystem = require('./backup-system');
-const backupSystem = new BackupSystem();
-backupSystem.schedule();
+app.use(errorHandler);
 
-// Global error handler - KDP Compliant (No sensitive details in production)
-app.use((err, req, res, next) => {
-  const isProduction = process.env.NODE_ENV === 'production';
-  
-  // Prioritize numeric statusCode, then numeric status, then default to 500
-  let statusCode = 500;
-  if (typeof err.statusCode === 'number') {
-    statusCode = err.statusCode;
-  } else if (typeof err.status === 'number') {
-    statusCode = err.status;
-  }
-  
-  console.error('Unhandled Error:', err);
-  
-  res.status(statusCode).json({
-    success: false,
-    message: isProduction ? 'Internal server error. Reference ID: ' + req.id : err.message,
-    code: err.code || 'INTERNAL_ERROR',
-    timestamp: new Date().toISOString()
-  });
-});
-
-// Graceful shutdown
-process.on('SIGTERM', () => {
-  console.log('SIGTERM received, shutting down gracefully');
-  process.exit(0);
-});
-
-process.on('SIGINT', () => {
-  console.log('SIGINT received, shutting down gracefully');
-  process.exit(0);
-});
-
-// Start server
-if (process.env.NODE_ENV !== 'test') {
-  // Initialize background systems and workers
-  initRedis().then(() => {
+const start = async () => {
+  try {
+    await testConnection();
+    await initRedis();
     initWorker();
-    initJobs(io); // 🤖 Start background automation engine
-  });
-  const isDevelopment = process.env.NODE_ENV === 'development';
-  const environment = process.env.NODE_ENV || 'development';
-  const frontendUrl = process.env.FRONTEND_URL || `http://localhost:${PORT}`;
-    
-  server.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 Nexus POS (Integrated Server) running on port ${PORT}`);
-    console.log(`📊 Environment: ${environment}`);
-    console.log(`🗄️  Database: ${isDevelopment ? 'Local PostgreSQL' : 'Production PostgreSQL'}`);
-    console.log(`🏥 Health check: ${frontendUrl}/health`);
-    console.log(`🌐 Frontend: ${frontendUrl}`);
-    console.log(`📱 Login: ${frontendUrl}/login`);
-    console.log(`🔧 API Base: ${frontendUrl}/api`);
-    console.log(`📡 Socket.IO: ${isDevelopment ? 'Development Mode' : 'Production Mode'}`);
-    console.log(`========================================`);
-  });
-}
-
-module.exports = app;
+    initJobs();
+    server.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+  } catch (e) { console.error('FATAL', e); process.exit(1); }
+};
+start();

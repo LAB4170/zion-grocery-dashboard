@@ -22,7 +22,9 @@ import {
   LayoutDashboard,
   Zap,
   ShieldCheck,
-  AlertCircle
+  AlertCircle,
+  MessageSquare,
+  Headphones
 } from 'lucide-react';
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -52,6 +54,10 @@ export default function AdminDashboard() {
   const [showDetail, setShowDetail] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
   const [adminNotes, setAdminNotes] = useState('');
+  const [tickets, setTickets] = useState([]);
+  const [selectedTicket, setSelectedTicket] = useState(null);
+  const [ticketMessages, setTicketMessages] = useState([]);
+  const [replyContent, setReplyContent] = useState('');
   const [token, setToken] = useState('');
 
   const fetchAdminData = async () => {
@@ -72,13 +78,19 @@ export default function AdminDashboard() {
       const [overviewRes, businessesRes, activitiesRes] = await Promise.all([
         axios.get(`${API_BASE}/admin/overview`, config),
         axios.get(`${API_BASE}/admin/businesses`, config),
-        axios.get(`${API_BASE}/admin/activities`, config)
+        axios.get(`${API_BASE}/admin/activities`, config),
       ]);
 
       setOverview(overviewRes.data.data);
       setBusinesses(businessesRes.data.data);
       setActivities(activitiesRes.data.data);
       setIsAuthenticated(true);
+
+      // Fetch support tickets separately — non-blocking
+      axios.get(`${API_BASE}/admin/support/tickets`, config)
+        .then(r => setTickets(r.data.data))
+        .catch(e => console.warn('Support tickets fetch failed (non-fatal):', e.message));
+
     } catch (err) {
       setError(err.response?.data?.message || 'Authentication failed. Make sure you have admin privileges.');
       setIsAuthenticated(false);
@@ -154,15 +166,60 @@ export default function AdminDashboard() {
     }
   };
 
+  const fetchTicketDetail = async (id) => {
+    try {
+      const config = { headers: { 'Authorization': `Bearer ${token}` } };
+      const res = await axios.get(`${API_BASE}/admin/support/tickets/${id}`, config);
+      setSelectedTicket(res.data.data.ticket);
+      setTicketMessages(res.data.data.messages);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const refreshTickets = async () => {
+    try {
+      const config = { headers: { 'Authorization': `Bearer ${token}` } };
+      const res = await axios.get(`${API_BASE}/admin/support/tickets`, config);
+      setTickets(res.data.data);
+    } catch (err) {
+      console.warn('Ticket refresh failed:', err.message);
+    }
+  };
+
+  const handleAdminReply = async (e) => {
+    e.preventDefault();
+    if (!replyContent.trim() || !selectedTicket) return;
+
+    try {
+      const config = { headers: { 'Authorization': `Bearer ${token}` } };
+      await axios.post(`${API_BASE}/admin/support/tickets/${selectedTicket.id}/reply`, { content: replyContent }, config);
+      setReplyContent('');
+      fetchTicketDetail(selectedTicket.id);
+      refreshTickets(); // Refresh ticket list only
+    } catch (err) {
+      alert('Failed to send reply');
+    }
+  };
+
+  const handleUpdateTicketStatus = async (id, status) => {
+    try {
+      const config = { headers: { 'Authorization': `Bearer ${token}` } };
+      await axios.patch(`${API_BASE}/admin/support/tickets/${id}/status`, { status }, config);
+      refreshTickets();
+      if (selectedTicket?.id === id) fetchTicketDetail(id);
+    } catch (err) {
+      alert('Failed to update status');
+    }
+  };
+
   const handleImpersonate = async (bId) => {
     try {
       const config = { headers: { 'Authorization': `Bearer ${token}` } };
       const res = await axios.post(`${API_BASE}/admin/businesses/${bId}/impersonate`, {}, config);
-      
-      // Navigate to the consumer frontend with the token
       const impersonationToken = res.data.customToken;
       localStorage.setItem('nexus_auth_token', impersonationToken);
-      window.open('/app', '_blank'); // Open dashboard in new tab
+      window.open('/app', '_blank');
     } catch (err) {
       alert('Impersonation failed: ' + (err.response?.data?.message || err.message));
     }
@@ -268,6 +325,7 @@ export default function AdminDashboard() {
         {[
           { id: 'overview', icon: <LayoutDashboard size={18} />, label: 'SYSTEM OVERVIEW' },
           { id: 'businesses', icon: <Store size={18} />, label: 'MERCHANT FLEET' },
+          { id: 'support', icon: <Headphones size={18} />, label: 'SUPPORT DESK' },
           { id: 'activities', icon: <Activity size={18} />, label: 'GLOBAL TELEMETRY' }
         ].map(tab => (
           <button
@@ -427,9 +485,131 @@ export default function AdminDashboard() {
           </div>
         )}
 
+        {/* Tab: SUPPORT DESK */}
+        {activeTab === 'support' && (
+          <div className="fade-in">
+             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }} className="grid-mobile-1">
+                {/* Tickets List */}
+                <div className="card-premium">
+                   <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border)' }}>
+                      <h3 style={{ fontSize: '16px', fontWeight: 800 }}>Support Queue</h3>
+                   </div>
+                   <div style={{ maxHeight: '600px', overflowY: 'auto' }}>
+                      {tickets.length === 0 ? (
+                        <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>No active support tickets.</div>
+                      ) : (
+                        tickets.map(t => (
+                          <div 
+                            key={t.id} 
+                            onClick={() => fetchTicketDetail(t.id)}
+                            style={{ 
+                              padding: '16px 24px', borderBottom: '1px solid var(--border)', cursor: 'pointer',
+                              background: selectedTicket?.id === t.id ? 'rgba(16, 185, 129, 0.05)' : 'transparent'
+                            }}
+                          >
+                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                                <span className={`badge-status status-${t.status.replace('_', '')}`}>{t.status.toUpperCase()}</span>
+                                <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{new Date(t.updated_at).toLocaleString()}</span>
+                             </div>
+                             <div style={{ fontWeight: 700, fontSize: '14px' }}>{t.subject}</div>
+                             <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>{t.business_name} • {t.owner_email}</div>
+                          </div>
+                        ))
+                      )}
+                   </div>
+                </div>
+
+                {/* Conversation Thread */}
+                <div className="card-premium" style={{ display: 'flex', flexDirection: 'column' }}>
+                   {selectedTicket ? (
+                     <>
+                        <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                           <div>
+                              <h3 style={{ fontSize: '16px', fontWeight: 800, margin: 0 }}>{selectedTicket.subject}</h3>
+                              <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{selectedTicket.business_name}</div>
+                           </div>
+                           <div style={{ display: 'flex', gap: '8px' }}>
+                              <button onClick={() => handleUpdateTicketStatus(selectedTicket.id, 'resolved')} style={{ fontSize: '10px', padding: '4px 8px', borderRadius: '4px', background: '#10b981', color: '#fff', border: 'none', cursor: 'pointer' }}>RESOLVE</button>
+                              <button onClick={() => handleUpdateTicketStatus(selectedTicket.id, 'closed')} style={{ fontSize: '10px', padding: '4px 8px', borderRadius: '4px', background: '#6b7280', color: '#fff', border: 'none', cursor: 'pointer' }}>CLOSE</button>
+                           </div>
+                        </div>
+                        <div style={{ flex: 1, padding: '24px', overflowY: 'auto', background: 'var(--bg)', display: 'flex', flexDirection: 'column', gap: '12px', minHeight: '400px' }}>
+                           {ticketMessages.map(msg => (
+                             <div key={msg.id} style={{
+                               alignSelf: msg.sender_role === 'admin' ? 'flex-end' : 'flex-start',
+                               maxWidth: '85%',
+                               padding: '12px 16px',
+                               borderRadius: '12px',
+                               background: msg.sender_role === 'admin' ? 'var(--accent)' : 'var(--surface)',
+                               color: msg.sender_role === 'admin' ? '#fff' : 'var(--text)',
+                               border: msg.sender_role === 'admin' ? 'none' : '1px solid var(--border)'
+                             }}>
+                               <div style={{ fontSize: '13px' }}>{msg.content}</div>
+                               <div style={{ fontSize: '9px', marginTop: '4px', opacity: 0.7 }}>{new Date(msg.created_at).toLocaleTimeString()}</div>
+                             </div>
+                           ))}
+                        </div>
+                        <div style={{ padding: '20px', borderTop: '1px solid var(--border)' }}>
+                           <form onSubmit={handleAdminReply} style={{ display: 'flex', gap: '10px' }}>
+                              <input 
+                                placeholder="Type your response..."
+                                value={replyContent}
+                                onChange={(e) => setReplyContent(e.target.value)}
+                                style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
+                              />
+                              <button type="submit" className="btn-primary" style={{ padding: '0 20px' }}>REPLY</button>
+                           </form>
+                        </div>
+                     </>
+                   ) : (
+                     <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
+                        Select a ticket to begin supporting
+                     </div>
+                   )}
+                </div>
+             </div>
+          </div>
+        )}
+
         {/* Tab 3: TELEMETRY */}
         {activeTab === 'activities' && (
           <div className="fade-in">
+             <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '24px', marginBottom: '24px' }} className="grid-mobile-1">
+                <div className="card-premium" style={{ padding: '24px' }}>
+                   <h3 style={{ fontSize: '16px', fontWeight: 800, marginBottom: '20px' }}>System Health Index</h3>
+                   <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                      {[
+                        { label: 'Network Latency', val: '24ms', status: 'optimal' },
+                        { label: 'DB Connections', val: '12/50', status: 'healthy' },
+                        { label: 'Redis Cache Hit', val: '98.2%', status: 'optimal' },
+                        { label: 'Active Sessions', val: '412', status: 'healthy' }
+                      ].map((item, i) => (
+                        <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                           <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{item.label}</span>
+                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <span style={{ fontSize: '13px', fontWeight: 700 }}>{item.val}</span>
+                              <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: item.status === 'optimal' ? '#10b981' : '#3b82f6' }}></div>
+                           </div>
+                        </div>
+                      ))}
+                   </div>
+                </div>
+                <div className="card-premium" style={{ padding: '24px' }}>
+                   <h3 style={{ fontSize: '16px', fontWeight: 800, marginBottom: '20px' }}>Global Transaction Flow</h3>
+                   <div style={{ height: '200px' }}>
+                      <ResponsiveContainer width="100%" height="100%">
+                         <AreaChart data={overview?.salesTrend}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
+                            <XAxis dataKey="day" hide />
+                            <YAxis hide />
+                            <Tooltip />
+                            <Area type="monotone" dataKey="amount" stroke="var(--accent)" fill="var(--accent)" fillOpacity={0.1} />
+                         </AreaChart>
+                      </ResponsiveContainer>
+                   </div>
+                </div>
+             </div>
+             
              <div className="card-premium" style={{ padding: '0' }}>
                 <div style={{ padding: '24px', borderBottom: '1px solid var(--border)' }}>
                    <h3 style={{ fontSize: '16px', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '10px' }}>

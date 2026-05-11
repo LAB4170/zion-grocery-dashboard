@@ -3,7 +3,7 @@ import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { 
   Menu, X, LayoutDashboard, Package, ShoppingCart, 
   ArrowRightLeft, Users, Sun, Moon, LogOut, ChevronRight,
-  BarChart3, History, Settings, Truck
+  BarChart3, History, Settings, Truck, LifeBuoy
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -43,6 +43,7 @@ export default function DashboardLayout() {
     { name: 'Sales History', path: '/app/sales/history', icon: History, color: '#EC4899', bg: 'rgba(236, 72, 153, 0.15)' },
     { name: 'Expenses', path: '/app/expenses', icon: ArrowRightLeft, color: '#EF4444', bg: 'rgba(239, 68, 68, 0.15)' },
     { name: 'Debts', path: '/app/debts', icon: Users, color: '#06B6D4', bg: 'rgba(6, 182, 212, 0.15)' },
+    { name: 'Support', path: '/app/support', icon: LifeBuoy, color: '#F43F5E', bg: 'rgba(244, 63, 94, 0.15)' },
     { name: 'Settings', path: '/app/settings', icon: Settings, color: '#64748B', bg: 'rgba(100, 116, 139, 0.15)' },
   ];
 

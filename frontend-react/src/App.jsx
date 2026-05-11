@@ -19,6 +19,7 @@ import Settings from './pages/Settings';
 import SalesRecords from './pages/SalesRecords';
 import LegalPrivacy from './pages/LegalPrivacy';
 import LegalTerms from './pages/LegalTerms';
+import Support from './pages/Support';
 
 // Protected Route Guard
 function ProtectedRoute({ children }) {
@@ -125,6 +126,7 @@ function App() {
                   <Route path="products" element={<Products />} />
                   <Route path="sales" element={<Sales />} />
                   <Route path="sales/history" element={<SalesRecords />} />
+                  <Route path="support" element={<Support />} />
                   <Route path="expenses" element={<Expenses />} />
                   <Route path="debts" element={<Debts />} />
                   <Route path="reports" element={<Reports />} />

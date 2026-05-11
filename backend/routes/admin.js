@@ -4,7 +4,6 @@ const { db } = require('../config/database');
 const { catchAsync } = require('../middleware/errorHandler');
 const { auditLog } = require('../middleware/auditLog');
 const { admin } = require('../config/firebase');
-// Note: requireAdminAuth is already applied globally in server.js for all /api/admin routes
 
 /**
  * GET /api/admin/overview
@@ -15,12 +14,10 @@ router.get('/overview', auditLog('VIEW_OVERVIEW'), catchAsync(async (req, res) =
   const thirtyDaysAgo = new Date(now - 30 * 24 * 60 * 60 * 1000);
   const sixtyDaysAgo = new Date(now - 60 * 24 * 60 * 60 * 1000);
 
-  // Basic Counts
   const totalBusinesses = await db('businesses').count('id as count').first();
   const totalSales = await db('sales').count('id as count').sum('total as sum').first();
   const totalProducts = await db('products').count('id as count').first();
   
-  // Growth Calculation (Current Month vs Previous Month)
   const currentMonthRevenue = await db('sales')
     .sum('total as sum')
     .where('created_at', '>=', thirtyDaysAgo)
@@ -36,7 +33,6 @@ router.get('/overview', auditLog('VIEW_OVERVIEW'), catchAsync(async (req, res) =
     ? ((currentMonthRevenue.sum - prevMonthRevenue.sum) / prevMonthRevenue.sum) * 100 
     : 100;
 
-  // Retention: Businesses with sales in last 30 days / Total businesses
   const activeBusinessesCount = await db('sales')
     .distinct('business_id')
     .where('created_at', '>=', thirtyDaysAgo)
@@ -46,7 +42,6 @@ router.get('/overview', auditLog('VIEW_OVERVIEW'), catchAsync(async (req, res) =
     ? (activeBusinessesCount / parseInt(totalBusinesses.count)) * 100
     : 0;
 
-  // Sales trend (last 7 days total)
   const salesTrend = await db('sales')
     .select(db.raw('DATE(created_at) as day'))
     .sum('total as amount')
@@ -54,7 +49,6 @@ router.get('/overview', auditLog('VIEW_OVERVIEW'), catchAsync(async (req, res) =
     .groupBy('day')
     .orderBy('day', 'asc');
 
-  // Global Top Products leaderboard
   const globalTopProducts = await db('sales')
     .select('product_name')
     .count('id as count')
@@ -63,7 +57,6 @@ router.get('/overview', auditLog('VIEW_OVERVIEW'), catchAsync(async (req, res) =
     .orderBy('revenue', 'desc')
     .limit(5);
 
-  // Payment method breakdown
   const paymentBreakdown = await db('sales')
     .select('payment_method')
     .sum('total as amount')
@@ -95,199 +88,112 @@ router.get('/overview', auditLog('VIEW_OVERVIEW'), catchAsync(async (req, res) =
 
 /**
  * GET /api/admin/activities
- * Real-time (last 30) global sales across ALL businesses.
  */
 router.get('/activities', auditLog('VIEW_ACTIVITIES'), catchAsync(async (req, res) => {
     const activities = await db('sales as s')
         .join('businesses as b', 's.business_id', 'b.id')
-        .select(
-            's.id',
-            's.product_name',
-            's.quantity',
-            's.total',
-            's.created_at',
-            'b.name as business_name',
-            'b.id as business_id'
-        )
+        .select('s.*', 'b.name as business_name')
         .orderBy('s.created_at', 'desc')
         .limit(30);
-    
     res.json({ success: true, data: activities });
 }));
 
 /**
- * GET /api/admin/businesses
- * Lists all registered businesses with detailed health metrics and risk status.
+ * SUPPORT ROUTES
+ */
+router.get('/support/tickets', auditLog('VIEW_SUPPORT_TICKETS'), catchAsync(async (req, res) => {
+  const tickets = await db('support_tickets as t')
+    .join('businesses as b', 't.business_id', 'b.id')
+    .select('t.*', 'b.name as business_name', 'b.owner_email')
+    .orderBy('t.updated_at', 'desc');
+  res.json({ success: true, data: tickets });
+}));
+
+router.get('/support/tickets/:id', auditLog('VIEW_SUPPORT_TICKET_DETAIL'), catchAsync(async (req, res) => {
+  const { id } = req.params;
+  const ticket = await db('support_tickets as t')
+    .join('businesses as b', 't.business_id', 'b.id')
+    .select('t.*', 'b.name as business_name', 'b.owner_email')
+    .where('t.id', id)
+    .first();
+  if (!ticket) return res.status(404).json({ success: false, message: 'Ticket not found' });
+  const messages = await db('support_messages').where({ ticket_id: id }).orderBy('created_at', 'asc');
+  res.json({ success: true, data: { ticket, messages } });
+}));
+
+router.post('/support/tickets/:id/reply', auditLog('REPLY_SUPPORT_TICKET'), catchAsync(async (req, res) => {
+  const { id } = req.params;
+  const { content } = req.body;
+  await db('support_messages').insert({ ticket_id: id, sender_id: 'admin', sender_role: 'admin', content });
+  await db('support_tickets').where({ id }).update({ status: 'in_progress', updated_at: new Date() });
+  res.json({ success: true, message: 'Reply sent' });
+}));
+
+router.patch('/support/tickets/:id/status', auditLog('UPDATE_SUPPORT_TICKET_STATUS'), catchAsync(async (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body;
+  await db('support_tickets').where({ id }).update({ status, updated_at: new Date() });
+  res.json({ success: true, message: `Ticket marked as ${status}` });
+}));
+
+/**
+ * MERCHANT FLEET
  */
 router.get('/businesses', auditLog('LIST_BUSINESSES'), catchAsync(async (req, res) => {
     const businesses = await db('businesses as b')
-      .select(
-        'b.id',
-        'b.name',
-        'b.owner_email',
-        'b.created_at',
-        'b.subscription_status',
-        'b.is_suspended',
-        'b.admin_notes',
+      .select('b.*', 
         db.raw('(SELECT COUNT(*) FROM products WHERE business_id = b.id) as product_count'),
         db.raw('(SELECT COUNT(*) FROM sales WHERE business_id = b.id) as sales_count'),
         db.raw('(SELECT SUM(total) FROM sales WHERE business_id = b.id) as total_revenue'),
-        db.raw('(SELECT MAX(created_at) FROM sales WHERE business_id = b.id) as last_activity_at')
-      )
+        db.raw('(SELECT MAX(created_at) FROM sales WHERE business_id = b.id) as last_activity_at'))
       .orderBy('total_revenue', 'desc');
 
     const now = new Date();
-    const enrichedBusinesses = businesses.map(b => {
+    const enriched = businesses.map(b => {
         const lastActivity = b.last_activity_at ? new Date(b.last_activity_at) : null;
-        const daysSinceActivity = lastActivity ? (now - lastActivity) / (1000 * 60 * 60 * 24) : 999;
-        
+        const days = lastActivity ? (now - lastActivity) / (1000 * 60 * 60 * 24) : 999;
         let healthStatus = 'HEALTHY';
-        if (daysSinceActivity > 14) healthStatus = 'DORMANT';
-        else if (daysSinceActivity > 7) healthStatus = 'AT_RISK';
-        else if (!lastActivity && b.sales_count == 0) healthStatus = 'NEW';
-
-        return {
-            ...b,
-            product_count: parseInt(b.product_count || 0),
-            sales_count: parseInt(b.sales_count || 0),
-            total_revenue: parseFloat(b.total_revenue || 0),
-            healthStatus,
-            daysSinceActivity: Math.floor(daysSinceActivity)
-        };
+        if (days > 14) healthStatus = 'DORMANT';
+        else if (days > 7) healthStatus = 'AT_RISK';
+        return { ...b, healthStatus, daysSinceActivity: Math.floor(days) };
     });
-
-    res.json({
-        success: true,
-        data: enrichedBusinesses
-    });
+    res.json({ success: true, data: enriched });
 }));
 
-/**
- * GET /api/admin/businesses/:id
- * Detailed deep-dive for a specific business
- */
 router.get('/businesses/:id', auditLog('VIEW_BUSINESS'), catchAsync(async (req, res) => {
     const { id } = req.params;
     const business = await db('businesses').where({ id }).first();
-    
-    if (!business) return res.status(404).json({ success: false, message: 'Business not found' });
-
-    const recentSales = await db('sales')
-        .where({ business_id: id })
-        .orderBy('created_at', 'desc')
-        .limit(15);
-
-    const topProducts = await db('sales')
-        .select('product_name')
-        .count('id as count')
-        .sum('total as revenue')
-        .where({ business_id: id })
-        .groupBy('product_name')
-        .orderBy('revenue', 'desc')
-        .limit(10);
-
-    // Monthly revenue trend for this specific business
-    const revenueTrend = await db('sales')
-        .select(db.raw('DATE(created_at) as day'))
-        .sum('total as amount')
-        .where({ business_id: id })
-        .andWhere('created_at', '>=', db.raw('CURRENT_DATE - INTERVAL \'30 days\''))
-        .groupBy('day')
-        .orderBy('day', 'asc');
-
-    res.json({
-        success: true,
-        data: {
-            business,
-            recentSales,
-            topProducts,
-            revenueTrend
-        }
-    });
+    const recentSales = await db('sales').where({ business_id: id }).orderBy('created_at', 'desc').limit(15);
+    const topProducts = await db('sales').select('product_name').sum('total as revenue').where({ business_id: id }).groupBy('product_name').orderBy('revenue', 'desc').limit(10);
+    const revenueTrend = await db('sales').select(db.raw('DATE(created_at) as day')).sum('total as amount').where({ business_id: id }).groupBy('day').orderBy('day', 'asc');
+    res.json({ success: true, data: { business, recentSales, topProducts, revenueTrend } });
 }));
 
-/**
- * GET /api/admin/audit-log
- * Returns the last 100 admin actions for compliance review.
- */
-router.get('/audit-log', auditLog('VIEW_AUDIT_LOG'), catchAsync(async (req, res) => {
-  const limit = parseInt(req.query.limit) || 100;
-  const logs = await db('admin_audit_log as a')
-    .leftJoin('businesses as b', 'a.target_business_id', 'b.id')
-    .select(
-      'a.id',
-      'a.action',
-      'a.admin_identifier',
-      'a.ip_address',
-      'a.created_at',
-      'b.name as business_name'
-    )
-    .orderBy('a.created_at', 'desc')
-    .limit(limit);
-
-  res.json({ success: true, data: logs, count: logs.length });
-}));
-
-/**
- * POST /api/admin/businesses/:id/status
- * Suspend or reactivate a business
- */
 router.post('/businesses/:id/status', auditLog('UPDATE_BUSINESS_STATUS'), catchAsync(async (req, res) => {
     const { id } = req.params;
     const { is_suspended, admin_notes } = req.body;
-    
-    await db('businesses').where({ id }).update({
-        is_suspended: !!is_suspended,
-        admin_notes: admin_notes || '',
-        updated_at: new Date()
-    });
-    
-    res.json({ success: true, message: is_suspended ? 'Business suspended' : 'Business activated' });
+    await db('businesses').where({ id }).update({ is_suspended: !!is_suspended, admin_notes: admin_notes || '', updated_at: new Date() });
+    res.json({ success: true, message: 'Status updated' });
 }));
 
-/**
- * POST /api/admin/businesses/:id/extend-trial
- * Extend a trial by N days
- */
 router.post('/businesses/:id/extend-trial', auditLog('EXTEND_TRIAL'), catchAsync(async (req, res) => {
     const { id } = req.params;
     const { days = 7 } = req.body;
-    
-    await db.raw(`
-        UPDATE businesses 
-        SET trial_ends_at = GREATEST(trial_ends_at, CURRENT_TIMESTAMP) + (? || ' days')::interval,
-            subscription_status = 'trial',
-            updated_at = CURRENT_TIMESTAMP
-        WHERE id = ?
-    `, [days, id]);
-    
-    res.json({ success: true, message: `Extended trial by ${days} days` });
+    await db.raw(`UPDATE businesses SET trial_ends_at = GREATEST(trial_ends_at, CURRENT_TIMESTAMP) + (? || ' days')::interval WHERE id = ?`, [days, id]);
+    res.json({ success: true, message: 'Trial extended' });
 }));
 
-/**
- * POST /api/admin/businesses/:id/impersonate
- * Ghost Login: Generate custom Firebase JWT to login as merchant
- */
 router.post('/businesses/:id/impersonate', auditLog('IMPERSONATE_BUSINESS'), catchAsync(async (req, res) => {
     const { id } = req.params;
     const business = await db('businesses').where({ id }).first();
-    
-    if (!business) return res.status(404).json({ success: false, message: 'Business not found' });
-    if (!admin) return res.status(500).json({ success: false, message: 'Firebase Admin not initialized' });
-
-    let userRecord;
-    try {
-        userRecord = await admin.auth().getUserByEmail(business.owner_email);
-    } catch (err) {
-        return res.status(404).json({ success: false, message: 'Merchant Firebase account not found', details: err.message });
-    }
-
-    const customToken = await admin.auth().createCustomToken(userRecord.uid, {
-        impersonator: req.adminEmail || 'admin-key',
-        is_impersonation: true
-    });
-
+    const userRecord = await admin.auth().getUserByEmail(business.owner_email);
+    const customToken = await admin.auth().createCustomToken(userRecord.uid, { is_impersonation: true });
     res.json({ success: true, customToken });
+}));
+
+router.get('/audit-log', auditLog('VIEW_AUDIT_LOG'), catchAsync(async (req, res) => {
+  const logs = await db('admin_audit_log as a').leftJoin('businesses as b', 'a.target_business_id', 'b.id').select('a.*', 'b.name as business_name').orderBy('a.created_at', 'desc').limit(100);
+  res.json({ success: true, data: logs });
 }));
 
 module.exports = router;
