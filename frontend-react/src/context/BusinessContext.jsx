@@ -13,6 +13,7 @@ export function BusinessProvider({ children }) {
   const [business, setBusiness] = useState(null);
   const [loadingBusiness, setLoadingBusiness] = useState(true);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -32,15 +33,18 @@ export function BusinessProvider({ children }) {
         
         // 1. Check if user is a Super Admin via Firebase Custom Claims
         const idTokenResult = await currentUser.getIdTokenResult();
-        const isAdmin = idTokenResult.claims.role === 'admin';
+        const isAdminUser = idTokenResult.claims.role === 'admin';
         
-        if (isAdmin) {
+        if (isAdminUser) {
           console.log("🛡️ Admin session detected. Skipping standard merchant context.");
+          setIsAdmin(true);
           setBusiness(null);
           setNeedsOnboarding(false);
           setLoadingBusiness(false);
           return;
         }
+
+        setIsAdmin(false);
 
         const response = await api.get('/business/me');
         if (isMounted) {
@@ -82,7 +86,7 @@ export function BusinessProvider({ children }) {
     business,
     loadingBusiness,
     needsOnboarding,
-    isAdmin: !business && !needsOnboarding && currentUser, // Derived flag
+    isAdmin,
     isSubscriptionActive,
     getDaysRemaining,
     setBusiness,
