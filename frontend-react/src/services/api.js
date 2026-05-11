@@ -2,7 +2,7 @@ import axios from 'axios';
 import { getAuth } from 'firebase/auth';
 
 const api = axios.create({
-  baseURL: '/api' // Vite's proxy inside vite.config.js routes this to the Node.js backend
+  baseURL: import.meta.env.VITE_API_URL || '/api'
 });
 
 // Request interceptor to automatically add the Firebase ID token and Tenant lookup email
