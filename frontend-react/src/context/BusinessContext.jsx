@@ -82,6 +82,7 @@ export function BusinessProvider({ children }) {
     business,
     loadingBusiness,
     needsOnboarding,
+    isAdmin: !business && !needsOnboarding && currentUser, // Derived flag
     isSubscriptionActive,
     getDaysRemaining,
     setBusiness,

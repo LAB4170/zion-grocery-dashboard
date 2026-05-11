@@ -23,7 +23,7 @@ import LegalTerms from './pages/LegalTerms';
 // Protected Route Guard
 function ProtectedRoute({ children }) {
   const { currentUser } = useAuth();
-  const { loadingBusiness, needsOnboarding, business } = useBusiness();
+  const { loadingBusiness, needsOnboarding, business, isAdmin } = useBusiness();
 
   if (!currentUser) {
     return <Navigate to="/login" replace />;
@@ -38,13 +38,16 @@ function ProtectedRoute({ children }) {
     );
   }
 
+  // If user is a Super Admin, they belong in /admin, not the merchant /app
+  if (isAdmin) {
+    return <Navigate to="/admin" replace />;
+  }
+
   if (needsOnboarding) {
     return <Navigate to="/onboarding" replace />;
   }
   
   if (!business) {
-    // This state should ideally not be reached if loadingBusiness is false and needsOnboarding is false,
-    // but as a safety measure, we redirect to onboarding if we have no business data.
     return <Navigate to="/onboarding" replace />;
   }
 
@@ -54,7 +57,7 @@ function ProtectedRoute({ children }) {
 // Onboarding Route Guard
 function OnboardingRoute({ children }) {
   const { currentUser } = useAuth();
-  const { loadingBusiness, needsOnboarding } = useBusiness();
+  const { loadingBusiness, needsOnboarding, isAdmin } = useBusiness();
 
   if (!currentUser) return <Navigate to="/login" replace />;
   
@@ -67,8 +70,31 @@ function OnboardingRoute({ children }) {
     );
   }
 
-  // If they don't need onboarding, push them back to app
-  if (!needsOnboarding) return <Navigate to="/app/dashboard" replace />;
+  // If they don't need onboarding, push them back to their respective dashboards
+  if (!needsOnboarding) {
+    return <Navigate to={isAdmin ? "/admin" : "/app/dashboard"} replace />;
+  }
+  
+  return children;
+}
+
+// Admin Route Guard
+function AdminRoute({ children }) {
+  const { currentUser } = useAuth();
+  const { loadingBusiness, isAdmin } = useBusiness();
+
+  if (!currentUser) return <Navigate to="/login" replace />;
+  
+  if (loadingBusiness) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+        <p className="text-slate-500 text-sm">Verifying authority...</p>
+      </div>
+    );
+  }
+
+  if (!isAdmin) return <Navigate to="/app/dashboard" replace />;
   
   return children;
 }
@@ -87,7 +113,7 @@ function App() {
                 <Route path="/signup" element={<Signup />} />
                 <Route path="/privacy" element={<LegalPrivacy />} />
                 <Route path="/terms" element={<LegalTerms />} />
-                <Route path="/admin" element={<AdminDashboard />} />
+                <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
                 
                 {/* Onboarding Route */}
                 <Route path="/onboarding" element={<OnboardingRoute><Onboarding /></OnboardingRoute>} />

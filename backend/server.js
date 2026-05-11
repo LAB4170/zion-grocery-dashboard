@@ -255,23 +255,6 @@ app.get('/health', async (req, res) => {
     res.status(503).json({ status: 'ERROR', database: 'Disconnected' });
   }
 });
-// Diagnostic Endpoint for Deployment Issues
-app.get('/api/debug-deploy', (req, res) => {
-  const assetDir = path.join(frontendPath, 'assets');
-  res.json({
-    timestamp: new Date().toISOString(),
-    env: process.env.NODE_ENV,
-    cwd: process.cwd(),
-    dirname: __dirname,
-    frontendPath,
-    frontendExists: fs.existsSync(frontendPath),
-    indexExists: fs.existsSync(path.join(frontendPath, 'index.html')),
-    assetsExist: fs.existsSync(assetDir),
-    assetFiles: fs.existsSync(assetDir) ? fs.readdirSync(assetDir).slice(0, 10) : [],
-    backendFiles: fs.readdirSync(__dirname).slice(0, 20)
-  });
-});
-
 // API routes
 app.use('/api/business', onboardingLimiter, requireBusinessAuth, businessRoutes);
 app.use('/api/products', requireBusinessAuth, requireTenantContext, requireActiveSubscription, productRoutes);

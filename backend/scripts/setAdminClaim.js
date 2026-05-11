@@ -15,53 +15,41 @@ const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '../../.env') });
 const { admin, isFirebaseInitialized } = require('../config/firebase');
 
-const uid = process.argv[2];
+const identifier = process.argv[2];
+const isRevoke = process.argv.includes('--revoke');
 
-if (!uid) {
-  console.error('❌ Usage: node setAdminClaim.js <firebase-uid>');
-  console.error('   Find UIDs in Firebase Console → Authentication → Users');
+if (!identifier) {
+  console.error('❌ Usage: node setAdminClaim.js <uid|email> [--revoke]');
   process.exit(1);
 }
 
-async function setAdminClaim() {
+async function run() {
   if (!isFirebaseInitialized) {
-    console.error('❌ Firebase Admin not initialized. Check your service account config.');
+    console.error('❌ Firebase Admin not initialized.');
     process.exit(1);
   }
 
   try {
-    // Verify user exists first
-    const user = await admin.auth().getUser(uid);
-    console.log(`\n👤 Found user: ${user.email} (${user.uid})`);
+    let user;
+    if (identifier.includes('@')) {
+      user = await admin.auth().getUserByEmail(identifier);
+    } else {
+      user = await admin.auth().getUser(identifier);
+    }
 
-    // Set the admin claim
-    await admin.auth().setCustomUserClaims(uid, { role: 'admin' });
+    console.log(`\n👤 User: ${user.email} (${user.uid})`);
+
+    const claims = isRevoke ? { role: null } : { role: 'admin' };
+    await admin.auth().setCustomUserClaims(user.uid, claims);
+
+    console.log(`✅ Admin claim ${isRevoke ? 'REVOKED' : 'SET'} for: ${user.email}`);
+    console.log('\n⚠️ IMPORTANT: The user MUST sign out and sign back in to refresh their token.');
     
-    console.log(`✅ Admin claim set successfully for: ${user.email}`);
-    console.log('\n📋 What to do next:');
-    console.log('   1. The user must sign out and sign back in to refresh their token');
-    console.log('   2. Their token will now include { role: "admin" }');
-    console.log('   3. They can then authenticate via Firebase token in AdminDashboard');
-    console.log('\n🔒 To revoke admin access later:');
-    console.log(`   node setAdminClaim.js ${uid} --revoke`);
-
     process.exit(0);
   } catch (err) {
-    if (err.code === 'auth/user-not-found') {
-      console.error(`❌ User not found with UID: ${uid}`);
-      console.error('   Check the UID in Firebase Console → Authentication → Users');
-    } else {
-      console.error('❌ Failed to set admin claim:', err.message);
-    }
+    console.error('❌ Error:', err.message);
     process.exit(1);
   }
 }
 
-// Handle revoke flag
-if (process.argv[3] === '--revoke') {
-  admin.auth().setCustomUserClaims(uid, { role: null })
-    .then(() => { console.log(`✅ Admin claim REVOKED for UID: ${uid}`); process.exit(0); })
-    .catch(err => { console.error('❌', err.message); process.exit(1); });
-} else {
-  setAdminClaim();
-}
+run();
