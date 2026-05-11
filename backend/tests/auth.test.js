@@ -12,8 +12,6 @@ require('dotenv').config({ path: path.join(__dirname, '../../.env') });
 // Import the app (not server.listen, just the express app)
 const app = require('../server');
 
-const VALID_ADMIN_KEY = process.env.ADMIN_SECRET;
-
 // ─── ADMIN AUTH TESTS ──────────────────────────────────────────────────────
 
 describe('Admin Authentication Middleware (Firebase Enforced)', () => {
@@ -23,11 +21,10 @@ describe('Admin Authentication Middleware (Firebase Enforced)', () => {
     expect(res.body.message).toMatch(/Bearer token/i);
   });
 
-  test('GET /api/admin/overview → 401 when using legacy x-admin-key (Now Disabled)', async () => {
+  test('GET /api/admin/overview → 401 when using invalid token', async () => {
     const res = await request(app)
       .get('/api/admin/overview')
-      .set('x-admin-key', VALID_ADMIN_KEY || 'any_key');
-    // The middleware for x-admin-key is removed, so it should be ignored or fail
+      .set('Authorization', 'Bearer invalid_token');
     expect(res.status).toBe(401);
   });
 
