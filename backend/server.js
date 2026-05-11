@@ -147,12 +147,18 @@ app.use('/api/payments', paymentLimiter, requireBusinessAuth, requireTenantConte
 app.use('/api/support', apiGeneralLimiter, requireBusinessAuth, requireTenantContext, supportRoutes);
 app.use('/api/admin', adminDashboardLimiter, adminAuth, adminRoutes);
 
-// Frontend
-const frontendPath = path.join(__dirname, '../frontend-react/dist');
-app.use(express.static(frontendPath));
+// API Root Message
+app.get('/', (req, res) => {
+  res.json({ 
+    success: true, 
+    message: 'Nexus POS API is Live', 
+    version: '1.0.0',
+    documentation: '/api/debug-routes' 
+  });
+});
+
 app.get('*', (req, res) => {
-  if (req.path.startsWith('/api/')) return res.status(404).json({ success: false, message: 'API not found' });
-  res.sendFile(path.join(frontendPath, 'index.html'));
+  res.status(404).json({ success: false, message: 'Endpoint not found' });
 });
 
 app.use(errorHandler);
