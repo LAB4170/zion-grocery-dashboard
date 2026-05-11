@@ -100,6 +100,10 @@ const { requireActiveSubscription } = require('./middleware/billingGuard');
 
 const adminAuth = requireFirebaseAdminAuth;
 
+app.use(cors({
+  origin: (origin, cb) => isAllowedOrigin(origin) ? cb(null, true) : cb(new Error('CORS')),
+  credentials: true
+}));
 app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false, crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" } }));
 app.use(morgan('dev'));
 app.use(compression());
