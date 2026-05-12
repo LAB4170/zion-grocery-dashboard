@@ -22,7 +22,11 @@ const requireBusinessAuth = async (req, res, next) => {
         try {
           const decodedToken = await admin.auth().verifyIdToken(token);
           userEmail = decodedToken.email;
-          console.log(`✅ Token verified for: ${userEmail}`);
+          if (userEmail) {
+            console.log(`[AUTH] 👤 Identity verified: ${userEmail}`);
+          } else {
+            console.warn('[AUTH] ⚠️ Token verified but no email found in payload.');
+          }
         } catch (e) {
           console.error('❌ Token Verification Failed in Bypass:', e.message);
         }
@@ -47,6 +51,7 @@ const requireBusinessAuth = async (req, res, next) => {
     if (!isFirebaseInitialized) {
       console.warn('⚠️ Authentication bypassed/limited: Firebase Admin not initialized.');
       // In development, we might want to allow access with a mock email if provided via header
+      const userEmailHeader = req.headers['x-user-email'];
       if (process.env.NODE_ENV === 'development' && userEmailHeader) {
         userEmail = userEmailHeader;
       } else {
@@ -70,6 +75,14 @@ const requireBusinessAuth = async (req, res, next) => {
     }
 
     // 2. Look up the business associated with this email
+    if (!userEmail) {
+      console.error('🛡️ Security Alert: Attempted business lookup with null email');
+      return res.status(401).json({ 
+        success: false, 
+        message: 'Identity could not be verified. Please log in again.' 
+      });
+    }
+
     // FIRST: Check Cache
     let business = await getCachedBusiness(userEmail);
     
@@ -109,6 +122,8 @@ const requireBusinessAuth = async (req, res, next) => {
     req.business = business;
     req.businessId = business.id;
     req.userEmail = userEmail;
+
+    console.log(`[AUTH] 🏢 Request Context: [User: ${userEmail}] -> [Business: ${business.name} (${business.id})]`);
     next();
   } catch (error) {
     console.error('Auth Middleware Error:', error);

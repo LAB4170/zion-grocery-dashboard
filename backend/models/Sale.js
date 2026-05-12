@@ -96,8 +96,6 @@ class Sale {
           throw new Error(`Insufficient stock for ${product.name}`);
         }
 
-        const qty = parseFloat(item.quantity);
-        const price = parseFloat(item.unitPrice || product.price);
         const cost = parseFloat(product.unit_cost || product.cost_price || 0);
         const lineTotal = normalizeAmount(price * qty);
         
