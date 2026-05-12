@@ -39,9 +39,19 @@ const setCache = (key, data, ttlMs) => {
   });
 };
 
-const clearDashboardCache = () => {
-  cache.clear();
-  console.log('⚡ Dashboard cache invalidated');
+const clearDashboardCache = (businessId) => {
+  if (businessId) {
+    // Targeted invalidation: Only clear for the business that changed
+    for (const key of cache.keys()) {
+      if (key.includes(`:${businessId}`)) {
+        cache.delete(key);
+      }
+    }
+    console.log(`⚡ Dashboard cache invalidated for business: ${businessId}`);
+  } else {
+    cache.clear();
+    console.log('⚡ Global Dashboard cache cleared');
+  }
 };
 
 // GET /api/dashboard/stats - Get dashboard statistics
@@ -49,7 +59,7 @@ router.get('/stats', catchAsync(async (req, res) => {
   const { date_from, date_to } = req.query;
   const isCustomDate = date_from || date_to;
 
-  const cacheKey = `dashboard:stats:${req.businessId}${isCustomDate ? `:${date_from}:${date_to}` : ''}`;
+  const cacheKey = `dashboard:stats:${req.businessId}:${req.user?.role || 'merchant'}${isCustomDate ? `:${date_from}:${date_to}` : ''}`;
   
   try {
     // Try to get from cache first

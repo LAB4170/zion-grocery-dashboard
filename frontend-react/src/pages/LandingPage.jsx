@@ -154,8 +154,25 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <footer className="landing-footer">
+      <footer className="landing-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
         <p>© {new Date().getFullYear()} NexusPOS SaaS. All rights reserved.</p>
+        <div style={{ display: 'flex', gap: '24px' }}>
+          <button 
+            onClick={() => navigate('/admin/login')} 
+            style={{ 
+              background: 'transparent', 
+              color: 'var(--text-muted)', 
+              fontSize: '0.8rem', 
+              cursor: 'pointer',
+              border: 'none',
+              opacity: 0.7,
+              fontWeight: 500
+            }}
+            className="hover:opacity-100 transition-opacity"
+          >
+            Admin Portal
+          </button>
+        </div>
       </footer>
     </div>
   );

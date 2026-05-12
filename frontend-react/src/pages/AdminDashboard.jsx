@@ -121,7 +121,7 @@ export default function AdminDashboard() {
   }, [currentUser]);
 
   const handleLoginRedirect = () => {
-    navigate('/login?redirect=/admin');
+    navigate('/admin/login');
   };
 
   const handleLogout = async () => {

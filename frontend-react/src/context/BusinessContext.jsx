@@ -22,17 +22,16 @@ export function BusinessProvider({ children }) {
       if (!currentUser) {
         setBusiness(null);
         setNeedsOnboarding(false);
+        setIsAdmin(false); // CRITICAL: Clear admin state on logout
         setLoadingBusiness(false);
         return;
       }
 
       try {
         setLoadingBusiness(true);
-        // Add a brief delay to ensure Firebase token is ready in the api interceptor
-        await new Promise(resolve => setTimeout(resolve, 500));
         
         // 1. Check if user is a Super Admin via Firebase Custom Claims
-        const idTokenResult = await currentUser.getIdTokenResult();
+        const idTokenResult = await currentUser.getIdTokenResult(true);
         const isAdminUser = idTokenResult.claims.role === 'admin';
         
         if (isAdminUser) {
