@@ -153,7 +153,12 @@ export default function Debts() {
                       </td>
                       <td data-label="Amount" style={{ fontWeight: 600 }}>KSh {Number(debt.amount).toLocaleString()}</td>
                       <td data-label="Paid" style={{ color: 'var(--accent)', fontWeight: 600 }}>KSh {Number(debt.amountPaid).toLocaleString()}</td>
-                      <td data-label="Balance" style={{ color: 'var(--danger)', fontWeight: 800 }}>KSh {Number(debt.balance).toLocaleString()}</td>
+                      <td data-label="Balance" style={{ color: Number(debt.balance) < 0 ? 'var(--accent)' : 'var(--danger)', fontWeight: 800 }}>
+                        {Number(debt.balance) < 0 
+                          ? <span title="Customer has overpaid">CREDIT KSh {Math.abs(Number(debt.balance)).toLocaleString()}</span>
+                          : `KSh ${Number(debt.balance).toLocaleString()}`
+                        }
+                      </td>
                       <td data-label="Status">
                         <span style={{ 
                           padding: '4px 10px', 
@@ -234,7 +239,8 @@ export default function Debts() {
                   value={paymentData.amount} 
                   onChange={e => setPaymentData({...paymentData, amount: e.target.value})} 
                   required 
-                  max={selectedDebt?.balance}
+                  min="0.01"
+                  step="0.01"
                 />
                 <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>Max: KSh {Number(selectedDebt?.balance).toLocaleString()}</p>
               </div>

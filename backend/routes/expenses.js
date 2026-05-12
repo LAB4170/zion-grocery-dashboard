@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const Expense = require('../models/Expense');
+const { requireBusinessAuth, requireAdmin } = require('../middleware/auth');
 const { catchAsync, AppError } = require('../middleware/errorHandler');
 const { expenseValidationRules, validate } = require('../middleware/validation');
 
@@ -83,7 +84,7 @@ router.get('/:id', catchAsync(async (req, res) => {
 router.post('/', expenseValidationRules, validate, catchAsync(async (req, res) => {
   const expenseData = {
     ...req.body,
-    amount: Number(parseFloat(req.body.amount || 0).toFixed(2)),
+    amount: parseFloat(req.body.amount || 0),
     created_by: req.body.created_by || 'system',
     businessId: req.businessId
   };
@@ -92,7 +93,7 @@ router.post('/', expenseValidationRules, validate, catchAsync(async (req, res) =
   
   // Real-time broadcast
   req.app.locals.broadcastDataChange('expense', expense);
-  req.app.locals.clearDashboardCache();
+  req.app.locals.clearDashboardCache(req.businessId);
   
   res.status(201).json({
     success: true,
@@ -122,7 +123,7 @@ router.put('/:id', catchAsync(async (req, res) => {
   
   // Real-time broadcast
   req.app.locals.broadcastDataChange('expense', updatedExpense);
-  req.app.locals.clearDashboardCache();
+  req.app.locals.clearDashboardCache(req.businessId);
   
   res.json({
     success: true,
@@ -131,8 +132,8 @@ router.put('/:id', catchAsync(async (req, res) => {
   });
 }));
 
-// PATCH /api/expenses/:id/approve - Approve expense
-router.patch('/:id/approve', catchAsync(async (req, res) => {
+// PATCH /api/expenses/:id/approve - Approve expense (Admin Only)
+router.patch('/:id/approve', requireAdmin, catchAsync(async (req, res) => {
   const expense = await Expense.findById(req.params.id, req.businessId);
   if (!expense) {
     throw new AppError('Expense not found', 404);
@@ -148,11 +149,11 @@ router.patch('/:id/approve', catchAsync(async (req, res) => {
     message: 'Expense approved successfully',
     data: approvedExpense
   });
-  req.app.locals.clearDashboardCache();
+  req.app.locals.clearDashboardCache(req.businessId);
 }));
 
-// PATCH /api/expenses/:id/reject - Reject expense
-router.patch('/:id/reject', catchAsync(async (req, res) => {
+// PATCH /api/expenses/:id/reject - Reject expense (Admin Only)
+router.patch('/:id/reject', requireAdmin, catchAsync(async (req, res) => {
   const expense = await Expense.findById(req.params.id, req.businessId);
   if (!expense) {
     throw new AppError('Expense not found', 404);
@@ -168,7 +169,7 @@ router.patch('/:id/reject', catchAsync(async (req, res) => {
     message: 'Expense rejected successfully',
     data: rejectedExpense
   });
-  req.app.locals.clearDashboardCache();
+  req.app.locals.clearDashboardCache(req.businessId);
 }));
 
 // DELETE /api/expenses/:id - Delete expense
@@ -182,7 +183,7 @@ router.delete('/:id', catchAsync(async (req, res) => {
   
   // Real-time broadcast
   req.app.locals.broadcastDataChange('expense', { id: req.params.id, deleted: true });
-  req.app.locals.clearDashboardCache();
+  req.app.locals.clearDashboardCache(req.businessId);
   
   res.json({
     success: true,

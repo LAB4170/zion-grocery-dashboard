@@ -142,13 +142,21 @@ class Expense {
       dbData.category = updateData.category;
     }
      
-    const [updatedExpense] = await db('expenses')
-      .where('id', id)
-      .andWhere('business_id', businessId)
-      .update(dbData)
-      .returning('*');
-     
-    return updatedExpense;
+    const trx = await db.transaction();
+    try {
+      const [updatedExpense] = await trx('expenses')
+        .where('id', id)
+        .andWhere('business_id', businessId)
+        .forUpdate()
+        .update(dbData)
+        .returning('*');
+       
+      await trx.commit();
+      return updatedExpense;
+    } catch (err) {
+      await trx.rollback();
+      throw err;
+    }
   }
 
   // Approve an expense (requires status/approved_by/approved_at columns)

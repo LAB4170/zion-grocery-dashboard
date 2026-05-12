@@ -347,7 +347,11 @@ class Sale {
             .update('updated_at', new Date().toISOString());
 
           // Deduct from new product with availability check
-          const newProduct = await trx('products').where('id', nextProductId).andWhere('business_id', businessId).first();
+          const newProduct = await trx('products')
+            .where('id', nextProductId)
+            .andWhere('business_id', businessId)
+            .forUpdate()
+            .first();
           if (!newProduct) throw new Error('New product not found');
           if (newProduct.stock_quantity < nextQuantity) throw new Error('Insufficient stock for new product');
           await trx('products')
@@ -361,7 +365,11 @@ class Sale {
           if (diff !== 0) {
             if (diff > 0) {
               // Need more stock
-              const product = await trx('products').where('id', existing.product_id).andWhere('business_id', businessId).first();
+              const product = await trx('products')
+                .where('id', existing.product_id)
+                .andWhere('business_id', businessId)
+                .forUpdate()
+                .first();
               if (!product) throw new Error('Product not found');
               if (product.stock_quantity < diff) throw new Error('Insufficient stock for quantity increase');
               await trx('products')

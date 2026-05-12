@@ -4,6 +4,7 @@ import { ThemeProvider } from './context/ThemeContext';
 import { BusinessProvider, useBusiness } from './context/BusinessContext';
 import { SocketProvider } from './context/SocketContext';
 import AdminDashboard from './pages/AdminDashboard';
+import AdminLogin from './pages/AdminLogin';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import Onboarding from './pages/Onboarding';
@@ -84,7 +85,7 @@ function AdminRoute({ children }) {
   const { currentUser } = useAuth();
   const { loadingBusiness, isAdmin } = useBusiness();
 
-  if (!currentUser) return <Navigate to="/login" replace />;
+  if (!currentUser) return <Navigate to="/admin/login" replace />;
   
   if (loadingBusiness) {
     return (
@@ -95,7 +96,8 @@ function AdminRoute({ children }) {
     );
   }
 
-  if (!isAdmin) return <Navigate to="/app/dashboard" replace />;
+  // Non-admin users have no business in the admin panel — send to admin login
+  if (!isAdmin) return <Navigate to="/admin/login" replace />;
   
   return children;
 }
@@ -111,6 +113,7 @@ function App() {
                 {/* Public Route */}
                 <Route path="/" element={<LandingPage />} />
                 <Route path="/login" element={<Login />} />
+                <Route path="/admin/login" element={<AdminLogin />} />
                 <Route path="/signup" element={<Signup />} />
                 <Route path="/privacy" element={<LegalPrivacy />} />
                 <Route path="/terms" element={<LegalTerms />} />

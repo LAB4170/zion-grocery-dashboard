@@ -12,6 +12,9 @@ function getDatabase() {
 const { v4: uuidv4 } = require('uuid');
 const AuditService = require('../config/AuditService');
 
+// High-precision financial normalization (Prevents JS floating point errors)
+const normalizeAmount = (val) => Math.round((parseFloat(val) || 0) * 100) / 100;
+
 class Debt {
   constructor(data) {
     this.id = data.id || uuidv4();
@@ -171,13 +174,21 @@ class Debt {
       dbData.notes = updateData.notes;
     }
      
-    const [updatedDebt] = await db('debts')
-      .where('id', id)
-      .andWhere('business_id', businessId)
-      .update(dbData)
-      .returning('*');
-     
-    return updatedDebt;
+    const trx = await db.transaction();
+    try {
+      const [updatedDebt] = await trx('debts')
+        .where('id', id)
+        .andWhere('business_id', businessId)
+        .forUpdate()
+        .update(dbData)
+        .returning('*');
+       
+      await trx.commit();
+      return updatedDebt;
+    } catch (err) {
+      await trx.rollback();
+      throw err;
+    }
   }
 
   // Mark debt as paid (simple status change)
@@ -336,8 +347,8 @@ class Debt {
         .returning('*');
 
       // Update debt totals securely bypassing javascript floating point drift
-      const newAmountPaid = Number((parseFloat(debt.amount_paid || 0) + amt).toFixed(2));
-      const newBalance = Number(Math.max(parseFloat(debt.amount || 0) - newAmountPaid, 0).toFixed(2));
+      const newAmountPaid = normalizeAmount(parseFloat(debt.amount_paid || 0) + amt);
+      const newBalance = normalizeAmount(parseFloat(debt.amount || 0) - newAmountPaid);
       const newStatus = newBalance <= 0 ? 'paid' : 'pending';
 
       const [updatedDebt] = await trx('debts')

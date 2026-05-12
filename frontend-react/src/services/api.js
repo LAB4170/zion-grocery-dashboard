@@ -15,7 +15,8 @@ api.interceptors.request.use(async (config) => {
       // Fetch latest token (Firebase handles caching and refreshing automatically)
       const token = await user.getIdToken();
       config.headers.Authorization = `Bearer ${token}`;
-      config.headers['x-user-email'] = user.email;
+      // NOTE: Do NOT send x-user-email header — it is a dev bypass that could be exploited.
+      // The Firebase Bearer token is the sole source of identity.
     } catch (error) {
       console.error("Error fetching Firebase token for API request:", error);
     }

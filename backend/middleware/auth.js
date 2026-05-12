@@ -52,12 +52,15 @@ const requireBusinessAuth = async (req, res, next) => {
       console.warn('⚠️ Authentication bypassed/limited: Firebase Admin not initialized.');
       // In development, we might want to allow access with a mock email if provided via header
       const userEmailHeader = req.headers['x-user-email'];
-      if (process.env.NODE_ENV === 'development' && userEmailHeader) {
+      const isLocalDev = process.env.NODE_ENV === 'development' || !process.env.RENDER;
+      if (isLocalDev && userEmailHeader) {
         userEmail = userEmailHeader;
+        console.warn(`🛠️ Dev Auth Bypass active for: ${userEmail}`);
       } else {
+        console.error('🛡️ Security: Attempted dev bypass in production environment');
         return res.status(503).json({ 
           success: false, 
-          message: 'Authentication service is temporarily unavailable. Please try again later.' 
+          message: 'Authentication service is unavailable.' 
         });
       }
     } else {
@@ -119,11 +122,15 @@ const requireBusinessAuth = async (req, res, next) => {
     }
 
     // 3. Attach metadata to request scope
-    req.business = business;
+    // 5. ATTACH TO REQUEST
     req.businessId = business.id;
-    req.userEmail = userEmail;
+    req.business = business;
 
-    console.log(`[AUTH] 🏢 Request Context: [User: ${userEmail}] -> [Business: ${business.name} (${business.id})]`);
+    // 6. RLS HANDSHAKE: Set the session variable for Postgres Row-Level Security
+    // This physically prevents data leaks at the database level even if code filters fail.
+    await db.raw("SELECT set_config('app.current_business_id', ?, false)", [business.id]);
+
+    console.log(`[AUTH] 🛡️ RLS Locked: [User: ${userEmail}] -> [Business: ${business.name} (${business.id})]`);
     next();
   } catch (error) {
     console.error('Auth Middleware Error:', error);
@@ -131,6 +138,45 @@ const requireBusinessAuth = async (req, res, next) => {
   }
 };
 
+/**
+ * Admin-Only Authorization Middleware
+ * Strictly checks for the 'admin' role in Firebase Custom Claims.
+ */
+const requireAdmin = async (req, res, next) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ success: false, message: 'Authentication required' });
+    }
+
+    const token = authHeader.split('Bearer ')[1];
+    
+    // Only verify if Firebase is initialized
+    if (!isFirebaseInitialized) {
+      if (process.env.NODE_ENV === 'development') return next();
+      return res.status(503).json({ success: false, message: 'Security service unavailable' });
+    }
+
+    const decodedToken = await admin.auth().verifyIdToken(token);
+    
+    if (decodedToken.role === 'admin') {
+      console.log(`[AUTH] 🎖️ Admin access granted: ${decodedToken.email}`);
+      req.user = decodedToken;
+      next();
+    } else {
+      console.warn(`[AUTH] 🛑 Admin access DENIED: ${decodedToken.email}`);
+      res.status(403).json({ 
+        success: false, 
+        message: 'Forbidden: You do not have permission to perform this action.' 
+      });
+    }
+  } catch (error) {
+    console.error('Admin Auth Error:', error.message);
+    res.status(401).json({ success: false, message: 'Invalid or expired administrative session' });
+  }
+};
+
 module.exports = {
-  requireBusinessAuth
+  requireBusinessAuth,
+  requireAdmin
 };
