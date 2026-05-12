@@ -11,6 +11,7 @@ function getDatabase() {
 
 const { v4: uuidv4 } = require('uuid');
 const { validateCategoryMetadata } = require('../config/categories');
+const AuditService = require('../config/AuditService');
 
 class Product {
   constructor(data) {
@@ -28,7 +29,13 @@ class Product {
 
   // Create new product with simplified fields
   static async create(productData) {
-    // 1. Validate Category Metadata (Pharma/Restaurant specific requirements)
+    // 1. Mandatory Validation (Ensures no negative numbers or missing names)
+    const validationErrors = Product.validate(productData);
+    if (validationErrors.length > 0) {
+      throw new Error(`Validation Failed: ${validationErrors.join(', ')}`);
+    }
+
+    // 2. Validate Category Metadata (Pharma/Restaurant specific requirements)
     if (productData.businessCategory) {
       const vResult = validateCategoryMetadata(productData.businessCategory, productData.metadata);
       if (!vResult.valid) {
@@ -58,6 +65,16 @@ class Product {
       .insert(dbData)
       .returning('*');
     
+    // Audit Log
+    AuditService.log({
+      businessId: productData.businessId,
+      userEmail: productData.createdByEmail || 'system',
+      action: 'CREATE',
+      entityType: 'PRODUCT',
+      entityId: newProduct.id,
+      newData: { name: newProduct.name, price: newProduct.price }
+    });
+
     console.log('Product created successfully:', newProduct);
     return newProduct;
   }

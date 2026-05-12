@@ -10,6 +10,7 @@ function getDatabase() {
 }
 
 const { v4: uuidv4 } = require('uuid');
+const AuditService = require('../config/AuditService');
 
 class Debt {
   constructor(data) {
@@ -31,6 +32,13 @@ class Debt {
   // Create new debt
   static async create(debtData) {
     if (!debtData.businessId) throw new Error('businessId is required');
+    
+    // Mandatory Validation (Prevents negative amounts and missing customer names)
+    const validationErrors = Debt.validate(debtData);
+    if (validationErrors.length > 0) {
+      throw new Error(`Validation Failed: ${validationErrors.join(', ')}`);
+    }
+
     const debt = new Debt(debtData);
     
     const [newDebt] = await getDatabase()('debts')
@@ -52,6 +60,16 @@ class Debt {
       })
       .returning('*');
     
+    // Audit Log
+    AuditService.log({
+      businessId: debtData.businessId,
+      userEmail: debt.createdBy || 'system',
+      action: 'CREATE',
+      entityType: 'DEBT',
+      entityId: newDebt.id,
+      newData: { amount: newDebt.amount, customer: newDebt.customer_name }
+    });
+
     return newDebt;
   }
 

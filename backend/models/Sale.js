@@ -10,6 +10,10 @@ function getDatabase() {
 }
 
 const { v4: uuidv4 } = require('uuid');
+const AuditService = require('../config/AuditService');
+
+// High-precision financial normalization (Prevents JS floating point errors)
+const normalizeAmount = (val) => Math.round((parseFloat(val) || 0) * 100) / 100;
 
 class Sale {
   constructor(data) {
@@ -76,6 +80,12 @@ class Sale {
 
       // Loop through items for validation and preparation
       for (const item of saleData.items) {
+        const qty = parseFloat(item.quantity);
+        const price = parseFloat(item.unitPrice || item.unit_price);
+
+        if (isNaN(qty) || qty <= 0) throw new Error(`Invalid quantity for ${item.productName || 'product'}`);
+        if (price < 0) throw new Error(`Invalid price for ${item.productName || 'product'}`);
+
         const product = await trx('products')
           .where('id', item.productId)
           .andWhere('business_id', saleData.businessId)
@@ -89,10 +99,10 @@ class Sale {
         const qty = parseFloat(item.quantity);
         const price = parseFloat(item.unitPrice || product.price);
         const cost = parseFloat(product.unit_cost || product.cost_price || 0);
-        const lineTotal = price * qty;
+        const lineTotal = normalizeAmount(price * qty);
         
-        totalRevenue += lineTotal;
-        totalCogs += (cost * qty);
+        totalRevenue = normalizeAmount(totalRevenue + lineTotal);
+        totalCogs = normalizeAmount(totalCogs + (cost * qty));
 
         saleItemsToInsert.push({
           id: uuidv4(),
@@ -160,6 +170,16 @@ class Sale {
       
       await trx.commit();
       
+      // 4. Audit Log (Traceability)
+      AuditService.log({
+        businessId: saleData.businessId,
+        userEmail: saleData.createdByEmail || saleData.createdBy,
+        action: 'CREATE',
+        entityType: 'SALE',
+        entityId: saleId,
+        newData: { total: totalRevenue, items: saleItemsToInsert.length }
+      });
+
       // Return with hydrated items
       newSale.items = saleItemsToInsert;
       return Sale.mapRow(newSale);
@@ -514,6 +534,16 @@ class Sale {
         : null;
 
       await trx.commit();
+
+      // 6) Audit Log (Traceability)
+      AuditService.log({
+        businessId: businessId,
+        userEmail: 'system-auth', // Can be hydrated from request context in production
+        action: 'DELETE',
+        entityType: 'SALE',
+        entityId: id,
+        oldData: { total: deletedSale.total, productId: deletedSale.product_id }
+      });
 
       console.log(`🎉 Successfully deleted sale ${id} and restored stock`);
       return {

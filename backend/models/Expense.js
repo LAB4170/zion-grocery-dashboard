@@ -10,6 +10,7 @@ function getDatabase() {
 }
 
 const { v4: uuidv4 } = require('uuid');
+const AuditService = require('../config/AuditService');
 
 class Expense {
   constructor(data) {
@@ -29,6 +30,13 @@ class Expense {
   // Create new expense
   static async create(expenseData) {
     if (!expenseData.businessId) throw new Error('businessId is required');
+    
+    // Mandatory Validation (Prevents negative amounts and missing descriptions)
+    const validationErrors = Expense.validate(expenseData);
+    if (validationErrors.length > 0) {
+      throw new Error(`Validation Failed: ${validationErrors.join(', ')}`);
+    }
+
     const expense = new Expense(expenseData);
     
     const [newExpense] = await getDatabase()('expenses')
@@ -44,6 +52,16 @@ class Expense {
       })
       .returning('*');
     
+    // Audit Log
+    AuditService.log({
+      businessId: expenseData.businessId,
+      userEmail: expense.createdBy,
+      action: 'CREATE',
+      entityType: 'EXPENSE',
+      entityId: newExpense.id,
+      newData: { amount: newExpense.amount, category: newExpense.category }
+    });
+
     return newExpense;
   }
 
