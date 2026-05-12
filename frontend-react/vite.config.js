@@ -4,41 +4,7 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
   plugins: [
-    react(),
-    VitePWA({
-      registerType: 'autoUpdate',
-      includeAssets: ['icon-512.png'],
-      manifest: {
-        name: 'Nexus POS - Enterprise',
-        short_name: 'Nexus POS',
-        description: 'Next-Gen Inventory & Sales Management',
-        theme_color: '#0f172a',
-        icons: [
-          {
-            src: 'icon-512.png',
-            sizes: '512x512',
-            type: 'image/png',
-            purpose: 'any maskable'
-          }
-        ]
-      },
-      workbox: {
-        globPatterns: ['**/*.{js,css,html,png,svg}'],
-        runtimeCaching: [
-          {
-            urlPattern: ({ url }) => url.pathname.startsWith('/api/products'),
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'api-products-cache',
-              expiration: {
-                maxEntries: 10,
-                maxAgeSeconds: 60 * 60 * 24 // 24 hours
-              }
-            }
-          }
-        ]
-      }
-    })
+    react()
   ],
   server: {
     proxy: {
