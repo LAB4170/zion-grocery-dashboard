@@ -141,15 +141,16 @@ app.get('/health', async (req, res) => {
 });
 
 // API routes
+app.use('/api', apiGeneralLimiter);
 app.use('/api/business', onboardingLimiter, requireBusinessAuth, businessRoutes);
 app.use('/api/products', requireBusinessAuth, requireTenantContext, requireActiveSubscription, productRoutes);
 app.use('/api/sales', requireBusinessAuth, requireTenantContext, requireActiveSubscription, salesRoutes);
 app.use('/api/expenses', requireBusinessAuth, requireTenantContext, requireActiveSubscription, expenseRoutes);
 app.use('/api/debts', requireBusinessAuth, requireTenantContext, requireActiveSubscription, debtRoutes);
-app.use('/api/dashboard', apiGeneralLimiter, requireBusinessAuth, requireTenantContext, requireActiveSubscription, dashboardRoutes);
+app.use('/api/dashboard', adminDashboardLimiter, requireBusinessAuth, requireTenantContext, requireActiveSubscription, dashboardRoutes);
 app.use('/api/payments', paymentLimiter, requireBusinessAuth, requireTenantContext, paymentsRoutes);
-app.use('/api/support', apiGeneralLimiter, requireBusinessAuth, requireTenantContext, supportRoutes);
-app.use('/api/admin', adminDashboardLimiter, adminAuth, adminRoutes);
+app.use('/api/admin', requireFirebaseAdminAuth, adminRoutes);
+app.use('/api/support', supportRoutes);
 
 // API Root Message
 app.get('/', (req, res) => {

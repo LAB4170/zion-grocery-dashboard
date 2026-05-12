@@ -27,6 +27,12 @@ const getFromCache = (key) => {
 };
 
 const setCache = (key, data, ttlMs) => {
+  // SAFETY FLUSH: Prevent memory leaks as the user base grows
+  if (cache.size > 1000) {
+    console.warn('⚠️ Dashboard Cache Limit Reached. Performing Safety Flush.');
+    cache.clear();
+  }
+  
   cache.set(key, {
     data,
     expires: Date.now() + ttlMs
