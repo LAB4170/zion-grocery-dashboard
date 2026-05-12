@@ -14,21 +14,14 @@ async function checkIndexes() {
     await client.connect();
     const query = `
       SELECT 
-        t.relname as table_name, 
-        a.attname as column_name, 
-        i.relname as index_name 
+        tablename as table_name, 
+        indexname as index_name, 
+        indexdef as index_definition 
       FROM 
-        pg_class t, 
-        pg_class i, 
-        pg_index ix, 
-        pg_attribute a 
+        pg_indexes 
       WHERE 
-        t.oid = ix.indrelid 
-        AND i.oid = ix.indexrelid 
-        AND a.attrelid = t.oid 
-        AND a.attnum = ANY(ix.indkey) 
-        AND t.relname IN ('products', 'sales', 'expenses', 'debts') 
-        AND a.attname = 'business_id'
+        schemaname = 'public' 
+        AND tablename IN ('products', 'sales', 'expenses', 'debts')
     `;
     
     const res = await client.query(query);
