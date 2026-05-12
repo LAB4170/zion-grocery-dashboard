@@ -53,7 +53,7 @@ function normalizeOrigin(value) {
 function getAllowedOrigins() {
   const isDevelopment = process.env.NODE_ENV === 'development';
   if (isDevelopment) {
-    return ['http://localhost:5000', 'http://localhost:5173', 'http://localhost:8080'].map(normalizeOrigin);
+    return ['http://localhost:5000', 'http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175', 'http://localhost:3000'].map(normalizeOrigin);
   }
   const all = (process.env.FRONTEND_URLS ? process.env.FRONTEND_URLS.split(',') : [process.env.FRONTEND_URL]).filter(Boolean).map(normalizeOrigin);
   return all;
@@ -135,10 +135,19 @@ const paymentLimiter = rateLimit({
   store: isRedisEnabled ? new RedisStore({ sendCommand: (...args) => client.sendCommand(args) }) : undefined
 });
 
-app.get('/health', async (req, res) => {
-  try { await db.raw('SELECT 1'); res.json({ status: 'OK', database: 'Connected' }); }
-  catch (e) { res.status(503).json({ status: 'ERROR' }); }
+app.get('/api/health', async (req, res) => {
+  try { 
+    await db.raw('SELECT 1'); 
+    res.json({ 
+      status: 'HEALTHY', 
+      database: 'Connected',
+      environment: process.env.NODE_ENV || 'development'
+    }); 
+  }
+  catch (e) { res.status(503).json({ status: 'ERROR', message: e.message }); }
 });
+
+app.get('/health', (req, res) => res.redirect('/api/health'));
 
 // Wire up app.locals so all route handlers can call cache invalidation and broadcast
 // clearDashboardCache now accepts an optional businessId for targeted invalidation

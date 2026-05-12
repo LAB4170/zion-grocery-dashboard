@@ -34,7 +34,10 @@ import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
-const API_BASE = import.meta.env.VITE_API_URL || '/api';
+// Ensure API_BASE is absolute to prevent path drift in sub-routes
+const API_BASE = (import.meta.env.VITE_API_URL || '/api').startsWith('http') 
+  ? (import.meta.env.VITE_API_URL || '/api') 
+  : `/${(import.meta.env.VITE_API_URL || 'api').replace(/^\//, '')}`;
 
 const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6'];
 
@@ -42,12 +45,12 @@ export default function AdminDashboard() {
   const { theme, toggleTheme } = useTheme();
   const { currentUser, logout } = useAuth();
   const navigate = useNavigate();
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [activeTab, setActiveTab] = useState('overview'); // overview, businesses, activities
+  const [activeTab, setActiveTab] = useState('overview');
   const [overview, setOverview] = useState(null);
   const [businesses, setBusinesses] = useState([]);
   const [activities, setActivities] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedBusiness, setSelectedBusiness] = useState(null);
@@ -58,42 +61,40 @@ export default function AdminDashboard() {
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [ticketMessages, setTicketMessages] = useState([]);
   const [replyContent, setReplyContent] = useState('');
-  const [token, setToken] = useState('');
+  const [systemHealth, setSystemHealth] = useState(null);
+
+  // Always get a fresh token — Firebase caches internally and only refreshes when needed
+  const getAuthConfig = async () => {
+    const freshToken = await currentUser.getIdToken();
+    return { headers: { 'Authorization': `Bearer ${freshToken}` } };
+  };
 
   const fetchAdminData = async () => {
-    if (!currentUser) {
-      setError('Please sign in with your admin account.');
-      return;
-    }
-    
+    if (!currentUser) return;
     try {
       setLoading(true);
       setError('');
-      
-      const idToken = await currentUser.getIdToken();
-      setToken(idToken);
-      
-      const config = { headers: { 'Authorization': `Bearer ${idToken}` } };
-
-      const [overviewRes, businessesRes, activitiesRes] = await Promise.all([
+      const config = await getAuthConfig();
+      const [overviewRes, businessesRes, activitiesRes, usersRes] = await Promise.all([
         axios.get(`${API_BASE}/admin/overview`, config),
         axios.get(`${API_BASE}/admin/businesses`, config),
         axios.get(`${API_BASE}/admin/activities`, config),
+        axios.get(`${API_BASE}/admin/users`, config),
       ]);
-
       setOverview(overviewRes.data.data);
       setBusinesses(businessesRes.data.data);
       setActivities(activitiesRes.data.data);
-      setIsAuthenticated(true);
-
-      // Fetch support tickets separately — non-blocking
+      setUsers(usersRes.data.data);
+      
+      // Non-blocking fetches
       axios.get(`${API_BASE}/admin/support/tickets`, config)
         .then(r => setTickets(r.data.data))
-        .catch(e => console.warn('Support tickets fetch failed (non-fatal):', e.message));
-
+        .catch(e => console.warn('Support tickets fetch failed:', e.message));
+      axios.get(`${API_BASE}/health`)
+        .then(r => setSystemHealth(r.data))
+        .catch(() => setSystemHealth({ status: 'UNKNOWN', database: 'Unknown' }));
     } catch (err) {
-      setError(err.response?.data?.message || 'Authentication failed. Make sure you have admin privileges.');
-      setIsAuthenticated(false);
+      setError(err.response?.data?.message || 'Failed to load. Check your admin privileges.');
     } finally {
       setLoading(false);
     }
@@ -102,7 +103,7 @@ export default function AdminDashboard() {
   const fetchBusinessDetail = async (id) => {
     try {
       setDetailLoading(true);
-      const config = { headers: { 'Authorization': `Bearer ${token}` } };
+      const config = await getAuthConfig();
       const res = await axios.get(`${API_BASE}/admin/businesses/${id}`, config);
       setSelectedBusiness(res.data.data);
       setAdminNotes(res.data.data.business.admin_notes || '');
@@ -127,7 +128,6 @@ export default function AdminDashboard() {
   const handleLogout = async () => {
     try {
       await logout();
-      setIsAuthenticated(false);
       navigate('/');
     } catch (err) {
       console.error(err);
@@ -141,7 +141,7 @@ export default function AdminDashboard() {
 
   const handleSuspendToggle = async (bId, currentStatus) => {
     try {
-      const config = { headers: { 'Authorization': `Bearer ${token}` } };
+      const config = await getAuthConfig();
       await axios.post(`${API_BASE}/admin/businesses/${bId}/status`, {
         is_suspended: !currentStatus,
         admin_notes: adminNotes
@@ -156,7 +156,7 @@ export default function AdminDashboard() {
 
   const handleExtendTrial = async (bId) => {
     try {
-      const config = { headers: { 'Authorization': `Bearer ${token}` } };
+      const config = await getAuthConfig();
       await axios.post(`${API_BASE}/admin/businesses/${bId}/extend-trial`, { days: 7 }, config);
       alert('Trial extended by 7 days.');
       fetchAdminData();
@@ -168,7 +168,7 @@ export default function AdminDashboard() {
 
   const fetchTicketDetail = async (id) => {
     try {
-      const config = { headers: { 'Authorization': `Bearer ${token}` } };
+      const config = await getAuthConfig();
       const res = await axios.get(`${API_BASE}/admin/support/tickets/${id}`, config);
       setSelectedTicket(res.data.data.ticket);
       setTicketMessages(res.data.data.messages);
@@ -179,7 +179,7 @@ export default function AdminDashboard() {
 
   const refreshTickets = async () => {
     try {
-      const config = { headers: { 'Authorization': `Bearer ${token}` } };
+      const config = await getAuthConfig();
       const res = await axios.get(`${API_BASE}/admin/support/tickets`, config);
       setTickets(res.data.data);
     } catch (err) {
@@ -192,7 +192,7 @@ export default function AdminDashboard() {
     if (!replyContent.trim() || !selectedTicket) return;
 
     try {
-      const config = { headers: { 'Authorization': `Bearer ${token}` } };
+      const config = await getAuthConfig();
       await axios.post(`${API_BASE}/admin/support/tickets/${selectedTicket.id}/reply`, { content: replyContent }, config);
       setReplyContent('');
       fetchTicketDetail(selectedTicket.id);
@@ -204,7 +204,7 @@ export default function AdminDashboard() {
 
   const handleUpdateTicketStatus = async (id, status) => {
     try {
-      const config = { headers: { 'Authorization': `Bearer ${token}` } };
+      const config = await getAuthConfig();
       await axios.patch(`${API_BASE}/admin/support/tickets/${id}/status`, { status }, config);
       refreshTickets();
       if (selectedTicket?.id === id) fetchTicketDetail(id);
@@ -214,61 +214,36 @@ export default function AdminDashboard() {
   };
 
   const handleImpersonate = async (bId) => {
+    if (!window.confirm('Impersonate this merchant? This action is fully audited.')) return;
     try {
-      const config = { headers: { 'Authorization': `Bearer ${token}` } };
+      const config = await getAuthConfig();
       const res = await axios.post(`${API_BASE}/admin/businesses/${bId}/impersonate`, {}, config);
       const impersonationToken = res.data.customToken;
-      localStorage.setItem('nexus_auth_token', impersonationToken);
-      window.open('/app', '_blank');
+      // Pass via URL hash (not sent to server). The /impersonate page reads it and signs in.
+      window.open(`/impersonate#${encodeURIComponent(impersonationToken)}`, '_blank');
     } catch (err) {
       alert('Impersonation failed: ' + (err.response?.data?.message || err.message));
     }
   };
 
-  if (!isAuthenticated) {
+  if (loading && !overview) {
     return (
-      <div className="login-page" style={{ 
-        background: theme === 'dark' ? '#0B0F19' : '#F3F4F6', 
-        transition: 'background 0.3s ease',
-        minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-        padding: '24px'
-      }}>
-        <div className="login-card glass" style={{ maxWidth: '440px', width: '100%', textAlign: 'center', padding: '48px 24px' }}>
-          <div style={{ position: 'absolute', top: '20px', right: '20px' }}>
-             <button onClick={toggleTheme} style={{ background: 'transparent', color: 'var(--text-muted)' }}>
-               {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
-             </button>
-          </div>
-          <div className="login-logo" style={{ 
-            margin: '0 auto 24px', background: 'var(--accent)', 
-            width: '64px', height: '64px', borderRadius: '18px',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 10px 30px rgba(16, 185, 129, 0.3)'
-          }}>
-            <Lock size={28} color="white" />
-          </div>
-          <h1 style={{ fontSize: '24px', marginBottom: '8px' }}>Master Terminal</h1>
-          <p style={{ color: 'var(--text-muted)', marginBottom: '32px', fontSize: '14px' }}>System oversight access restricted.</p>
-          {!currentUser ? (
-            <div>
-              <button onClick={handleLoginRedirect} className="btn-primary" style={{ width: '100%', height: '52px' }}>
-                Sign In with Firebase
-              </button>
-            </div>
-          ) : (
-            <div>
-              <p style={{ marginBottom: '24px', fontSize: '14px' }}>
-                Signed in as: <strong>{currentUser.email}</strong>
-              </p>
-              {error && <div className="error-alert" style={{ marginBottom: '24px', fontSize: '13px' }}>{error}</div>}
-              <button onClick={fetchAdminData} className="btn-primary" style={{ width: '100%', height: '52px', marginBottom: '12px' }} disabled={loading}>
-                {loading ? <RefreshCw size={18} className="animate-spin" /> : 'Authenticate Access'}
-              </button>
-              <button onClick={handleLogout} style={{ width: '100%', padding: '12px', background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontWeight: 'bold' }}>
-                Sign Out
-              </button>
-            </div>
-          )}
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)' }}>
+        <div style={{ textAlign: 'center' }}>
+          <RefreshCw size={32} style={{ color: 'var(--accent)', animation: 'spin 1s linear infinite', margin: '0 auto 16px' }} />
+          <p style={{ color: 'var(--text-muted)', fontWeight: 700 }}>Initializing Command Center...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error && !overview) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)' }}>
+        <div style={{ textAlign: 'center', padding: '40px', maxWidth: '400px' }}>
+          <p style={{ color: '#ef4444', fontWeight: 700, marginBottom: '16px' }}>{error}</p>
+          <button onClick={fetchAdminData} className="btn-primary">Retry</button>
+          <button onClick={handleLogout} style={{ display: 'block', margin: '12px auto 0', background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>Sign Out</button>
         </div>
       </div>
     );
@@ -287,18 +262,18 @@ export default function AdminDashboard() {
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <div style={{ 
-            width: '36px', height: '36px', borderRadius: '10px', 
-            background: 'linear-gradient(135deg, var(--accent) 0%, #059669 100%)', 
+            width: '42px', height: '42px', borderRadius: '12px', 
+            background: 'linear-gradient(135deg, #10b981 0%, #3b82f6 100%)', 
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 4px 12px rgba(16, 185, 129, 0.2)'
+            boxShadow: '0 0 20px var(--accent-glow)'
           }}>
-            <Globe size={20} color="white" />
+            <ShieldCheck size={24} color="white" />
           </div>
           <div>
-            <h2 style={{ fontSize: '15px', fontWeight: 800, margin: 0, letterSpacing: '-0.02em' }}>Command Center</h2>
+            <h2 style={{ fontSize: '16px', fontWeight: 900, margin: 0, letterSpacing: '-0.03em', color: 'var(--text)' }}>NEXUS MASTER TERMINAL</h2>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               <span className="dot-pulse"></span>
-              <span style={{ fontSize: '10px', color: 'var(--accent)', fontWeight: 800 }}>LIVE SYSTEM MONITOR</span>
+              <span style={{ fontSize: '10px', color: 'var(--accent)', fontWeight: 900, letterSpacing: '0.1em' }}>GOD MODE ACTIVE</span>
             </div>
           </div>
         </div>
@@ -325,6 +300,7 @@ export default function AdminDashboard() {
         {[
           { id: 'overview', icon: <LayoutDashboard size={18} />, label: 'SYSTEM OVERVIEW' },
           { id: 'businesses', icon: <Store size={18} />, label: 'MERCHANT FLEET' },
+          { id: 'users', icon: <Users size={18} />, label: 'USER DIRECTORY' },
           { id: 'support', icon: <Headphones size={18} />, label: 'SUPPORT DESK' },
           { id: 'activities', icon: <Activity size={18} />, label: 'GLOBAL TELEMETRY' }
         ].map(tab => (
@@ -352,12 +328,16 @@ export default function AdminDashboard() {
              {/* Stats Grid */}
              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px', marginBottom: '32px' }}>
                 {[
-                  { label: 'TOTAL TENANTS', val: overview?.totalBusinesses, sub: `${overview?.growth?.activeTenants} Active`, icon: <Users /> },
-                  { label: 'GROSS VOLUME', val: `KSh ${overview?.totalRevenue?.toLocaleString()}`, sub: `${overview?.growth?.revenue}% MoM`, icon: <TrendingUp />, pos: overview?.growth?.revenue >= 0 },
-                  { label: 'TRANSAC. COUNT', val: overview?.totalSalesCount?.toLocaleString(), sub: 'Lifetime Volume', icon: <Zap /> },
-                  { label: 'RETENTION', val: `${overview?.retentionRate}%`, sub: '30-Day Active', icon: <ShieldCheck /> }
+                  { label: 'HUMAN FOOTPRINT', val: overview?.userStats?.totalUsers, sub: `${overview?.userStats?.newUsersToday} New Today`, icon: <Users />, highlight: 'var(--accent)' },
+                  { label: 'ACTIVE MERCHANTS', val: overview?.totalBusinesses, sub: `${overview?.growth?.activeTenants} Active (30D)`, icon: <Store />, highlight: '#3b82f6' },
+                  { label: 'NETWORK VOLUME', val: `KSh ${overview?.totalRevenue?.toLocaleString()}`, sub: `${overview?.growth?.revenue}% MoM`, icon: <TrendingUp />, pos: overview?.growth?.revenue >= 0, highlight: '#8b5cf6' },
+                  { label: 'TRANSACTION VELOCITY', val: overview?.totalSalesCount?.toLocaleString(), sub: 'Global Transactions', icon: <Zap />, highlight: '#f59e0b' }
                 ].map((stat, idx) => (
-                  <div key={idx} className="card-premium" style={{ padding: '24px' }}>
+                  <div key={idx} className="card-premium" style={{ 
+                    padding: '24px', 
+                    borderLeft: `4px solid ${stat.highlight}`,
+                    background: `linear-gradient(135deg, var(--surface) 0%, ${stat.highlight}05 100%)` 
+                  }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                        <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--text-muted)', letterSpacing: '0.05em' }}>{stat.label}</span>
                        <div style={{ color: 'var(--accent)' }}>{stat.icon}</div>
@@ -418,6 +398,48 @@ export default function AdminDashboard() {
                           <Legend verticalAlign="bottom" height={36}/>
                         </PieChart>
                       </ResponsiveContainer>
+                   </div>
+                </div>
+             </div>
+
+             {/* NEW: Network Health Deep Dive */}
+             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px', marginTop: '24px' }}>
+                <div className="card-premium" style={{ padding: '24px' }}>
+                   <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginBottom: '20px' }}>
+                      <AlertCircle size={20} color="#ef4444" />
+                      <h3 style={{ fontSize: '16px', fontWeight: 800 }}>Critical Merchant Risk</h3>
+                   </div>
+                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      {businesses.filter(b => b.healthStatus !== 'HEALTHY').slice(0, 4).map(b => (
+                        <div key={b.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', background: 'rgba(239, 68, 68, 0.05)', borderRadius: '10px' }}>
+                           <div>
+                              <div style={{ fontSize: '13px', fontWeight: 700 }}>{b.name}</div>
+                              <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{b.daysSinceActivity} days inactive</div>
+                           </div>
+                           <span className={`badge-status status-${b.healthStatus.toLowerCase()}`}>{b.healthStatus}</span>
+                        </div>
+                      ))}
+                      {businesses.filter(b => b.healthStatus !== 'HEALTHY').length === 0 && (
+                        <div style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)', fontSize: '13px' }}>Network health is optimal.</div>
+                      )}
+                   </div>
+                </div>
+
+                <div className="card-premium" style={{ padding: '24px', position: 'relative', overflow: 'hidden' }}>
+                   <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginBottom: '20px' }}>
+                      <MessageSquare size={20} color="var(--accent)" />
+                      <h3 style={{ fontSize: '16px', fontWeight: 800 }}>Command Broadcast</h3>
+                   </div>
+                   <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '16px' }}>Push a system-wide notification to all merchant dashboards instantly.</p>
+                   <div style={{ display: 'flex', gap: '10px' }}>
+                      <input 
+                        placeholder="Platform maintenance at 22:00..." 
+                        style={{ flex: 1, padding: '12px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', fontSize: '13px' }}
+                      />
+                      <button className="btn-primary" style={{ padding: '0 16px', borderRadius: '8px' }}>PUSH</button>
+                   </div>
+                   <div style={{ position: 'absolute', bottom: '-20px', right: '-20px', opacity: 0.05 }}>
+                      <Globe size={120} />
                    </div>
                 </div>
              </div>
@@ -571,41 +593,87 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* Tab 3: TELEMETRY */}
+        {/* Tab 3: USER DIRECTORY */}
+        {activeTab === 'users' && (
+          <div className="fade-in">
+             <div className="card-premium" style={{ padding: '0', overflow: 'hidden' }}>
+               <div style={{ padding: '24px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <h3 style={{ fontSize: '16px', fontWeight: 800 }}>Identity Management</h3>
+                  <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--accent)' }}>{users.length} Identities Linked</div>
+               </div>
+               
+               <div style={{ overflowX: 'auto' }}>
+                 <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                   <thead>
+                     <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg)' }}>
+                       <th style={{ padding: '16px 24px', fontSize: '11px', fontWeight: 800, color: 'var(--text-muted)' }}>IDENTITY</th>
+                       <th style={{ padding: '16px 24px', fontSize: '11px', fontWeight: 800, color: 'var(--text-muted)' }}>ROLE</th>
+                       <th style={{ padding: '16px 24px', fontSize: '11px', fontWeight: 800, color: 'var(--text-muted)' }}>CREATED</th>
+                       <th style={{ padding: '16px 24px', fontSize: '11px', fontWeight: 800, color: 'var(--text-muted)' }}>LAST LOGIN</th>
+                       <th style={{ padding: '16px 24px' }}></th>
+                     </tr>
+                   </thead>
+                   <tbody>
+                     {users.map(u => (
+                       <tr key={u.uid} className="fleet-row">
+                         <td style={{ padding: '16px 24px' }}>
+                           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                             <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--border)' }}>
+                               <Users size={14} color="var(--text-muted)" />
+                             </div>
+                             <div>
+                               <div style={{ fontWeight: 700, fontSize: '14px' }}>{u.displayName || 'Unnamed User'}</div>
+                               <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{u.email}</div>
+                             </div>
+                           </div>
+                         </td>
+                         <td style={{ padding: '16px 24px' }}>
+                           <span className={`badge-status status-${u.role}`}>
+                             {u.role.toUpperCase()}
+                           </span>
+                         </td>
+                         <td style={{ padding: '16px 24px', fontSize: '13px' }}>{new Date(u.createdAt).toLocaleDateString()}</td>
+                         <td style={{ padding: '16px 24px', fontSize: '13px' }}>{u.lastLogin ? new Date(u.lastLogin).toLocaleString() : 'Never'}</td>
+                         <td style={{ padding: '16px 24px', textAlign: 'right' }}>
+                           <ShieldCheck size={18} color="var(--border)" />
+                         </td>
+                       </tr>
+                     ))}
+                   </tbody>
+                 </table>
+               </div>
+             </div>
+          </div>
+        )}
+
+        {/* Tab 4: TELEMETRY */}
         {activeTab === 'activities' && (
           <div className="fade-in">
              <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '24px', marginBottom: '24px' }} className="grid-mobile-1">
                 <div className="card-premium" style={{ padding: '24px' }}>
-                   <h3 style={{ fontSize: '16px', fontWeight: 800, marginBottom: '20px' }}>System Health Index</h3>
-                   <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                      {[
-                        { label: 'Network Latency', val: '24ms', status: 'optimal' },
-                        { label: 'DB Connections', val: '12/50', status: 'healthy' },
-                        { label: 'Redis Cache Hit', val: '98.2%', status: 'optimal' },
-                        { label: 'Active Sessions', val: '412', status: 'healthy' }
-                      ].map((item, i) => (
-                        <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                           <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{item.label}</span>
-                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                              <span style={{ fontSize: '13px', fontWeight: 700 }}>{item.val}</span>
-                              <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: item.status === 'optimal' ? '#10b981' : '#3b82f6' }}></div>
-                           </div>
-                        </div>
-                      ))}
+                   <h3 style={{ fontSize: '16px', fontWeight: 800, marginBottom: '20px' }}>Hourly Sales Velocity</h3>
+                   <div style={{ height: '220px' }}>
+                      <ResponsiveContainer width="100%" height="100%">
+                         <AreaChart data={overview?.hourlyVelocity || []}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
+                            <XAxis dataKey="hour" tick={{fontSize: 10}} tickFormatter={(h) => `${h}:00`} />
+                            <YAxis tick={{fontSize: 10}} />
+                            <Tooltip />
+                            <Area type="stepAfter" dataKey="count" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.1} />
+                         </AreaChart>
+                      </ResponsiveContainer>
                    </div>
                 </div>
                 <div className="card-premium" style={{ padding: '24px' }}>
-                   <h3 style={{ fontSize: '16px', fontWeight: 800, marginBottom: '20px' }}>Global Transaction Flow</h3>
-                   <div style={{ height: '200px' }}>
-                      <ResponsiveContainer width="100%" height="100%">
-                         <AreaChart data={overview?.salesTrend}>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
-                            <XAxis dataKey="day" hide />
-                            <YAxis hide />
-                            <Tooltip />
-                            <Area type="monotone" dataKey="amount" stroke="var(--accent)" fill="var(--accent)" fillOpacity={0.1} />
-                         </AreaChart>
-                      </ResponsiveContainer>
+                   <h3 style={{ fontSize: '16px', fontWeight: 800, marginBottom: '20px' }}>Inventory Health Report</h3>
+                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
+                      {overview?.inventoryHealth?.map((h, i) => (
+                        <div key={i} style={{ textAlign: 'center', padding: '16px', borderRadius: '12px', background: 'var(--bg)', border: '1px solid var(--border)' }}>
+                           <div style={{ fontSize: '10px', fontWeight: 800, color: 'var(--text-muted)', marginBottom: '8px' }}>{h.status.toUpperCase()}</div>
+                           <div style={{ fontSize: '24px', fontWeight: 900, color: h.status === 'instock' ? 'var(--accent)' : '#ef4444' }}>{h.count}</div>
+                           <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Products</div>
+                        </div>
+                      ))}
                    </div>
                 </div>
              </div>
@@ -747,11 +815,13 @@ export default function AdminDashboard() {
       <style>{`
         :root {
           --accent: #10b981;
+          --accent-glow: rgba(16, 185, 129, 0.4);
           --surface: ${theme === 'dark' ? '#111827' : '#ffffff'};
           --bg: ${theme === 'dark' ? '#0B0F19' : '#F9FAFB'};
           --border: ${theme === 'dark' ? '#1F2937' : '#E5E7EB'};
           --text: ${theme === 'dark' ? '#F9FAFB' : '#111827'};
           --text-muted: ${theme === 'dark' ? '#9CA3AF' : '#6B7280'};
+          --panel-shadow: ${theme === 'dark' ? '0 20px 50px rgba(0,0,0,0.5)' : '0 20px 50px rgba(0,0,0,0.1)'};
         }
 
         .card-premium {
@@ -790,13 +860,18 @@ export default function AdminDashboard() {
         .status-at_risk { background: rgba(245, 158, 11, 0.1); color: #f59e0b; }
         .status-dormant { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
         .status-new { background: rgba(59, 130, 246, 0.1); color: #3b82f6; }
+        .status-admin { background: #111827; color: var(--accent); border: 1px solid var(--accent); }
+        .status-merchant { background: rgba(16, 185, 129, 0.1); color: #10b981; }
 
         .btn-icon-premium {
           width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;
           border-radius: 10px; background: var(--surface); border: 1px solid var(--border);
           color: var(--text-muted); cursor: pointer; transition: all 0.2s;
         }
-        .btn-icon-premium:hover { background: var(--bg); color: var(--text); border-color: var(--text-muted); }
+        .btn-icon-premium:hover { 
+          background: var(--bg); color: var(--text); border-color: var(--accent);
+          box-shadow: 0 0 15px rgba(16, 185, 129, 0.2);
+        }
 
         .side-panel-premium {
           width: 520px; height: 100%; background: var(--surface);
@@ -827,17 +902,20 @@ export default function AdminDashboard() {
         }
         .telemetry-item {
           padding: 16px; background: var(--bg); border: 1px solid var(--border); border-radius: 12px;
+          transition: border-color 0.3s;
         }
+        .telemetry-item:hover { border-color: var(--accent); }
         .telemetry-brand { font-size: 10px; font-weight: 800; color: var(--accent); margin-bottom: 8px; text-transform: uppercase; }
         .telemetry-content { display: flex; gap: 8px; font-weight: 700; margin-bottom: 12px; }
         .telemetry-qty { color: var(--text-muted); }
         .telemetry-footer { display: flex; justify-content: space-between; align-items: center; }
-        .telemetry-val { font-size: 14px; fontWeight: 800; }
+        .telemetry-val { font-size: 14px; font-weight: 800; }
         .telemetry-time { font-size: 10px; color: var(--text-muted); }
 
         .top-product-item {
           display: flex; justify-content: space-between; padding: 12px; 
           background: var(--bg); border-radius: 8px; margin-bottom: 8px; font-size: 13px;
+          border-left: 3px solid var(--accent);
         }
         .sale-item {
           display: flex; justify-content: space-between; align-items: center;
@@ -845,7 +923,7 @@ export default function AdminDashboard() {
         }
         .sale-prod { font-weight: 700; font-size: 14px; }
         .sale-time { font-size: 10px; color: var(--text-muted); }
-        .sale-total { font-weight: 800; }
+        .sale-total { font-weight: 800; color: var(--accent); }
 
         @media (max-width: 768px) {
           .grid-mobile-1 { grid-template-columns: 1fr !important; }

@@ -4,6 +4,7 @@ const { db } = require('../config/database');
 const { catchAsync } = require('../middleware/errorHandler');
 const { auditLog } = require('../middleware/auditLog');
 const { admin } = require('../config/firebase');
+const { v4: uuidv4 } = require('uuid');
 
 /**
  * GET /api/admin/overview
@@ -18,6 +19,15 @@ router.get('/overview', auditLog('VIEW_OVERVIEW'), catchAsync(async (req, res) =
   const totalSales = await db('sales').count('id as count').sum('total as sum').first();
   const totalProducts = await db('products').count('id as count').first();
   
+  // NEW: Real Human Telemetry from Firebase
+  let userStats = { totalUsers: 0, newUsersToday: 0 };
+  try {
+    const listUsers = await admin.auth().listUsers(1000);
+    userStats.totalUsers = listUsers.users.length;
+    const today = new Date().setHours(0,0,0,0);
+    userStats.newUsersToday = listUsers.users.filter(u => new Date(u.metadata.creationTime) >= today).length;
+  } catch (e) { console.error('Firebase user fetch failed:', e.message); }
+  
   const currentMonthRevenue = await db('sales')
     .sum('total as sum')
     .where('created_at', '>=', thirtyDaysAgo)
@@ -29,9 +39,10 @@ router.get('/overview', auditLog('VIEW_OVERVIEW'), catchAsync(async (req, res) =
     .andWhere('created_at', '<', thirtyDaysAgo)
     .first();
 
-  const revGrowth = prevMonthRevenue.sum > 0 
-    ? ((currentMonthRevenue.sum - prevMonthRevenue.sum) / prevMonthRevenue.sum) * 100 
-    : 100;
+  // Null-safe growth: handle new platforms with no prior month data
+  const prev = parseFloat(prevMonthRevenue.sum || 0);
+  const curr = parseFloat(currentMonthRevenue.sum || 0);
+  const revGrowth = prev > 0 ? ((curr - prev) / prev) * 100 : (curr > 0 ? 100 : 0);
 
   const activeBusinessesCount = await db('sales')
     .distinct('business_id')
@@ -49,11 +60,34 @@ router.get('/overview', auditLog('VIEW_OVERVIEW'), catchAsync(async (req, res) =
     .groupBy('day')
     .orderBy('day', 'asc');
 
-  const globalTopProducts = await db('sales')
-    .select('product_name')
+  // NEW: Hourly Velocity (Network Pulse)
+  const hourlyVelocity = await db('sales')
+    .select(db.raw('EXTRACT(HOUR FROM created_at) as hour'))
     .count('id as count')
-    .sum('total as revenue')
-    .groupBy('product_name')
+    .where('created_at', '>=', db.raw('CURRENT_DATE'))
+    .groupBy('hour')
+    .orderBy('hour', 'asc');
+
+  // NEW: Global Inventory Health (Dynamic Status calculation)
+  const inventoryHealth = await db('products')
+    .select(db.raw(`
+      CASE 
+        WHEN stock_quantity <= 0 THEN 'outstock'
+        WHEN stock_quantity <= 10 THEN 'lowstock'
+        ELSE 'instock'
+      END as status
+    `))
+    .count('id as count')
+    .groupBy('status');
+
+  // FIX: product data lives in sale_items in the relational model, not on sales
+  const globalTopProducts = await db('sale_items as si')
+    .join('sales as s', 'si.sale_id', 's.id')
+    .select('si.product_name')
+    .sum('si.total as revenue')
+    .sum('si.quantity as total_quantity')
+    .count('si.id as count')
+    .groupBy('si.product_name')
     .orderBy('revenue', 'desc')
     .limit(5);
 
@@ -81,7 +115,10 @@ router.get('/overview', auditLog('VIEW_OVERVIEW'), catchAsync(async (req, res) =
       retentionRate: parseFloat(retentionRate.toFixed(2)),
       salesTrend,
       globalTopProducts,
-      paymentBreakdown: formattedPayments
+      paymentBreakdown: formattedPayments,
+      userStats,
+      hourlyVelocity,
+      inventoryHealth
     }
   });
 }));
@@ -90,11 +127,17 @@ router.get('/overview', auditLog('VIEW_OVERVIEW'), catchAsync(async (req, res) =
  * GET /api/admin/activities
  */
 router.get('/activities', auditLog('VIEW_ACTIVITIES'), catchAsync(async (req, res) => {
-    const activities = await db('sales as s')
+    // FIX: Join sale_items so product_name and quantity are available per line item
+    const activities = await db('sale_items as si')
+        .join('sales as s', 'si.sale_id', 's.id')
         .join('businesses as b', 's.business_id', 'b.id')
-        .select('s.*', 'b.name as business_name')
+        .select(
+          'si.id', 'si.product_name', 'si.quantity', 'si.total', 'si.unit_price',
+          's.id as sale_id', 's.created_at', 's.payment_method',
+          'b.name as business_name'
+        )
         .orderBy('s.created_at', 'desc')
-        .limit(30);
+        .limit(50);
     res.json({ success: true, data: activities });
 }));
 
@@ -124,7 +167,16 @@ router.get('/support/tickets/:id', auditLog('VIEW_SUPPORT_TICKET_DETAIL'), catch
 router.post('/support/tickets/:id/reply', auditLog('REPLY_SUPPORT_TICKET'), catchAsync(async (req, res) => {
   const { id } = req.params;
   const { content } = req.body;
-  await db('support_messages').insert({ ticket_id: id, sender_id: 'admin', sender_role: 'admin', content });
+  if (!content || !content.trim()) return res.status(400).json({ success: false, message: 'Reply content is required' });
+  // FIX: Include UUID and timestamps
+  await db('support_messages').insert({
+    id: uuidv4(),
+    ticket_id: id,
+    sender_id: req.adminEmail || 'admin',
+    sender_role: 'admin',
+    content: content.trim(),
+    created_at: new Date().toISOString()
+  });
   await db('support_tickets').where({ id }).update({ status: 'in_progress', updated_at: new Date() });
   res.json({ success: true, message: 'Reply sent' });
 }));
@@ -163,9 +215,35 @@ router.get('/businesses', auditLog('LIST_BUSINESSES'), catchAsync(async (req, re
 router.get('/businesses/:id', auditLog('VIEW_BUSINESS'), catchAsync(async (req, res) => {
     const { id } = req.params;
     const business = await db('businesses').where({ id }).first();
-    const recentSales = await db('sales').where({ business_id: id }).orderBy('created_at', 'desc').limit(15);
-    const topProducts = await db('sales').select('product_name').sum('total as revenue').where({ business_id: id }).groupBy('product_name').orderBy('revenue', 'desc').limit(10);
-    const revenueTrend = await db('sales').select(db.raw('DATE(created_at) as day')).sum('total as amount').where({ business_id: id }).groupBy('day').orderBy('day', 'asc');
+    if (!business) return res.status(404).json({ success: false, message: 'Business not found' });
+
+    // FIX: Use sale_items for product-level data
+    const recentSales = await db('sales as s')
+      .where('s.business_id', id)
+      .leftJoin('sale_items as si', 's.id', 'si.sale_id')
+      .select('s.id', 's.total', 's.payment_method', 's.status', 's.created_at',
+        db.raw("COALESCE(string_agg(si.product_name, ', '), 'Multiple Items') as product_name"))
+      .groupBy('s.id')
+      .orderBy('s.created_at', 'desc')
+      .limit(15);
+
+    const topProducts = await db('sale_items as si')
+      .join('sales as s', 'si.sale_id', 's.id')
+      .where('s.business_id', id)
+      .select('si.product_name')
+      .sum('si.total as revenue')
+      .sum('si.quantity as total_quantity')
+      .groupBy('si.product_name')
+      .orderBy('revenue', 'desc')
+      .limit(10);
+
+    const revenueTrend = await db('sales')
+      .select(db.raw('DATE(created_at) as day'))
+      .sum('total as amount')
+      .where({ business_id: id })
+      .groupBy('day')
+      .orderBy('day', 'asc');
+
     res.json({ success: true, data: { business, recentSales, topProducts, revenueTrend } });
 }));
 
@@ -194,6 +272,23 @@ router.post('/businesses/:id/impersonate', auditLog('IMPERSONATE_BUSINESS'), cat
 router.get('/audit-log', auditLog('VIEW_AUDIT_LOG'), catchAsync(async (req, res) => {
   const logs = await db('admin_audit_log as a').leftJoin('businesses as b', 'a.target_business_id', 'b.id').select('a.*', 'b.name as business_name').orderBy('a.created_at', 'desc').limit(100);
   res.json({ success: true, data: logs });
+}));
+
+/**
+ * GET /api/admin/users
+ * Lists actual human users from Firebase
+ */
+router.get('/users', auditLog('LIST_USERS'), catchAsync(async (req, res) => {
+    const listUsers = await admin.auth().listUsers(100);
+    const users = listUsers.users.map(u => ({
+        uid: u.uid,
+        email: u.email,
+        displayName: u.displayName,
+        createdAt: u.metadata.creationTime,
+        lastLogin: u.metadata.lastSignInTime,
+        role: u.customClaims?.role || 'merchant'
+    }));
+    res.json({ success: true, data: users });
 }));
 
 module.exports = router;

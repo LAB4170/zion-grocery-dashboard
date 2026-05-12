@@ -39,9 +39,6 @@ const requireFirebaseAdminAuth = async (req, res, next) => {
   try {
     const decodedToken = await admin.auth().verifyIdToken(token);
 
-    // DEBUG: Log claims to see why it's failing
-    console.log(`🔐 Admin Auth Debug [${decodedToken.email}]:`, decodedToken.role);
-
     // Check the custom claim
     if (decodedToken.role !== 'admin') {
       return res.status(403).json({

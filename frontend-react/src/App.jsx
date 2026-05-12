@@ -21,6 +21,7 @@ import SalesRecords from './pages/SalesRecords';
 import LegalPrivacy from './pages/LegalPrivacy';
 import LegalTerms from './pages/LegalTerms';
 import Support from './pages/Support';
+import Impersonate from './pages/Impersonate';
 
 // Protected Route Guard
 function ProtectedRoute({ children }) {
@@ -115,6 +116,7 @@ function App() {
                 <Route path="/login" element={<Login />} />
                 <Route path="/admin/login" element={<AdminLogin />} />
                 <Route path="/signup" element={<Signup />} />
+                <Route path="/impersonate" element={<Impersonate />} />
                 <Route path="/privacy" element={<LegalPrivacy />} />
                 <Route path="/terms" element={<LegalTerms />} />
                 <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
