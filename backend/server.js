@@ -153,7 +153,7 @@ app.get('/health', (req, res) => res.redirect('/api/health'));
 // clearDashboardCache now accepts an optional businessId for targeted invalidation
 app.locals.clearDashboardCache = (businessId) => clearDashboardCache(businessId);
 app.locals.broadcastDataChange = (type, data) => {
-  io.emit('data_change', { type, data });
+  io.emit('data-update', { type, data });
 };
 
 // API routes

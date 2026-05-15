@@ -43,7 +43,6 @@ class Product {
       }
     }
 
-    const db = getDatabase();
     const dbData = {
       id: productData.id || uuidv4(),
       business_id: productData.businessId,
@@ -59,11 +58,14 @@ class Product {
       updated_at: new Date().toISOString()
     };
 
-    console.log('Creating product with simplified data:', dbData);
+    const { withRLS } = require('../config/database');
     
-    const [newProduct] = await db('products')
-      .insert(dbData)
-      .returning('*');
+    const newProduct = await withRLS(productData.businessId, async (trx) => {
+      const [inserted] = await trx('products')
+        .insert(dbData)
+        .returning('*');
+      return inserted;
+    });
     
     // Audit Log
     AuditService.log({
@@ -76,7 +78,19 @@ class Product {
     });
 
     console.log('Product created successfully:', newProduct);
-    return newProduct;
+    return {
+      id: newProduct.id,
+      name: newProduct.name,
+      category: newProduct.category,
+      price: parseFloat(newProduct.price),
+      unitCost: parseFloat(newProduct.unit_cost || newProduct.cost_price || 0),
+      costPrice: parseFloat(newProduct.cost_price || 0),
+      stockQuantity: parseFloat(newProduct.stock_quantity),
+      unit: newProduct.unit || 'pcs',
+      metadata: newProduct.metadata || {},
+      createdAt: newProduct.created_at,
+      updatedAt: newProduct.updated_at
+    };
   }
 
   // Get all products with basic filters
@@ -221,13 +235,30 @@ class Product {
       dbData.metadata = updateData.metadata;
     }
     
-    const [updatedProduct] = await db('products')
-      .where('id', id)
-      .andWhere('business_id', businessId)
-      .update(dbData)
-      .returning('*');
+    const { withRLS } = require('../config/database');
+
+    const updatedProduct = await withRLS(businessId, async (trx) => {
+      const [res] = await trx('products')
+        .where('id', id)
+        .andWhere('business_id', businessId)
+        .update(dbData)
+        .returning('*');
+      return res;
+    });
     
-    return updatedProduct;
+    return {
+      id: updatedProduct.id,
+      name: updatedProduct.name,
+      category: updatedProduct.category,
+      price: parseFloat(updatedProduct.price),
+      unitCost: parseFloat(updatedProduct.unit_cost || updatedProduct.cost_price || 0),
+      costPrice: parseFloat(updatedProduct.cost_price || 0),
+      stockQuantity: parseFloat(updatedProduct.stock_quantity),
+      unit: updatedProduct.unit || 'pcs',
+      metadata: updatedProduct.metadata || {},
+      createdAt: updatedProduct.created_at,
+      updatedAt: updatedProduct.updated_at
+    };
   }
 
   // Check if product has sales records

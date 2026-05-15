@@ -36,6 +36,12 @@ exports.up = async function(knex) {
   ];
 
   for (const table of tables) {
+    const hasTable = await knex.schema.hasTable(table);
+    if (!hasTable) {
+      console.log(`⚠️ Skipping RLS for non-existent table: ${table}`);
+      continue;
+    }
+
     // Enable RLS
     await knex.raw(`ALTER TABLE ${table} ENABLE ROW LEVEL SECURITY`);
     

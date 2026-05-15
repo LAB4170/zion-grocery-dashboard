@@ -62,7 +62,16 @@ class Expense {
       newData: { amount: newExpense.amount, category: newExpense.category }
     });
 
-    return newExpense;
+    return {
+      id: newExpense.id,
+      description: newExpense.description,
+      amount: parseFloat(newExpense.amount),
+      category: newExpense.category,
+      createdBy: newExpense.created_by,
+      createdAt: newExpense.created_at,
+      updatedAt: newExpense.updated_at,
+      status: newExpense.status || 'pending'
+    };
   }
 
   // Get all expenses with basic filters
@@ -152,7 +161,16 @@ class Expense {
         .returning('*');
        
       await trx.commit();
-      return updatedExpense;
+      return {
+        id: updatedExpense.id,
+        description: updatedExpense.description,
+        amount: parseFloat(updatedExpense.amount),
+        category: updatedExpense.category,
+        createdBy: updatedExpense.created_by,
+        createdAt: updatedExpense.created_at,
+        updatedAt: updatedExpense.updated_at,
+        status: updatedExpense.status
+      };
     } catch (err) {
       await trx.rollback();
       throw err;

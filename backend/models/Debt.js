@@ -73,7 +73,21 @@ class Debt {
       newData: { amount: newDebt.amount, customer: newDebt.customer_name }
     });
 
-    return newDebt;
+    return {
+      id: newDebt.id,
+      saleId: newDebt.sale_id,
+      customerName: newDebt.customer_name,
+      customerPhone: newDebt.customer_phone,
+      amount: parseFloat(newDebt.amount),
+      amountPaid: parseFloat(newDebt.amount_paid),
+      balance: parseFloat(newDebt.balance),
+      status: newDebt.status,
+      dueDate: newDebt.due_date,
+      notes: newDebt.notes,
+      createdBy: newDebt.created_by,
+      createdAt: newDebt.created_at,
+      updatedAt: newDebt.updated_at
+    };
   }
 
   // Get all debts with basic filters
@@ -184,7 +198,21 @@ class Debt {
         .returning('*');
        
       await trx.commit();
-      return updatedDebt;
+      return {
+        id: updatedDebt.id,
+        saleId: updatedDebt.sale_id,
+        customerName: updatedDebt.customer_name,
+        customerPhone: updatedDebt.customer_phone,
+        amount: parseFloat(updatedDebt.amount),
+        amountPaid: parseFloat(updatedDebt.amount_paid),
+        balance: parseFloat(updatedDebt.balance),
+        status: updatedDebt.status,
+        dueDate: updatedDebt.due_date,
+        notes: updatedDebt.notes,
+        createdBy: updatedDebt.created_by,
+        createdAt: updatedDebt.created_at,
+        updatedAt: updatedDebt.updated_at
+      };
     } catch (err) {
       await trx.rollback();
       throw err;

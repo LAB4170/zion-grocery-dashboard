@@ -11,13 +11,16 @@ class ProcurementService {
   }
 
   static async createSupplier(businessId, supplierData) {
-    const [supplier] = await db('suppliers')
-      .insert({
-        ...supplierData,
-        business_id: businessId
-      })
-      .returning('*');
-    return supplier;
+    const { withRLS } = require('../../config/database');
+    return await withRLS(businessId, async (trx) => {
+      const [supplier] = await trx('suppliers')
+        .insert({
+          ...supplierData,
+          business_id: businessId
+        })
+        .returning('*');
+      return supplier;
+    });
   }
 
   /**
@@ -44,7 +47,9 @@ class ProcurementService {
       0
     );
 
-    return db.transaction(async (trx) => {
+    const { withRLS } = require('../../config/database');
+
+    return await withRLS(businessId, async (trx) => {
       // 1. Create the Purchase Order Header
       const poResults = await trx('purchase_orders')
         .insert({

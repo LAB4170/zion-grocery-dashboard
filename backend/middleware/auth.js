@@ -127,10 +127,11 @@ const requireBusinessAuth = async (req, res, next) => {
     req.business = business;
 
     // 6. RLS HANDSHAKE: Set the session variable for Postgres Row-Level Security
-    // This physically prevents data leaks at the database level even if code filters fail.
-    await db.raw("SELECT set_config('app.current_business_id', ?, false)", [business.id]);
+    // NOTE: Global handshake is unreliable with connection pooling. 
+    // We now enforce RLS at the transaction level in model methods.
+    // await db.raw("SELECT set_config('app.current_business_id', ?, false)", [business.id]);
 
-    console.log(`[AUTH] 🛡️ RLS Locked: [User: ${userEmail}] -> [Business: ${business.name} (${business.id})]`);
+    console.log(`[AUTH] 🛡️ Context Attached: [User: ${userEmail}] -> [Business: ${business.name} (${business.id})]`);
     next();
   } catch (error) {
     console.error('Auth Middleware Error:', error);

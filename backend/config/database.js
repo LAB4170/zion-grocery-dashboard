@@ -96,8 +96,21 @@ async function testConnection() {
   }
 }
 
+/**
+ * withRLS
+ * Helper to run a database operation within a transaction that has 
+ * the RLS session variable set correctly.
+ */
+async function withRLS(businessId, callback) {
+  return await db.transaction(async (trx) => {
+    await trx.raw("SELECT set_config('app.current_business_id', ?, true)", [businessId]);
+    return await callback(trx);
+  });
+}
+
 // Export both database instance and test function
 module.exports = {
   db,
-  testConnection
+  testConnection,
+  withRLS
 };

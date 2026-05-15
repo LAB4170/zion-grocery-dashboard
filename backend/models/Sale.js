@@ -74,6 +74,8 @@ class Sale {
     const trx = await dbx.transaction();
     
     try {
+      // RLS Handshake for transaction isolation
+      await trx.raw("SELECT set_config('app.current_business_id', ?, true)", [saleData.businessId]);
       let totalRevenue = 0;
       let totalCogs = 0;
       const saleItemsToInsert = [];
@@ -144,7 +146,7 @@ class Sale {
       await trx('sale_items').insert(saleItemsToInsert);
 
       // 3. Handle Debt
-      if (newSale.payment_method === 'debt') {
+      if ((saleData.paymentMethod || saleData.payment_method || '').toLowerCase() === 'debt') {
         const notes = saleItemsToInsert.length === 1 
           ? `Sale: ${saleItemsToInsert[0].product_name}` 
           : `Batch Sale: ${saleItemsToInsert.length} items`;
