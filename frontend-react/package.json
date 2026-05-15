@@ -13,6 +13,7 @@
     "@vitejs/plugin-react": "^4.3.1",
     "axios": "^1.7.2",
     "firebase": "^10.12.2",
+    "framer-motion": "^12.38.0",
     "idb": "^8.0.3",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.7",

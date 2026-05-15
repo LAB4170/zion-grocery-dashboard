@@ -1712,3 +1712,56 @@ option {
   text-align: center;
   cursor: pointer;
 }
+
+/* --- Fancy Landing Page Framing --- */
+.landing-root {
+  min-height: 100vh;
+  background-color: var(--bg);
+  position: relative;
+  padding: 24px; /* Frame space */
+  overflow-x: hidden;
+}
+
+.landing-frame-container {
+  border: 1px solid var(--border);
+  border-radius: 40px;
+  background-color: var(--bg);
+  box-shadow: 0 0 100px rgba(0, 0, 0, 0.5), inset 0 0 40px rgba(16, 185, 129, 0.05);
+  position: relative;
+  overflow: hidden;
+  z-index: 1;
+}
+
+/* Floating Atmosphere */
+.fancy-bg-blob {
+  position: absolute;
+  width: 500px;
+  height: 500px;
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.08) 0%, transparent 70%);
+  filter: blur(80px);
+  z-index: -1;
+  border-radius: 50%;
+  animation: float 20s infinite alternate;
+}
+
+.blob-1 { top: -100px; left: -100px; }
+.blob-2 { bottom: -200px; right: -200px; animation-delay: -10s; }
+
+@keyframes float {
+  from { transform: translate(0, 0); }
+  to { transform: translate(100px, 100px); }
+}
+
+/* Feature Card Enhancements */
+.feature-card.glass {
+  border-radius: 32px;
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.feature-card:hover {
+  border-color: var(--accent);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4), 0 0 20px rgba(16, 185, 129, 0.2);
+}
